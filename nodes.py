@@ -517,7 +517,9 @@ def _filter_styles(styles, category, search, favorites_only, favorites_text, sav
         if favorites_only and not s.get("favorite"):
             continue
         out.append(s)
-    return out if favorites_only else (out or styles)
+    # An empty filter is a real empty result. Falling back to the complete
+    # catalogue makes Search Random and Search First Match ignore the query.
+    return out
 
 
 def _weighted_choice(rng, styles):
@@ -745,7 +747,7 @@ class LoadStylesCSVPro:
                     selected = styles[0]
             picked = [selected]
         elif mode == "Search First Match":
-            picked = [filtered_pool[0] if filtered_pool else styles[0]]
+            picked = [filtered_pool[0] if filtered_pool else _no_style_record(fav_kind)]
         else:
             if mode == "Random Every Queue":
                 rng = random.Random(time.time_ns() ^ random.getrandbits(64) ^ int(refresh_id or 0))
@@ -771,7 +773,7 @@ class LoadStylesCSVPro:
                 picked.append(choice)
                 work.remove(choice)
             if not picked:
-                picked = [styles[0]]
+                picked = [_no_style_record(fav_kind)]
 
         # v0.9: saved favorites. This works without frontend JS: choose an action, queue once,
         # then set action back to None. Favorites are stored in data/favorites_styles.json or

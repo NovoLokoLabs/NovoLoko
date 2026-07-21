@@ -29,9 +29,26 @@ TYPE_MAP = {
 }
 PATH_MAP = {'styles_krea2_mega_plus_v6_literal_triggers.csv': 'csv/styles/novoloko_krea2_styles_1455.csv', 'characters_krea2_nova_v3_expanded_real_female.csv': 'csv/characters/novoloko_characters_master_1098.csv', 'characters_real_female_fixed.csv': 'csv/characters/novoloko_characters_master_1098.csv', 'Characters_Master_Uncensored.csv': 'csv/characters/novoloko_characters_master_1098.csv', 'xxxxpose.csv': 'csv/poses/novoloko_pose_collection_485.csv', 'csv/actions/nova_actions_1000.csv': 'csv/actions/novoloko_actions_1000.csv', 'csv/clothing/nova_branded_clothing_1000.csv': 'csv/clothing/novoloko_branded_clothing_1000.csv', 'csv/clothing/nova_branded_clothing_gendered_2400.csv': 'csv/clothing/novoloko_branded_clothing_gendered_2400.csv', 'csv/clothing/nova_clothing_hair_expanded_4000.csv': 'csv/clothing/novoloko_clothing_hair_expanded_4000.csv', 'csv/locations/nova_locations_expanded_3000.csv': 'csv/locations/novoloko_locations_expanded_3000.csv', 'csv/locations/nova_real_locations_1000.csv': 'csv/locations/novoloko_real_locations_1000.csv', 'csv/mega/nova_mega_mix_4000.csv': 'csv/mega/novoloko_mega_mix_9000.csv', 'csv/mega/nova_mega_mix_5400.csv': 'csv/mega/novoloko_mega_mix_9000.csv', 'csv/mega/nova_mega_mix_9000.csv': 'csv/mega/novoloko_mega_mix_9000.csv', 'csv/poses/nova_poses_1000.csv': 'csv/poses/novoloko_poses_1000.csv', 'styles/nova_all_yaml_styles.yaml': 'styles/novoloko_all_yaml_styles.yaml'}
 
-def update(value):
+VISIBLE_BRAND_FIELDS = {"title"}
+
+
+def _update_known_string(value: str, field: str | None = None) -> str:
+    """Migrate known serialized identifiers without rewriting user prompt text."""
+    text = value
+    for old, new in PATH_MAP.items():
+        text = text.replace(old, new)
+    text = text.replace("ComfyUI-NovaNodes", "ComfyUI-NovoLoko")
+    text = text.replace("NovaVoiceKokoro", "NovoLokoVoiceKokoro")
+    text = text.replace("NovaPreview/", "NovoLokoPreview/")
+    if field in VISIBLE_BRAND_FIELDS:
+        text = text.replace("Nova Nodes", "NovoLoko").replace("NovaNodes", "NovoLoko")
+        text = text.replace("NOVA ", "NOVOLOKO ").replace("Nova ", "NovoLoko ")
+    return text
+
+
+def update(value, field: str | None = None):
     if isinstance(value, dict):
-        out = {key: update(item) for key, item in value.items()}
+        out = {key: update(item, key) for key, item in value.items()}
         if isinstance(out.get("type"), str):
             out["type"] = TYPE_MAP.get(out["type"], out["type"])
         props = out.get("properties")
@@ -42,17 +59,9 @@ def update(value):
                 props["Node name for S&R"] = TYPE_MAP.get(props["Node name for S&R"], props["Node name for S&R"])
         return out
     if isinstance(value, list):
-        return [update(item) for item in value]
+        return [update(item, field) for item in value]
     if isinstance(value, str):
-        text = value
-        for old, new in PATH_MAP.items():
-            text = text.replace(old, new)
-        text = text.replace("ComfyUI-NovaNodes", "ComfyUI-NovoLoko")
-        text = text.replace("Nova Nodes", "NovoLoko").replace("NovaNodes", "NovoLoko")
-        text = text.replace("NOVA ", "NOVOLOKO ").replace("Nova ", "NovoLoko ")
-        text = text.replace("NovaVoiceKokoro", "NovoLokoVoiceKokoro")
-        text = text.replace("NovaPreview/", "NovoLokoPreview/")
-        return text
+        return _update_known_string(value, field)
     return value
 
 def main():

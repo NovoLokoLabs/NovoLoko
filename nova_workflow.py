@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from typing import Any, Dict, List
 
 import numpy as np
@@ -83,6 +84,22 @@ class NovaPromptStyler:
     @classmethod
     def VALIDATE_INPUTS(cls, **kwargs):
         return True
+
+    @classmethod
+    def IS_CHANGED(
+        cls,
+        text_positive="",
+        text_negative="",
+        style_file="styles/camera.yaml",
+        template_name="none",
+    ):
+        if str(template_name or "none").strip().lower() == "random":
+            return time.time_ns()
+        try:
+            modified = os.path.getmtime(_resolve_csv_path(style_file))
+        except OSError:
+            modified = 0
+        return (text_positive, text_negative, style_file, template_name, modified)
 
     def style(self, text_positive="", text_negative="", style_file="styles/camera.yaml", template_name="none"):
         positive = str(text_positive or "").strip()
