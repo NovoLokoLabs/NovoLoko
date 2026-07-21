@@ -1,0 +1,68 @@
+{
+  "version": "3.2.6",
+  "brand": "NovoLoko",
+  "package": "ComfyUI-NovoLoko",
+  "registered_node_count": 31,
+  "registered_nodes": [
+    "NovaLoadStylesCSVPro",
+    "NovaLoadCharactersCSVPro",
+    "NovaPromptBuilderPreEnhance",
+    "NovaTextPrompt",
+    "NovaPromptPreview",
+    "NovaPromptStyleSwitch",
+    "NovaPromptStyleCharacterSwitch",
+    "NovaPromptTwoStyleCharacterSwitch",
+    "NovaStyleCharacterMixer",
+    "NovaPromptSpice",
+    "NovaSecretSaucePrompt",
+    "NovaOverlayTextPro",
+    "NovaPromptLogger",
+    "NovaVoicePrompt",
+    "NovaPromptSpeechSelector",
+    "NovaKokoroTTS",
+    "NovaAudioAutoplayTrigger",
+    "NovaAudioHistoryPlayer",
+    "NovaKokoroSpeechBridge",
+    "NovaPromptStackAIO",
+    "NovaImageComparePro",
+    "NovaPromptStyler",
+    "NovaPromptStackSwitch",
+    "NovaSaveImageMetadata",
+    "NovaDynamicTextConcatenate",
+    "NovaSeedLab",
+    "NovaGenerationTimer",
+    "NovaPreviewPassThrough",
+    "NovaMemoryManager",
+    "NovaPromptEnhancer",
+    "NovaTextDisplay"
+  ],
+  "workflows": [
+    "workflows/NovoLoko AIO v3.2.6 - Latest Workflow.json",
+    "workflows/NovoLoko Compare Studio v3.2.6.json"
+  ],
+  "cleanup": {
+    "single_current_mapping_per_node": true,
+    "legacy_versioned_aliases_removed": true,
+    "duplicate_text_display_removed": true,
+    "runtime_history_cleared": true,
+    "favorites_cleared": true,
+    "python_cache_removed": true,
+    "csv_library_organized": true,
+    "old_workflow_migrator_included": true
+  },
+  "dependencies": {
+    "core": "requirements.txt \u2014 lightweight YAML support",
+    "optional_voice": "requirements-voice.txt \u2014 Whisper/Kokoro/audio dependencies"
+  },
+  "validation": {
+    "python_syntax": "passed",
+    "javascript_syntax": "passed",
+    "package_import": "passed",
+    "all_registered_input_schemas": "passed",
+    "current_csv_yaml_paths": "passed",
+    "workflow_json_and_links": "passed",
+    "old_workflow_migration": "passed",
+    "duplicate_registered_mappings": 0,
+    "exact_comfyui_desktop_runtime": "not tested"
+  }
+}
