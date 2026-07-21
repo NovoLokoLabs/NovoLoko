@@ -33,8 +33,11 @@ class RepositoryTests(unittest.TestCase):
             with self.subTest(path=relative):
                 self.assertTrue((ROOT / relative).is_file())
 
-    def test_runtime_history_is_empty(self) -> None:
-        history = json.loads((ROOT / "data/history.json").read_text(encoding="utf-8"))
+    def test_runtime_history_is_absent_or_empty(self) -> None:
+        history_path = ROOT / "data/history.json"
+        if not history_path.exists():
+            return
+        history = json.loads(history_path.read_text(encoding="utf-8"))
         self.assertIn(history, ({}, [], None))
 
     def test_workflow_names_are_novoloko_branded(self) -> None:

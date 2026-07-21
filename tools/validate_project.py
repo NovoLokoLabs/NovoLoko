@@ -139,7 +139,21 @@ def validate_javascript(result: Result) -> None:
         result.warn("Node.js not found; skipped JavaScript syntax checks")
         return
     for path in JAVASCRIPT_FILES:
-        proc = subprocess.run([node, "--check", str(path)], capture_output=True, text=True)
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            result.error(f"JavaScript read failed: {rel(path)}: {exc}")
+            continue
+        # ComfyUI frontend extensions are browser ES modules. Passing the source
+        # on stdin lets Node parse it as a module without adding package.json or
+        # renaming release files to .mjs.
+        proc = subprocess.run(
+            [node, "--input-type=module", "--check"],
+            input=source,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
         if proc.returncode:
             message = (proc.stderr or proc.stdout).strip()
             result.error(f"JavaScript syntax failed: {rel(path)}: {message}")
