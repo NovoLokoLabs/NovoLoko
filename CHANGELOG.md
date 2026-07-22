@@ -1,5 +1,13 @@
 # NovoLoko Changelog
 
+## v3.2.7 — Verified audit fixes
+
+- Made workflow migration preserve user prompt text while updating known serialized identifiers and visible package branding.
+- Corrected JavaScript validation so ComfyUI frontend files are checked as ES modules.
+- Made empty style searches resolve safely to `No Style` instead of falling back to the full catalogue.
+- Made Prompt Styler random mode bypass ComfyUI caching for every queue.
+- Added clean-checkout CI coverage and the minimum NumPy/Pillow development dependencies required by the tests.
+
 ## v3.2.6 — Clean rebrand release
 
 - Rebranded all visible package, node-menu, workflow, frontend and documentation text to NovoLoko.

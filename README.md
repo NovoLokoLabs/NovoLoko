@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.2.6
+# ComfyUI-NovoLoko v3.2.7
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI and press `Ctrl+F5` in the browser.
-5. Load `workflows/NovoLoko AIO v3.2.6 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v3.2.7 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,8 +22,8 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.2.6 - Latest Workflow.json` — full prompt stack, enhancer instructions and status displays, two-pass generation, compare, metadata save, media studio, timer and memory manager.
-- `NovoLoko Compare Studio v3.2.6.json` — minimal image comparison example.
+- `NovoLoko AIO v3.2.7 - Latest Workflow.json` — full prompt stack, enhancer instructions and status displays, two-pass generation, compare, metadata save, media studio, timer and memory manager.
+- `NovoLoko Compare Studio v3.2.7.json` — minimal image comparison example.
 
 ## Main nodes
 

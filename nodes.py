@@ -10,7 +10,7 @@ try:
 except Exception:
     yaml = None
 
-NOVA_VERSION = "3.2.6"
+NOVA_VERSION = "3.2.7"
 
 try:
     import folder_paths

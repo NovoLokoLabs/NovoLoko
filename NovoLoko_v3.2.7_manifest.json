@@ -1,5 +1,5 @@
 {
-  "version": "3.2.6",
+  "version": "3.2.7",
   "brand": "NovoLoko",
   "package": "ComfyUI-NovoLoko",
   "registered_node_count": 31,
@@ -37,8 +37,8 @@
     "NovaTextDisplay"
   ],
   "workflows": [
-    "workflows/NovoLoko AIO v3.2.6 - Latest Workflow.json",
-    "workflows/NovoLoko Compare Studio v3.2.6.json"
+    "workflows/NovoLoko AIO v3.2.7 - Latest Workflow.json",
+    "workflows/NovoLoko Compare Studio v3.2.7.json"
   ],
   "cleanup": {
     "single_current_mapping_per_node": true,
