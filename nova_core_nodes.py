@@ -30,7 +30,7 @@ except Exception:
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
 
-NOVA_CORE_VERSION = "3.2.6"
+NOVA_CORE_VERSION = "3.2.7"
 SEED_MAX = 0xFFFFFFFFFFFFFFFF
 
 
