@@ -22,7 +22,9 @@ from .nodes import NOVA_VERSION
 PROFILE_VOICE = "Current OmniLoko Profile"
 _BASE_PATH = "/lokobridge/v1/"
 _REQUIRED_CAPABILITIES_REVISION = 1
+_MAX_JSON_BYTES = 4 * 1024 * 1024
 _MAX_AUDIO_BYTES = 256 * 1024 * 1024
+_REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
 _POLL_SECONDS = 1.0
 _PROBE_REQUEST_SECONDS = 0.35
 _PROBE_TOTAL_SECONDS = 1.0
@@ -100,7 +102,72 @@ def _validate_endpoint(base_url: str) -> None:
         raise RuntimeError("OmniLoko LokoBridge endpoint is not a permitted literal IPv4 loopback address.")
 
 
-def _deadline_transport(deadline: float | None = None, request_limit: float | None = None):
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        return None
+
+
+def _validate_transport_url(url: str, allowed_base_url: str) -> bool:
+    requested = urlsplit(str(url or ""))
+    allowed = urlsplit(str(allowed_base_url or ""))
+    if (
+        allowed.scheme != "http"
+        or allowed.hostname != "127.0.0.1"
+        or allowed.port is None
+        or allowed.path != _BASE_PATH
+        or requested.scheme != allowed.scheme
+        or requested.hostname != allowed.hostname
+        or requested.port != allowed.port
+        or requested.username is not None
+        or requested.password is not None
+        or not requested.path.startswith(allowed.path)
+        or requested.query
+        or requested.fragment
+    ):
+        raise RuntimeError("LokoBridge refused a request outside its permitted loopback endpoint.")
+    return requested.path.rstrip("/").endswith("/audio")
+
+
+def _read_bounded(response: Any, limit: int) -> bytes:
+    content_length = response.headers.get("Content-Length")
+    if content_length:
+        try:
+            declared_length = int(content_length)
+        except (TypeError, ValueError):
+            declared_length = -1
+        if declared_length > limit:
+            raise RuntimeError("LokoBridge response exceeded the permitted size.")
+
+    buffer = bytearray()
+    try:
+        while len(buffer) <= limit:
+            read_size = min(64 * 1024, limit + 1 - len(buffer))
+            chunk = response.read(read_size)
+            if not chunk:
+                return bytes(buffer)
+            buffer.extend(chunk)
+        raise RuntimeError("LokoBridge response exceeded the permitted size.")
+    finally:
+        buffer.clear()
+
+
+def _require_wav_content_type(headers: Mapping[str, str]) -> None:
+    raw_content_type = next(
+        (value for name, value in headers.items() if str(name).casefold() == "content-type"),
+        "",
+    )
+    content_type = str(raw_content_type).split(";", 1)[0].strip().lower()
+    if content_type != "audio/wav":
+        raise RuntimeError("LokoBridge audio response did not have the required media type.")
+
+
+def _deadline_transport(
+    deadline: float | None = None,
+    request_limit: float | None = None,
+    allowed_base_url: str | None = None,
+):
+    opener = urllib.request.build_opener(_NoRedirectHandler())
+
     def transport(
         method: str,
         url: str,
@@ -108,6 +175,9 @@ def _deadline_transport(deadline: float | None = None, request_limit: float | No
         body: bytes | None,
         timeout: float,
     ) -> tuple[int, Mapping[str, str], bytes]:
+        if allowed_base_url is None:
+            raise RuntimeError("LokoBridge transport has no permitted endpoint.")
+        is_audio_request = _validate_transport_url(url, allowed_base_url)
         effective = float(timeout)
         if request_limit is not None:
             effective = min(effective, request_limit)
@@ -118,10 +188,21 @@ def _deadline_transport(deadline: float | None = None, request_limit: float | No
             effective = min(effective, remaining)
         request = urllib.request.Request(url, data=body, headers=dict(headers), method=method)
         try:
-            with urllib.request.urlopen(request, timeout=max(0.01, effective)) as response:
-                return response.status, dict(response.headers.items()), response.read()
+            with opener.open(request, timeout=max(0.01, effective)) as response:
+                response_headers = dict(response.headers.items())
+                if is_audio_request:
+                    _require_wav_content_type(response_headers)
+                payload = _read_bounded(response, _MAX_AUDIO_BYTES if is_audio_request else _MAX_JSON_BYTES)
+                return response.status, response_headers, payload
         except urllib.error.HTTPError as exc:
-            return exc.code, dict(exc.headers.items()), exc.read()
+            try:
+                if exc.code in _REDIRECT_STATUS_CODES:
+                    raise RuntimeError("LokoBridge refused an HTTP redirect.")
+                response_headers = dict(exc.headers.items())
+                payload = _read_bounded(exc, _MAX_JSON_BYTES)
+                return exc.code, response_headers, payload
+            finally:
+                exc.close()
 
     return transport
 
@@ -157,7 +238,7 @@ def _connect(deadline: float | None = None, request_limit: float | None = None) 
     try:
         client = api.LokoBridgeClient(
             discovery,
-            transport=_deadline_transport(deadline, request_limit),
+            transport=_deadline_transport(deadline, request_limit, discovery.base_url),
             metadata_timeout=request_limit or 5.0,
         )
         health = client.health()
@@ -365,7 +446,7 @@ def _cancel_quietly(session: _BridgeSession, job_id: str) -> None:
     try:
         cancellation_client = session.api.LokoBridgeClient(
             session.discovery,
-            transport=_deadline_transport(request_limit=2.0),
+            transport=_deadline_transport(request_limit=2.0, allowed_base_url=session.discovery.base_url),
             metadata_timeout=2.0,
         )
         cancellation_client.cancel_job(job_id)

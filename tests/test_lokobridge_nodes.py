@@ -301,8 +301,11 @@ class FakeLokoBridgeHost:
         self.presets = [{"id": "opaque-preset-123", "displayName": "Test Voice", "format": "pt", "language": "en"}]
         self.states = ["completed"]
         self.audio = wave_bytes()
+        self.audio_content_type: str | None = "audio/wav; charset=binary"
         self.failed_message: str | None = None
         self.response_delay = 0.0
+        self.redirects: dict[str, tuple[int, str]] = {}
+        self.response_overrides: dict[str, dict] = {}
         self.requests: list[dict] = []
         self.cancellations = 0
         self._job_reads = 0
@@ -339,6 +342,32 @@ class FakeLokoBridgeHost:
         self.requests.append(request)
         if self.response_delay > 0:
             time.sleep(self.response_delay)
+
+        redirect = self.redirects.get(handler.path)
+        if redirect is not None:
+            status, location = redirect
+            redirect_body = f"redirect target {location}; secret {self.token}".encode("utf-8")
+            handler.send_response(status)
+            handler.send_header("Location", location)
+            handler.send_header("Content-Type", "text/plain")
+            handler.send_header("Content-Length", str(len(redirect_body)))
+            handler.end_headers()
+            try:
+                handler.wfile.write(redirect_body)
+            except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                pass
+            return
+
+        override = self.response_overrides.get(handler.path)
+        if override is not None:
+            return self.bytes_response(
+                handler,
+                override.get("status", 200),
+                override.get("content_type"),
+                override.get("body", b""),
+                include_content_length=override.get("include_content_length", True),
+                declared_length=override.get("declared_length"),
+            )
 
         if handler.path == "/lokobridge/v1/health":
             return self.json_response(handler, 200, {
@@ -384,7 +413,7 @@ class FakeLokoBridgeHost:
             self._job_reads += 1
             return self.json_response(handler, 200, self.job(state, request_id))
         if handler.command == "GET" and handler.path == "/lokobridge/v1/jobs/job-1/audio":
-            return self.bytes_response(handler, 200, "audio/wav", self.audio)
+            return self.bytes_response(handler, 200, self.audio_content_type, self.audio)
         if handler.command == "DELETE" and handler.path == "/lokobridge/v1/jobs/job-1":
             self.cancellations += 1
             return self.json_response(handler, 200, {"jobId": "job-1", "accepted": True, "state": "cancelled"})
@@ -429,15 +458,98 @@ class FakeLokoBridgeHost:
         )
 
     @staticmethod
-    def bytes_response(handler, status: int, content_type: str, body: bytes) -> None:
+    def bytes_response(
+        handler,
+        status: int,
+        content_type: str | None,
+        body: bytes,
+        *,
+        include_content_length: bool = True,
+        declared_length: int | None = None,
+    ) -> None:
         handler.send_response(status)
-        handler.send_header("Content-Type", content_type)
-        handler.send_header("Content-Length", str(len(body)))
+        if content_type is not None:
+            handler.send_header("Content-Type", content_type)
+        if include_content_length:
+            handler.send_header("Content-Length", str(len(body) if declared_length is None else declared_length))
         handler.end_headers()
         try:
             handler.wfile.write(body)
         except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
             pass
+
+
+class RequestCollector:
+    def __init__(self):
+        self.requests: list[dict] = []
+        self._closed = False
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        self.server.owner = self
+        self.server.daemon_threads = True
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    @property
+    def url(self) -> str:
+        return f"http://127.0.0.1:{self.server.server_address[1]}/collected"
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+
+    def handle(self, handler: BaseHTTPRequestHandler) -> None:
+        self.requests.append({
+            "method": handler.command,
+            "path": handler.path,
+            "headers": dict(handler.headers.items()),
+        })
+        FakeLokoBridgeHost.bytes_response(handler, 200, "application/json", b"{}")
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *_args):
+        self.close()
+
+
+class MemoryResponse:
+    def __init__(self, body: bytes, content_type: str, content_length: str | None):
+        self.status = 200
+        self.headers = {"Content-Type": content_type}
+        if content_length is not None:
+            self.headers["Content-Length"] = content_length
+        self.body = body
+        self.position = 0
+        self.read_sizes: list[int] = []
+
+    def read(self, size: int = -1) -> bytes:
+        self.read_sizes.append(size)
+        if size < 0:
+            raise AssertionError("Transport attempted an unrestricted response read.")
+        start = self.position
+        self.position = min(len(self.body), self.position + size)
+        return self.body[start:self.position]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+
+class MemoryOpener:
+    def __init__(self, response: MemoryResponse):
+        self.response = response
+
+    def open(self, _request, timeout=None):
+        return self.response
 
 
 class BridgeContext:
@@ -724,6 +836,93 @@ class LokoBridgeNodeTests(unittest.TestCase):
             context.host.capabilities.discard("audio.wav@1")
             with self.assertRaisesRegex(RuntimeError, "invalid LokoBridge response"):
                 self.module.NovaOmniLokoTTS().speak("hello")
+
+    def test_redirects_never_reach_their_target_or_leak_authentication(self):
+        for status in (301, 302, 303, 307, 308):
+            with self.subTest(status=status), RequestCollector() as collector, BridgeContext() as context:
+                redirect_destination = f"{collector.url}?secret={context.host.token}"
+                context.host.redirects["/lokobridge/v1/capabilities"] = (status, redirect_destination)
+                captured_out = io.StringIO()
+                captured_err = io.StringIO()
+                with contextlib.redirect_stdout(captured_out), contextlib.redirect_stderr(captured_err):
+                    with self.assertRaisesRegex(RuntimeError, "invalid LokoBridge response") as raised:
+                        self.module.NovaOmniLokoTTS().speak("redirect safely")
+
+                visible = str(raised.exception) + captured_out.getvalue() + captured_err.getvalue()
+                self.assertEqual([], collector.requests)
+                self.assertNotIn(context.host.token, visible)
+                self.assertNotIn(collector.url, visible)
+
+    def test_successful_response_reads_are_bounded_without_unrestricted_allocation(self):
+        allowed_base = "http://127.0.0.1:43210/lokobridge/v1/"
+        audio_url = allowed_base + "jobs/job-1/audio"
+        oversized_audio = MemoryResponse(b"body must not be read", "audio/wav", "17")
+        with (
+            mock.patch.object(self.module, "_MAX_AUDIO_BYTES", 16),
+            mock.patch.object(
+                self.module.urllib.request,
+                "build_opener",
+                return_value=MemoryOpener(oversized_audio),
+            ),
+        ):
+            transport = self.module._deadline_transport(allowed_base_url=allowed_base)
+            with self.assertRaisesRegex(RuntimeError, "permitted size"):
+                transport("GET", audio_url, {"Authorization": "Bearer hidden"}, None, 1.0)
+        self.assertEqual([], oversized_audio.read_sizes)
+
+        for content_length in (None, "0"):
+            with self.subTest(content_length=content_length):
+                streamed_json = MemoryResponse(b"raw-sensitive-body" * 8, "application/json", content_length)
+                with (
+                    mock.patch.object(self.module, "_MAX_JSON_BYTES", 16),
+                    mock.patch.object(
+                        self.module.urllib.request,
+                        "build_opener",
+                        return_value=MemoryOpener(streamed_json),
+                    ),
+                ):
+                    transport = self.module._deadline_transport(allowed_base_url=allowed_base)
+                    with self.assertRaisesRegex(RuntimeError, "permitted size") as raised:
+                        transport("GET", allowed_base + "capabilities", {"Authorization": "Bearer hidden"}, None, 1.0)
+                self.assertEqual(17, sum(streamed_json.read_sizes))
+                self.assertNotIn("raw-sensitive-body", str(raised.exception))
+                self.assertNotIn("hidden", str(raised.exception))
+
+    def test_oversized_json_and_structured_error_responses_fail_safely(self):
+        raw_marker = "raw-response-must-not-escape"
+        with mock.patch.object(self.module, "_MAX_JSON_BYTES", 512):
+            with BridgeContext() as context:
+                context.host.response_overrides["/lokobridge/v1/capabilities"] = {
+                    "status": 200,
+                    "content_type": "application/json",
+                    "body": (raw_marker + context.host.token).encode("utf-8") * 8,
+                }
+                with self.assertRaisesRegex(RuntimeError, "invalid LokoBridge response") as raised:
+                    self.module.NovaOmniLokoTTS().speak("oversized metadata")
+                self.assertNotIn(raw_marker, str(raised.exception))
+                self.assertNotIn(context.host.token, str(raised.exception))
+
+            with BridgeContext() as context:
+                context.host.response_overrides["/lokobridge/v1/jobs/speech"] = {
+                    "status": 500,
+                    "content_type": "application/json",
+                    "body": (raw_marker + context.host.token).encode("utf-8") * 8,
+                    "include_content_length": False,
+                }
+                with self.assertRaisesRegex(RuntimeError, "invalid LokoBridge response") as raised:
+                    self.module.NovaOmniLokoTTS().speak("oversized structured error")
+                self.assertNotIn(raw_marker, str(raised.exception))
+                self.assertNotIn(context.host.token, str(raised.exception))
+                self.assertTrue(any(item["path"].endswith("/jobs/speech") for item in context.host.requests))
+
+    def test_audio_requires_wav_content_type_before_riff_decoding(self):
+        self.module._require_wav_content_type({"content-type": "audio/wav; charset=binary"})
+        for content_type in ("text/plain", "application/json", None):
+            with self.subTest(content_type=content_type), BridgeContext() as context:
+                context.host.audio_content_type = content_type
+                with self.assertRaisesRegex(RuntimeError, "invalid LokoBridge response"):
+                    self.module.NovaOmniLokoTTS().speak("wrong audio metadata")
+                self.assertTrue(any(item["path"].endswith("/audio") for item in context.host.requests))
 
     def test_current_profile_request_shape_and_audio_conversion(self):
         with BridgeContext() as context:
