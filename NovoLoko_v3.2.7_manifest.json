@@ -2,7 +2,7 @@
   "version": "3.2.7",
   "brand": "NovoLoko",
   "package": "ComfyUI-NovoLoko",
-  "registered_node_count": 31,
+  "registered_node_count": 32,
   "registered_nodes": [
     "NovaLoadStylesCSVPro",
     "NovaLoadCharactersCSVPro",
@@ -20,6 +20,7 @@
     "NovaVoicePrompt",
     "NovaPromptSpeechSelector",
     "NovaKokoroTTS",
+    "NovaOmniLokoTTS",
     "NovaAudioAutoplayTrigger",
     "NovaAudioHistoryPlayer",
     "NovaKokoroSpeechBridge",
@@ -52,7 +53,8 @@
   },
   "dependencies": {
     "core": "requirements.txt \u2014 lightweight YAML support",
-    "optional_voice": "requirements-voice.txt \u2014 Whisper/Kokoro/audio dependencies"
+    "optional_voice": "requirements-voice.txt \u2014 Whisper/Kokoro/audio dependencies",
+    "lokobridge_client": "Release packaging blocked until an official public lokobridge-client wheel distribution route is selected"
   },
   "validation": {
     "python_syntax": "passed",
