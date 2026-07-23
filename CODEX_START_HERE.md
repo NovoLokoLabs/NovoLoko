@@ -1,6 +1,6 @@
 # Start Here — NovoLoko Project
 
-This repository contains the complete **ComfyUI-NovoLoko v3.2.7** custom-node package.
+This repository contains the complete **ComfyUI-NovoLoko v3.3.0** custom-node package.
 
 ## Project goal
 
@@ -38,7 +38,7 @@ Audit the project without changing working behavior. Run the validator, identify
 Static checks cannot replace a real ComfyUI launch. A release candidate should also be tested for:
 
 - clean startup with only `ComfyUI-NovoLoko` installed;
-- all 31 nodes appearing once under the NovoLoko menus;
+- all 32 nodes appearing once under the NovoLoko menus;
 - current AIO workflow loading without missing nodes or shifted links;
 - Prompt Enhancer fixed-seed repeatability;
 - CSV/YAML dropdown refresh and favourites;

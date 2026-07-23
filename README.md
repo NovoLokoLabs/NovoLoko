@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.2.7
+# ComfyUI-NovoLoko v3.3.0
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI and press `Ctrl+F5` in the browser.
-5. Load `workflows/NovoLoko AIO v3.2.7 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v3.3.0 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,8 +22,8 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.2.7 - Latest Workflow.json` — full prompt stack, enhancer instructions and status displays, two-pass generation, compare, metadata save, media studio, timer and memory manager.
-- `NovoLoko Compare Studio v3.2.7.json` — minimal image comparison example.
+- `NovoLoko AIO v3.3.0 - Latest Workflow.json` — full prompt stack, enhancer instructions and status displays, two-pass generation, compare, metadata save, media studio, timer and memory manager.
+- `NovoLoko Compare Studio v3.3.0.json` — minimal image comparison example.
 
 ## Main nodes
 
@@ -31,7 +31,7 @@ Prompt tools include Prompt Stack AIO Pro, Prompt Enhancer Pro, Manual Prompt + 
 
 Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger.
 
-Optional media tools include Voice Prompt, Kokoro TTS, Autoplay Trigger, Media Studio and Kokoro Text Bridge.
+Optional media tools include Voice Prompt, Kokoro TTS, OmniLoko TTS, Autoplay Trigger, Media Studio and Kokoro Text Bridge.
 
 ## CSV and YAML library
 
@@ -50,9 +50,21 @@ The latest workflow uses:
 
 Use a fixed seed in NovoLoko Seed Lab and `Random From Seed` in Prompt Stack AIO. The idea, selected stack entries and enhancer seed must all stay unchanged. For guaranteed word-for-word output across a very large batch, generate once and use the enhanced text as a manual prompt for the remaining queues.
 
-## Optional voice dependencies
+## Optional Kokoro and Whisper dependencies
 
-Core installation only requires the lightweight `requirements.txt` entry for YAML support. Run `INSTALL_NOVOLOKO_VOICE_AND_KOKORO.bat` only when Whisper/Kokoro imports are missing; it installs the separate optional `requirements-voice.txt`. Existing voice installations normally do not need reinstalling.
+Run `INSTALL_NOVOLOKO_VOICE_AND_KOKORO.bat` only when Whisper/Kokoro imports are missing; it installs the separate optional `requirements-voice.txt`. Existing voice installations normally do not need reinstalling.
+
+## OmniLoko TTS through LokoBridge
+
+NovoLoko OmniLoko TTS uses the separately running OmniLoko desktop app through the local-only LokoBridge service. The ComfyUI node does not load another OmniVoice model or start its own voice worker.
+
+ComfyUI Manager and normal runtime dependency installation install `lokobridge-client==1.0.0` automatically on Python 3.11 or later. Older Python installations remain import-safe, but OmniLoko TTS reports that the client is unavailable. Manual ZIP installations can install the client with:
+
+```powershell
+python -m pip install lokobridge-client==1.0.0
+```
+
+Run that command with ComfyUI's own Python executable, not an unrelated system Python. Start OmniLoko normally or with `--bridge-only` before generating. The node supports both **Current OmniLoko Profile** and saved OmniLoko presets.
 
 ## Troubleshooting
 
