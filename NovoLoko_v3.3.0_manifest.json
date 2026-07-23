@@ -1,5 +1,5 @@
 {
-  "version": "3.2.7",
+  "version": "3.3.0",
   "brand": "NovoLoko",
   "package": "ComfyUI-NovoLoko",
   "registered_node_count": 32,
@@ -38,8 +38,8 @@
     "NovaTextDisplay"
   ],
   "workflows": [
-    "workflows/NovoLoko AIO v3.2.7 - Latest Workflow.json",
-    "workflows/NovoLoko Compare Studio v3.2.7.json"
+    "workflows/NovoLoko AIO v3.3.0 - Latest Workflow.json",
+    "workflows/NovoLoko Compare Studio v3.3.0.json"
   ],
   "cleanup": {
     "single_current_mapping_per_node": true,
@@ -52,9 +52,9 @@
     "old_workflow_migrator_included": true
   },
   "dependencies": {
-    "core": "requirements.txt \u2014 lightweight YAML support",
+    "core": "requirements.txt \u2014 PyYAML plus public LokoBridge client on Python 3.11+",
     "optional_voice": "requirements-voice.txt \u2014 Whisper/Kokoro/audio dependencies",
-    "lokobridge_client": "Release packaging blocked until an official public lokobridge-client wheel distribution route is selected"
+    "lokobridge_client": "lokobridge-client==1.0.0 from public PyPI on Python 3.11+"
   },
   "validation": {
     "python_syntax": "passed",
@@ -65,6 +65,6 @@
     "workflow_json_and_links": "passed",
     "old_workflow_migration": "passed",
     "duplicate_registered_mappings": 0,
-    "exact_comfyui_desktop_runtime": "not tested"
+    "exact_comfyui_desktop_runtime": "passed"
   }
 }

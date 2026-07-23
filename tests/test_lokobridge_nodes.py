@@ -778,12 +778,19 @@ class LokoBridgeNodeTests(unittest.TestCase):
             for path in (ROOT / ".github" / "workflows").iterdir()
             if path.suffix.lower() in {".yml", ".yaml"}
         )
+        core_requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
         requirements_text = "\n".join(
             path.read_text(encoding="utf-8") for path in ROOT.glob("requirements*.txt")
         )
+        expected_pin = 'lokobridge-client==1.0.0; python_version >= "3.11"'
+        self.assertEqual(1, core_requirements.count(expected_pin))
+        self.assertIn("python -m pip install -r requirements.txt", workflow_text)
         self.assertNotIn("LOKOBRIDGE_DEPLOY_KEY", workflow_text)
         self.assertNotIn("NovoLokoLabs/LokoBridge", workflow_text)
         self.assertNotIn("git+", requirements_text)
+        self.assertNotIn(".whl", requirements_text)
+        self.assertNotIn("NovoLokoLabs/LokoBridge", requirements_text)
+        self.assertNotIn("LOKOBRIDGE_DEPLOY_KEY", requirements_text)
         self.assertFalse(any(ROOT.rglob("lokobridge_client-*.whl")))
 
     def test_all_existing_mappings_and_new_mapping_load(self):
@@ -934,7 +941,7 @@ class LokoBridgeNodeTests(unittest.TestCase):
             post = next(item for item in context.host.requests if item["path"].endswith("/jobs/speech"))
             request = json.loads(post["body"])
             self.assertEqual("NovoLoko", request["clientName"])
-            self.assertEqual("3.2.7", request["clientVersion"])
+            self.assertEqual("3.3.0", request["clientVersion"])
             self.assertEqual({"kind": "profile-current"}, request["voice"])
             self.assertFalse(request["normalizeLoudness"])
             self.assertEqual("hello bridge", spoken)

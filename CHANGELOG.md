@@ -1,5 +1,12 @@
 # NovoLoko Changelog
 
+## v3.3.0 — OmniLoko TTS integration
+
+- Added the public `NovaOmniLokoTTS` node for Current OmniLoko Profile and saved-preset speech through local LokoBridge v1.
+- Added the published, dependency-free `lokobridge-client==1.0.0` requirement for Python 3.11 and later.
+- Kept older Python installations and missing optional voice dependencies import-safe with actionable OmniLoko availability errors.
+- Preserved all existing serialized node IDs, socket ordering, widget ordering and workflow links.
+
 ## v3.2.7 — Verified audit fixes
 
 - Made workflow migration preserve user prompt text while updating known serialized identifiers and visible package branding.

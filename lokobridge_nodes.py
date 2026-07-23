@@ -38,9 +38,9 @@ _STALE_PRESET_MESSAGE = (
     "and select the voice again."
 )
 
-# Release packaging intentionally remains blocked until lokobridge-client has
-# an official public wheel distribution route. NovoLoko public CI must not use
-# private Git URLs, deploy keys, repository tokens, or committed wheel files.
+# Python 3.11+ installations receive the published, dependency-free
+# lokobridge-client 1.0.0 package through requirements.txt. Older Python
+# installations remain import-safe and receive the actionable error below.
 
 
 @dataclass(frozen=True)
