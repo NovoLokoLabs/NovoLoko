@@ -19,6 +19,7 @@ class RepositoryTests(unittest.TestCase):
         required = [
             "__init__.py",
             "README.md",
+            "LICENSE",
             "AGENTS.md",
             "CODEX_START_HERE.md",
             "nodes.py",
@@ -32,6 +33,22 @@ class RepositoryTests(unittest.TestCase):
         for relative in required:
             with self.subTest(path=relative):
                 self.assertTrue((ROOT / relative).is_file())
+
+    def test_limited_use_license_is_present_and_proprietary(self) -> None:
+        license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+        self.assertIn("NovoLoko Limited Use Licence", license_text)
+        self.assertIn("Copyright (c) 2026 NovoLokoLabs", license_text)
+        self.assertIn("Source visibility does not make NovoLoko open source.", license_text)
+        for identifier in (
+            "MIT License",
+            "Apache License",
+            "GNU General Public License",
+            "BSD License",
+            "Mozilla Public License",
+            "Open Source Initiative Approved",
+        ):
+            with self.subTest(identifier=identifier):
+                self.assertNotIn(identifier, license_text)
 
     def test_runtime_history_is_absent_or_empty(self) -> None:
         history_path = ROOT / "data/history.json"

@@ -246,6 +246,36 @@ def validate_no_packaged_runtime_state(result: Result) -> None:
             result.error(f"Runtime state must be empty in releases: {rel(path)}")
 
 
+def validate_license(result: Result) -> None:
+    path = ROOT / "LICENSE"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        result.error(f"Required licence file is missing or unreadable: {exc}")
+        return
+
+    required_markers = (
+        "NovoLoko Limited Use Licence",
+        "Copyright (c) 2026 NovoLokoLabs",
+        "Source visibility does not make NovoLoko open source.",
+    )
+    for marker in required_markers:
+        if marker not in text:
+            result.error(f"LICENSE is missing required text: {marker!r}")
+
+    open_source_identifiers = (
+        "MIT License",
+        "Apache License",
+        "GNU General Public License",
+        "BSD License",
+        "Mozilla Public License",
+        "Open Source Initiative Approved",
+    )
+    for identifier in open_source_identifiers:
+        if identifier in text:
+            result.error(f"LICENSE is falsely identified as open source: {identifier!r}")
+
+
 def validate_absolute_windows_paths(result: Result) -> None:
     pattern = re.compile(r"(?i)(?:^|[\"'])\s*[a-z]:\\")
     allowed_suffixes = {".py", ".js", ".md", ".json", ".bat", ".txt", ".yaml", ".yml"}
@@ -278,6 +308,7 @@ def main() -> int:
     validate_csv_files(result)
     validate_yaml_files(result)
     validate_no_packaged_runtime_state(result)
+    validate_license(result)
     validate_absolute_windows_paths(result)
 
     for warning in result.warnings:
