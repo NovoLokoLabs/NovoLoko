@@ -4,7 +4,7 @@ NovoLoko is a ComfyUI custom-node package. Treat working workflows and node comp
 
 ## Before changing code
 
-1. Read `README.md`, `CODEX_START_HERE.md`, and `NovoLoko_v3.3.0_manifest.json`.
+1. Read `README.md`, `CODEX_START_HERE.md`, and `NovoLoko_v3.4.0_manifest.json`.
 2. Run `python tools/validate_project.py` and keep the baseline result.
 3. Inspect the exact node and its frontend JavaScript before editing either side.
 4. Keep changes focused. Do not perform unrelated cleanup in a bug-fix task.

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST_PATH = ROOT / "NovoLoko_v3.3.0_manifest.json"
+MANIFEST_PATH = ROOT / "NovoLoko_v3.4.0_manifest.json"
 PYTHON_FILES = sorted(p for p in ROOT.rglob("*.py") if "__pycache__" not in p.parts)
 JAVASCRIPT_FILES = sorted(ROOT.joinpath("web").rglob("*.js"))
 WORKFLOW_FILES = sorted(ROOT.joinpath("workflows").glob("*.json"))

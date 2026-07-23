@@ -1,7 +1,8 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-const SLOT_NAMES = ["medium", "pose", "action", "clothing", "location", "character"];
+const SLOT_NAMES = ["medium", "subject", "pose", "action", "clothing", "location", "character"];
+const LEGACY_SLOT_NAMES = ["medium", "pose", "action", "clothing", "location", "character"];
 const PRO_NODE_NAMES = new Set(["NovaPromptStackAIO"]);
 
 function getWidget(node, name) {
@@ -103,6 +104,85 @@ function setSelectionValues(widget, values, preserveCurrent = true) {
 function markDirty(node) {
     node.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
+}
+
+function applySubjectPresentationOrder(node) {
+    if (!node.__novaAIOSerializedWidgets) {
+        node.__novaAIOSerializedWidgets = [...(node.widgets || [])];
+    }
+    if (!node.__novaAIOSerializeWrapped && typeof node.serialize === "function") {
+        const originalSerialize = node.serialize;
+        node.serialize = function (...args) {
+            const visualWidgets = this.widgets || [];
+            const releasedOrder = (this.__novaAIOSerializedWidgets || [])
+                .filter((widget) => visualWidgets.includes(widget));
+            const laterSerialized = visualWidgets.filter(
+                (widget) => !releasedOrder.includes(widget) && widget.serialize !== false,
+            );
+            this.widgets = [...releasedOrder, ...laterSerialized];
+            let serialized;
+            try {
+                serialized = originalSerialize.apply(this, args);
+            } finally {
+                this.widgets = visualWidgets;
+            }
+            // Some ComfyUI extensions retain indices captured from the visual
+            // widget order. Rebuild this one array from the released order so
+            // moving Subject visually can never move a saved value.
+            if (serialized && this.serialize_widgets) {
+                serialized.widgets_values = [];
+                releasedOrder.forEach((widget, index) => {
+                    if (widget.serialize === false) return;
+                    const value = widget.value;
+                    serialized.widgets_values[index] = (
+                        value && typeof value === "object"
+                            ? JSON.parse(JSON.stringify(value))
+                            : (value ?? null)
+                    );
+                });
+            }
+            return serialized;
+        };
+        node.__novaAIOSerializeWrapped = true;
+    }
+
+    const desiredNames = [
+        "all_slots_enabled",
+        ...SLOT_NAMES.flatMap((slot) => [
+            `${slot}_file_path`,
+            `${slot}_category`,
+            `${slot}_search`,
+            `${slot}_selection`,
+        ]),
+        "random_mode",
+        "seed",
+        "control_after_generate",
+        "delimiter",
+        "manual_prompt",
+        "extra_positive",
+        "extra_negative",
+    ];
+    const desired = desiredNames.map((name) => getWidget(node, name)).filter(Boolean);
+    const desiredSet = new Set(desired);
+    const remaining = (node.widgets || []).filter((widget) => !desiredSet.has(widget));
+    node.widgets = [...desired, ...remaining];
+    node.setSize?.([
+        Math.max(Number(node.size?.[0]) || 0, 820),
+        Math.max(Number(node.size?.[1]) || 0, 1580),
+    ]);
+}
+
+function repairMissingSubjectDefaults(node) {
+    const file = getWidget(node, "subject_file_path");
+    const category = getWidget(node, "subject_category");
+    const search = getWidget(node, "subject_search");
+    const selection = getWidget(node, "subject_selection");
+    if (file && !String(file.value || "").trim()) {
+        file.value = "csv/subjects/novoloko_subjects_master_2200.csv";
+    }
+    if (category && !String(category.value || "").trim()) category.value = "All";
+    if (search && search.value == null) search.value = "";
+    if (selection && !String(selection.value || "").trim()) selection.value = "none";
 }
 
 async function fetchJson(path) {
@@ -272,7 +352,7 @@ function migrateLegacyMasterOrder(node) {
     if (!characterSelection || typeof characterSelection.value !== "boolean") return;
 
     const slotWidgetNames = [];
-    for (const slot of SLOT_NAMES) {
+    for (const slot of LEGACY_SLOT_NAMES) {
         slotWidgetNames.push(
             `${slot}_file_path`,
             `${slot}_category`,
@@ -301,12 +381,14 @@ async function installCallbacks(node) {
     if (!await waitForWidgets(node)) return;
 
     migrateLegacyMasterOrder(node);
+    repairMissingSubjectDefaults(node);
 
     for (const slot of SLOT_NAMES) {
         wrapWidgetCallback(node, slot, `${slot}_file_path`, "file");
         wrapWidgetCallback(node, slot, `${slot}_category`, "category");
         wrapWidgetCallback(node, slot, `${slot}_search`, "search");
     }
+    applySubjectPresentationOrder(node);
 
     const master = getWidget(node, "all_slots_enabled");
     if (master && !master.__novaAIOMasterWrapped) {
@@ -371,13 +453,14 @@ function configureProNode(node) {
         const oldSize = node.size || [820, 1480];
         node.setSize?.([
             Math.max(Number(oldSize[0]) || 0, 820),
-            Math.max(Number(oldSize[1]) || 0, 1480),
+            Math.max(Number(oldSize[1]) || 0, 1580),
         ]);
     }
 
     // onNodeCreated can fire before saved values are restored. onGraphConfigured
     // calls this again and deliberately schedules another refresh.
     installCallbacks(node);
+    applySubjectPresentationOrder(node);
     scheduleFullRefresh(node, 300);
 }
 
@@ -443,6 +526,20 @@ app.registerExtension({
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const result = originalOnNodeCreated?.apply(this, arguments);
+            // Workflow loading may yield between node creation and value
+            // restoration. Never reorder widgets during that gap.
+            clearTimeout(this.__novaAIOCreatedTimer);
+            this.__novaAIOCreatedTimer = setTimeout(() => {
+                if (PRO_NODE_NAMES.has(name)) configureProNode(this);
+                else configureLegacyNode(this);
+            }, 1000);
+            return result;
+        };
+
+        const originalOnConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function () {
+            const result = originalOnConfigure?.apply(this, arguments);
+            clearTimeout(this.__novaAIOCreatedTimer);
             if (PRO_NODE_NAMES.has(name)) configureProNode(this);
             else configureLegacyNode(this);
             return result;
@@ -451,6 +548,7 @@ app.registerExtension({
         const originalOnGraphConfigured = nodeType.prototype.onGraphConfigured;
         nodeType.prototype.onGraphConfigured = function () {
             const result = originalOnGraphConfigured?.apply(this, arguments);
+            clearTimeout(this.__novaAIOCreatedTimer);
             if (PRO_NODE_NAMES.has(name)) configureProNode(this);
             else configureLegacyNode(this);
             return result;

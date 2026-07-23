@@ -3,7 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo ============================================================
-echo   NovoLoko v3.3.0 - Optional Voice, Kokoro and YAML Setup
+echo   NovoLoko v3.4.0 - Optional Voice, Kokoro and YAML Setup
 echo ============================================================
 echo.
 
