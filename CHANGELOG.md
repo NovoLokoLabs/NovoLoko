@@ -1,5 +1,13 @@
 # NovoLoko Changelog
 
+## v3.4.0 — Subject libraries and unified voice selection
+
+- Added an append-only Subject slot to Prompt Stack AIO with independent file, category, search, selection, seeded random output and summary support.
+- Added curated animal, real-car, fantasy and horror subject collections plus expanded automotive, animal, fantasy/horror action libraries and balanced location variety.
+- Added `NovaVoiceEngineTTS`, a compact OmniLoko/Kokoro/Off selector that invokes only the selected existing backend and never cross-falls back.
+- Updated the AIO workflow from the user's compatible v3.3.1 layout while preserving image-generation, enhancer, seed, Media Studio, metadata, compare, model and LoRA wiring.
+- Preserved every released node ID, all existing Prompt Stack widgets and outputs in their original serialized order, and appended only the new Subject controls/output.
+
 ## v3.3.0 — OmniLoko TTS integration
 
 - Added the public `NovaOmniLokoTTS` node for Current OmniLoko Profile and saved-preset speech through local LokoBridge v1.

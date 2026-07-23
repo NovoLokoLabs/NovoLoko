@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RepositoryTests(unittest.TestCase):
     def test_manifest_brand_and_package(self) -> None:
-        manifest = json.loads((ROOT / "NovoLoko_v3.3.0_manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "NovoLoko_v3.4.0_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["brand"], "NovoLoko")
         self.assertEqual(manifest["package"], "ComfyUI-NovoLoko")
         self.assertEqual(manifest["registered_node_count"], len(manifest["registered_nodes"]))
@@ -28,6 +28,7 @@ class RepositoryTests(unittest.TestCase):
             "nova_workflow.py",
             "nova_compare.py",
             "voice_nodes.py",
+            "unified_voice_node.py",
             "tools/validate_project.py",
         ]
         for relative in required:

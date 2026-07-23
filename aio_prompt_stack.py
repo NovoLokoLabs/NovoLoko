@@ -17,10 +17,22 @@ from .nodes import (
     _weighted_choice,
 )
 
-SLOTS = ("medium", "pose", "action", "clothing", "location", "character")
+LEGACY_SLOTS = ("medium", "pose", "action", "clothing", "location", "character")
+SLOTS = ("medium", "subject", "pose", "action", "clothing", "location", "character")
+OUTPUT_SLOTS = LEGACY_SLOTS + ("subject",)
+SEED_SLOT_INDEX = {
+    "medium": 0,
+    "pose": 1,
+    "action": 2,
+    "clothing": 3,
+    "location": 4,
+    "character": 5,
+    "subject": 6,
+}
 
 DEFAULT_FILES = {
     "medium": "styles/basic.yaml",
+    "subject": "csv/subjects/novoloko_subjects_master_2200.csv",
     "pose": "csv/poses/novoloko_poses_1000.csv",
     "action": "csv/actions/novoloko_actions_1000.csv",
     "clothing": "csv/clothing/novoloko_branded_clothing_gendered_2400.csv",
@@ -30,6 +42,7 @@ DEFAULT_FILES = {
 
 SLOT_LABELS = {
     "medium": "Medium",
+    "subject": "Subject",
     "pose": "Pose",
     "action": "Action",
     "clothing": "Clothing",
@@ -38,7 +51,15 @@ SLOT_LABELS = {
 }
 
 RANDOM_NAMES = {"random", "random style", "random entry", "random selection"}
-NONE_NAMES = {"none", "off", "no style", "no character", "no character/none"}
+NONE_NAMES = {
+    "none",
+    "off",
+    "no style",
+    "no character",
+    "no character/none",
+    "no subject",
+    "no subject/none",
+}
 
 
 def _restore_menu_value(value: str) -> str:
@@ -112,10 +133,24 @@ def _filtered_records(records: List[Dict], category: str = "All", search: str = 
     search = str(search or "").strip()
     if category == "All" and not search:
         return list(records)
+    # Frontend menu presentation flattens category separators, while curated
+    # CSVs may contain readable spaces around "/". Compare their normalized
+    # forms here instead of requiring identical whitespace.
+    candidates = [dict(record) for record in records]
+    if category != "All":
+        broad = category.rstrip("/")
+        candidates = [
+            record
+            for record in candidates
+            if (
+                _restore_menu_value(record.get("category", "")) == broad
+                or _restore_menu_value(record.get("category", "")).startswith(broad + "/")
+            )
+        ]
     # Work on shallow copies because the shared helper can mark favorite state.
     return _filter_styles(
-        [dict(record) for record in records],
-        category,
+        candidates,
+        "All",
         search,
         False,
         "",
@@ -205,6 +240,7 @@ def _build_stack(
     extra_negative="",
     all_slots_enabled=True,
     manual_prompt_input=None,
+    slots=LEGACY_SLOTS,
 ):
     delimiter = str(delimiter if delimiter is not None else ", ") or ", "
 
@@ -223,12 +259,15 @@ def _build_stack(
     slots_enabled = bool(all_slots_enabled)
 
     if slots_enabled:
-        for index, slot in enumerate(SLOTS):
+        for slot in slots:
             values = slot_values[slot]
             if str(random_mode) == "Random Every Queue":
-                rng = random.Random(time.time_ns() ^ (index * 0x9E3779B97F4A7C15))
+                rng = random.Random(
+                    time.time_ns()
+                    ^ (SEED_SLOT_INDEX[slot] * 0x9E3779B97F4A7C15)
+                )
             else:
-                rng = random.Random(base_seed + index * 1000003)
+                rng = random.Random(base_seed + SEED_SLOT_INDEX[slot] * 1000003)
 
             record, resolved_path = _pick_record(
                 values["file_path"],
@@ -243,10 +282,10 @@ def _build_stack(
             if negative:
                 negatives.append(negative)
 
-        for slot in reversed(SLOTS):
+        for slot in reversed(slots):
             current = _apply_template(selected[slot].get("prompt", ""), current, delimiter)
     else:
-        for slot in SLOTS:
+        for slot in slots:
             selected[slot] = {
                 "name": "off",
                 "prompt": "",
@@ -262,14 +301,14 @@ def _build_stack(
 
     names = {
         slot: str(selected[slot].get("name", "none")).strip() or "none"
-        for slot in SLOTS
+        for slot in slots
     }
     summary_lines = [
         "NovoLoko Prompt Stack AIO Pro",
         f"ALL SLOTS: {'ON' if slots_enabled else 'OFF — selections preserved'}",
-        "Order: Medium > Pose > Action > Clothing > Location > Character > Manual Prompt",
+        "Order: " + " > ".join(SLOT_LABELS[slot] for slot in slots) + " > Manual Prompt",
     ]
-    for slot in SLOTS:
+    for slot in slots:
         values = slot_values[slot]
         filter_bits = []
         if str(values.get("category", "All")) != "All":
@@ -283,16 +322,12 @@ def _build_stack(
     summary_lines.append(f"Manual prompt: {base_manual if base_manual else 'EMPTY'}")
     summary_lines.append(f"Combined prompt: {current if current else 'EMPTY'}")
 
+    output_slots = tuple(slot for slot in OUTPUT_SLOTS if slot in slots)
     return (
         current,
         combined_negative,
         "\n".join(summary_lines),
-        names["medium"],
-        names["pose"],
-        names["action"],
-        names["clothing"],
-        names["location"],
-        names["character"],
+        *(names[slot] for slot in output_slots),
     )
 
 
@@ -311,7 +346,7 @@ class NovaPromptStackAIOV1:
                 },
             ),
         }
-        for slot in SLOTS:
+        for slot in LEGACY_SLOTS:
             required[f"{slot}_file_path"] = (
                 "STRING",
                 {"default": DEFAULT_FILES[slot], "multiline": False},
@@ -362,13 +397,13 @@ class NovaPromptStackAIOV1:
         random_mode = str(kwargs.get("random_mode", "Random Every Queue"))
         all_slots_enabled = bool(kwargs.get("all_slots_enabled", True))
         any_random = all_slots_enabled and any(
-            _is_random_name(kwargs.get(f"{slot}_selection", "")) for slot in SLOTS
+            _is_random_name(kwargs.get(f"{slot}_selection", "")) for slot in LEGACY_SLOTS
         )
         if any_random and random_mode == "Random Every Queue":
             return time.time_ns()
         mtimes = []
         if all_slots_enabled:
-            for slot in SLOTS:
+            for slot in LEGACY_SLOTS:
                 value = kwargs.get(f"{slot}_file_path", DEFAULT_FILES[slot])
                 try:
                     resolved = _resolve_csv_path(value)
@@ -379,7 +414,7 @@ class NovaPromptStackAIOV1:
             mtimes.append(("ALL SLOTS OFF", 0))
         return (
             tuple(mtimes),
-            tuple(kwargs.get(f"{slot}_selection", "none") for slot in SLOTS),
+            tuple(kwargs.get(f"{slot}_selection", "none") for slot in LEGACY_SLOTS),
             kwargs.get("all_slots_enabled", True),
             kwargs.get("random_mode"),
             kwargs.get("seed"),
@@ -420,7 +455,7 @@ class NovaPromptStackAIOV1:
                 "category": "All",
                 "search": "",
             }
-            for slot in SLOTS
+            for slot in LEGACY_SLOTS
         }
         return _build_stack(
             slot_values,
@@ -450,7 +485,7 @@ class NovaPromptStackAIOV2:
                 },
             ),
         }
-        for slot in SLOTS:
+        for slot in LEGACY_SLOTS:
             # Strings are converted to live combos by the frontend. Keeping the
             # backend validation type as STRING means newly added files and saved
             # values do not invalidate old workflows.
@@ -502,13 +537,13 @@ class NovaPromptStackAIOV2:
         random_mode = str(kwargs.get("random_mode", "Random Every Queue"))
         all_slots_enabled = bool(kwargs.get("all_slots_enabled", True))
         any_random = all_slots_enabled and any(
-            _is_random_name(kwargs.get(f"{slot}_selection", "")) for slot in SLOTS
+            _is_random_name(kwargs.get(f"{slot}_selection", "")) for slot in LEGACY_SLOTS
         )
         if any_random and random_mode == "Random Every Queue":
             return time.time_ns()
         mtimes = []
         if all_slots_enabled:
-            for slot in SLOTS:
+            for slot in LEGACY_SLOTS:
                 value = kwargs.get(f"{slot}_file_path", DEFAULT_FILES[slot])
                 try:
                     resolved = _resolve_csv_path(value)
@@ -525,7 +560,7 @@ class NovaPromptStackAIOV2:
                     kwargs.get(f"{slot}_search", ""),
                     kwargs.get(f"{slot}_selection", "random"),
                 )
-                for slot in SLOTS
+                for slot in LEGACY_SLOTS
             ),
             kwargs.get("all_slots_enabled", True),
             kwargs.get("random_mode"),
@@ -580,7 +615,7 @@ class NovaPromptStackAIOV2:
                 "search": local_values[f"{slot}_search"],
                 "selection": local_values[f"{slot}_selection"],
             }
-            for slot in SLOTS
+            for slot in LEGACY_SLOTS
         }
         return _build_stack(
             slot_values,
@@ -611,7 +646,7 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
                 },
             ),
         }
-        for slot in SLOTS:
+        for slot in LEGACY_SLOTS:
             files = _slot_file_candidates(slot)
             default_file = DEFAULT_FILES[slot]
             if default_file not in files:
@@ -652,6 +687,30 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
                 "extra_negative": ("STRING", {"default": "", "multiline": True}),
             }
         )
+        # Compatibility: Subject is appended after every released v3.3.0 widget.
+        # The frontend presents it beside Medium without changing this serialized
+        # order, so old workflow widget arrays retain their original meaning.
+        subject_files = _slot_file_candidates("subject")
+        subject_default = DEFAULT_FILES["subject"]
+        if subject_default not in subject_files:
+            subject_files.insert(0, subject_default)
+        required.update(
+            {
+                "subject_file_path": (
+                    subject_files or [subject_default],
+                    {"default": subject_default},
+                ),
+                "subject_category": (["All"], {"default": "All"}),
+                "subject_search": (
+                    "STRING",
+                    {"default": "", "multiline": False},
+                ),
+                "subject_selection": (
+                    ["none", "random"],
+                    {"default": "none"},
+                ),
+            }
+        )
         return {
             "required": required,
             "optional": {"manual_prompt_input": ("STRING", {"forceInput": True})},
@@ -663,6 +722,111 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
         # saved and newly loaded values even when they were not in the small
         # initial combo lists returned above.
         return True
+
+    RETURN_TYPES = ("STRING",) * 10
+    RETURN_NAMES = NovaPromptStackAIOV2.RETURN_NAMES + ("subject_name",)
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        random_mode = str(kwargs.get("random_mode", "Random Every Queue"))
+        all_slots_enabled = bool(kwargs.get("all_slots_enabled", True))
+        any_random = all_slots_enabled and any(
+            _is_random_name(kwargs.get(f"{slot}_selection", "")) for slot in SLOTS
+        )
+        if any_random and random_mode == "Random Every Queue":
+            return time.time_ns()
+        mtimes = []
+        if all_slots_enabled:
+            for slot in SLOTS:
+                value = kwargs.get(f"{slot}_file_path", DEFAULT_FILES[slot])
+                try:
+                    resolved = _resolve_csv_path(value)
+                    mtimes.append((resolved, os.path.getmtime(resolved)))
+                except Exception:
+                    mtimes.append((str(value), 0))
+        else:
+            mtimes.append(("ALL SLOTS OFF", 0))
+        return (
+            tuple(mtimes),
+            tuple(
+                (
+                    kwargs.get(f"{slot}_category", "All"),
+                    kwargs.get(f"{slot}_search", ""),
+                    kwargs.get(f"{slot}_selection", "none" if slot == "subject" else "random"),
+                )
+                for slot in SLOTS
+            ),
+            kwargs.get("all_slots_enabled", True),
+            kwargs.get("random_mode"),
+            kwargs.get("seed"),
+            kwargs.get("delimiter"),
+            kwargs.get("manual_prompt"),
+            kwargs.get("manual_prompt_input"),
+            kwargs.get("extra_positive"),
+            kwargs.get("extra_negative"),
+        )
+
+    def build(
+        self,
+        medium_file_path,
+        medium_category,
+        medium_search,
+        medium_selection,
+        pose_file_path,
+        pose_category,
+        pose_search,
+        pose_selection,
+        action_file_path,
+        action_category,
+        action_search,
+        action_selection,
+        clothing_file_path,
+        clothing_category,
+        clothing_search,
+        clothing_selection,
+        location_file_path,
+        location_category,
+        location_search,
+        location_selection,
+        character_file_path,
+        character_category,
+        character_search,
+        character_selection,
+        all_slots_enabled=True,
+        random_mode="Random Every Queue",
+        seed=0,
+        delimiter=", ",
+        manual_prompt="",
+        extra_positive="",
+        extra_negative="",
+        manual_prompt_input=None,
+        subject_file_path=DEFAULT_FILES["subject"],
+        subject_category="All",
+        subject_search="",
+        subject_selection="none",
+    ):
+        local_values = locals()
+        slot_values = {
+            slot: {
+                "file_path": local_values[f"{slot}_file_path"],
+                "category": local_values[f"{slot}_category"],
+                "search": local_values[f"{slot}_search"],
+                "selection": local_values[f"{slot}_selection"],
+            }
+            for slot in SLOTS
+        }
+        return _build_stack(
+            slot_values,
+            random_mode,
+            seed,
+            delimiter,
+            manual_prompt,
+            extra_positive,
+            extra_negative,
+            all_slots_enabled,
+            manual_prompt_input,
+            slots=SLOTS,
+        )
 
 def _display_path(path: str) -> str:
     real = os.path.abspath(path)
@@ -698,9 +862,14 @@ def _slot_file_candidates(slot: str) -> List[str]:
             continue
         lower = real.lower().replace("\\", "/")
         is_character = "character" in os.path.basename(lower) or "/characters/" in lower
+        is_subject = "subject" in os.path.basename(lower) or "/subjects/" in lower
         if slot == "character" and not is_character:
             continue
         if slot != "character" and is_character:
+            continue
+        if slot == "subject" and not is_subject:
+            continue
+        if slot != "subject" and is_subject:
             continue
         seen.add(real)
         unique.append(real)
@@ -711,6 +880,7 @@ def _slot_file_candidates(slot: str) -> List[str]:
         "clothing": ("cloth", "fashion", "/clothing/"),
         "location": ("location", "place", "/locations/"),
         "medium": ("style", "/styles/", ".yaml", ".yml"),
+        "subject": ("subject", "/subjects/"),
         "character": ("character", "/characters/"),
     }
     keywords = keyword_map.get(slot, ())

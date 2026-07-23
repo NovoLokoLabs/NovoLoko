@@ -1,8 +1,8 @@
 {
-  "version": "3.3.0",
+  "version": "3.4.0",
   "brand": "NovoLoko",
   "package": "ComfyUI-NovoLoko",
-  "registered_node_count": 32,
+  "registered_node_count": 33,
   "registered_nodes": [
     "NovaLoadStylesCSVPro",
     "NovaLoadCharactersCSVPro",
@@ -21,6 +21,7 @@
     "NovaPromptSpeechSelector",
     "NovaKokoroTTS",
     "NovaOmniLokoTTS",
+    "NovaVoiceEngineTTS",
     "NovaAudioAutoplayTrigger",
     "NovaAudioHistoryPlayer",
     "NovaKokoroSpeechBridge",
@@ -38,8 +39,8 @@
     "NovaTextDisplay"
   ],
   "workflows": [
-    "workflows/NovoLoko AIO v3.3.0 - Latest Workflow.json",
-    "workflows/NovoLoko Compare Studio v3.3.0.json"
+    "workflows/NovoLoko AIO v3.4.0 - Latest Workflow.json",
+    "workflows/NovoLoko Compare Studio v3.4.0.json"
   ],
   "cleanup": {
     "single_current_mapping_per_node": true,

@@ -795,7 +795,10 @@ class LokoBridgeNodeTests(unittest.TestCase):
 
     def test_all_existing_mappings_and_new_mapping_load(self):
         package = load_complete_package("novoloko_complete_mapping_test")
-        self.assertEqual(EXISTING_NODE_IDS | {"NovaOmniLokoTTS"}, set(package.NODE_CLASS_MAPPINGS))
+        self.assertEqual(
+            EXISTING_NODE_IDS | {"NovaOmniLokoTTS", "NovaVoiceEngineTTS"},
+            set(package.NODE_CLASS_MAPPINGS),
+        )
         self.assertEqual("NovoLoko OmniLoko TTS", package.NODE_DISPLAY_NAME_MAPPINGS["NovaOmniLokoTTS"])
 
     def test_missing_discovery_is_actionable(self):
@@ -941,7 +944,7 @@ class LokoBridgeNodeTests(unittest.TestCase):
             post = next(item for item in context.host.requests if item["path"].endswith("/jobs/speech"))
             request = json.loads(post["body"])
             self.assertEqual("NovoLoko", request["clientName"])
-            self.assertEqual("3.3.0", request["clientVersion"])
+            self.assertEqual("3.4.0", request["clientVersion"])
             self.assertEqual({"kind": "profile-current"}, request["voice"])
             self.assertFalse(request["normalizeLoudness"])
             self.assertEqual("hello bridge", spoken)
