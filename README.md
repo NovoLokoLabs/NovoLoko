@@ -73,3 +73,11 @@ Run that command with ComfyUI's own Python executable, not an unrelated system P
 - Stale menus: press `Ctrl+F5` after restarting.
 - Voice import problems: run the installer, then `DIAGNOSE_NOVOLOKO_INSTALL.bat`.
 - Old workflow aliases: use the included migration batch file.
+
+## Licence
+
+NovoLoko is source-visible proprietary software distributed under the
+NovoLoko Limited Use Licence. Unmodified copies may be downloaded,
+installed, and used as described in `LICENSE`. Modification,
+redistribution, repackaging, sublicensing, and sale are not permitted
+without prior written authorization from NovoLokoLabs.
