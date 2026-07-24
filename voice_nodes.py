@@ -13,10 +13,12 @@ from typing import Any, Dict, Optional, Tuple
 
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
-NOVA_VOICE_VERSION = "3.4.0"
+NOVA_VOICE_VERSION = "3.5.0"
 
 _MODEL_CACHE: Dict[Tuple[str, str, str], Any] = {}
 _MODEL_LOCK = threading.Lock()
+_REVOICE_JOBS: Dict[str, threading.Event] = {}
+_REVOICE_JOBS_LOCK = threading.Lock()
 
 
 def _bool(value: Any, default: bool = False) -> bool:
@@ -528,6 +530,8 @@ def _audio_history_entries(limit: int = 1000) -> list[Dict[str, Any]]:
             "label": label,
             "voice": voice,
             "voice_code": str(metadata.get("voice_code") or _voice_code(voice)),
+            "engine": str(metadata.get("engine") or ""),
+            "revoice_prompt_source": str(metadata.get("revoice_prompt_source") or ""),
             "manual_prompt": manual_prompt,
             "enhanced_prompt": enhanced_prompt,
             "negative_prompt": negative_prompt,
@@ -555,6 +559,213 @@ def _audio_history_entries(limit: int = 1000) -> list[Dict[str, Any]]:
             "media_only": bool(metadata.get("media_only", False)),
         })
     return entries
+
+
+def _managed_history_path(directory: str, filename: Any, extensions: tuple[str, ...]) -> str:
+    root = os.path.realpath(directory)
+    raw = str(filename or "").strip()
+    if (
+        not raw
+        or raw != os.path.basename(raw)
+        or raw in {".", ".."}
+        or not raw.lower().endswith(extensions)
+    ):
+        raise ValueError("Invalid managed history filename.")
+    candidate = os.path.realpath(os.path.join(root, raw))
+    if os.path.dirname(candidate) != root or os.path.commonpath([root, candidate]) != root:
+        raise ValueError("History paths must stay inside NovoLoko managed storage.")
+    if os.path.lexists(candidate) and os.path.islink(candidate):
+        raise ValueError("Linked history files cannot be modified.")
+    return candidate
+
+
+def _history_metadata(filename: Any) -> tuple[str, str, Dict[str, Any]]:
+    audio_path = _managed_history_path(
+        _nova_audio_output_dir(),
+        filename,
+        (".wav", ".flac", ".mp3", ".ogg", ".opus"),
+    )
+    metadata_path = _managed_history_path(
+        _nova_audio_output_dir(),
+        os.path.splitext(os.path.basename(audio_path))[0] + ".json",
+        (".json",),
+    )
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as handle:
+            metadata = json.load(handle)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError("The Media Studio metadata entry was not found.") from exc
+    if not isinstance(metadata, dict):
+        raise ValueError("The Media Studio metadata entry is invalid.")
+    return audio_path, metadata_path, metadata
+
+
+def _metadata_image_names(metadata: Dict[str, Any]) -> set[str]:
+    names: set[str] = set()
+    for key in ("image_filename", "image_first_filename", "image_second_filename"):
+        raw = str(metadata.get(key) or "").strip()
+        if raw and raw == os.path.basename(raw) and raw.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+            names.add(raw)
+    return names
+
+
+def _other_history_image_references(excluded_metadata_path: str) -> set[str]:
+    directory = os.path.realpath(_nova_audio_output_dir())
+    referenced: set[str] = set()
+    for name in os.listdir(directory):
+        if not name.lower().endswith(".json"):
+            continue
+        path = os.path.realpath(os.path.join(directory, name))
+        if path == excluded_metadata_path or os.path.dirname(path) != directory or os.path.islink(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                metadata = json.load(handle)
+            if isinstance(metadata, dict):
+                referenced.update(_metadata_image_names(metadata))
+        except Exception:
+            continue
+    return referenced
+
+
+def _delete_history_entry(filename: Any) -> Dict[str, Any]:
+    audio_path, metadata_path, metadata = _history_metadata(filename)
+    image_directory = _nova_audio_image_dir()
+    shared_images = _other_history_image_references(metadata_path)
+    image_paths = []
+    for image_name in sorted(_metadata_image_names(metadata) - shared_images):
+        image_paths.append(
+            _managed_history_path(
+                image_directory,
+                image_name,
+                (".png", ".jpg", ".jpeg", ".webp"),
+            )
+        )
+
+    removed = []
+    for path in (audio_path, metadata_path, *image_paths):
+        if os.path.isfile(path):
+            os.remove(path)
+            removed.append(os.path.basename(path))
+    return {
+        "removed": removed,
+        "preservedSharedImages": sorted(_metadata_image_names(metadata) & shared_images),
+        "items": _audio_history_entries(),
+    }
+
+
+def _write_history_audio(audio: Any, path: str) -> float:
+    try:
+        import numpy as np
+        import soundfile as sf
+        import torch
+    except Exception as exc:
+        raise RuntimeError(
+            "Audio saving needs soundfile, NumPy and PyTorch. Run INSTALL_NOVA_VOICE_AND_KOKORO.bat."
+        ) from exc
+    if not isinstance(audio, dict) or "waveform" not in audio or "sample_rate" not in audio:
+        raise ValueError("The selected voice backend returned no usable audio.")
+    waveform = audio["waveform"]
+    sample_rate = int(audio["sample_rate"])
+    if isinstance(waveform, torch.Tensor):
+        data = waveform.detach().to("cpu", dtype=torch.float32).numpy()
+    else:
+        data = np.asarray(waveform, dtype=np.float32)
+    if data.ndim == 3:
+        data = data[0]
+    if data.ndim == 2:
+        data = data.T
+    elif data.ndim != 1:
+        data = data.reshape(-1)
+    if sample_rate <= 0 or not data.size or not np.isfinite(data).all():
+        raise ValueError("The selected voice backend returned invalid audio.")
+    sf.write(path, data, sample_rate, subtype="PCM_16")
+    return float(data.shape[0] / sample_rate)
+
+
+def _revoice_history_entry(data: Dict[str, Any], cancellation_event=None) -> Dict[str, Any]:
+    if not isinstance(data, dict):
+        raise ValueError("Invalid revoice request.")
+    _audio_path, _metadata_path, original = _history_metadata(data.get("filename"))
+    prompt_mode = str(data.get("promptSource") or "Spoken").strip().title()
+    prompt_keys = {"Spoken": "label", "Manual": "manual_prompt", "Enhanced": "enhanced_prompt"}
+    if prompt_mode not in prompt_keys:
+        raise ValueError("Prompt source must be Spoken, Manual or Enhanced.")
+    text = str(original.get(prompt_keys[prompt_mode]) or "").strip()
+    if not text:
+        raise ValueError(f"No {prompt_mode.lower()} prompt is stored for this entry.")
+    engine = str(data.get("engine") or "").strip()
+    if engine not in {"OmniLoko", "Kokoro"}:
+        raise ValueError("Revoice engine must be OmniLoko or Kokoro.")
+    if cancellation_event is not None and cancellation_event.is_set():
+        raise InterruptedError("Revoice cancelled.")
+
+    from .unified_voice_node import (
+        KOKORO_DEFAULT_VOICE,
+        NovaVoiceEngineTTS,
+    )
+    from .lokobridge_nodes import PROFILE_VOICE, _external_cancellation
+
+    voice = str(data.get("voice") or (PROFILE_VOICE if engine == "OmniLoko" else KOKORO_DEFAULT_VOICE))
+    arguments = {
+        "text": text,
+        "engine": engine,
+        "enabled": True,
+        "omniloko_voice": voice if engine == "OmniLoko" else PROFILE_VOICE,
+        "kokoro_voice": voice if engine == "Kokoro" else KOKORO_DEFAULT_VOICE,
+        "advanced": bool(data.get("advanced")),
+        "prefix": str(data.get("prefix") or ""),
+        "max_characters": max(1, min(20000, int(data.get("maxCharacters") or 2000))),
+        "speed": max(0.5, min(2.0, float(data.get("speed") or 1.0))),
+        "device": str(data.get("device") or "Auto"),
+        "normalize_loudness": _bool(data.get("normalizeLoudness"), True),
+        "timeout_seconds": max(1, min(3600, int(data.get("timeoutSeconds") or 300))),
+    }
+    with _external_cancellation(cancellation_event):
+        audio, spoken, _status, voice_used, engine_used = NovaVoiceEngineTTS().speak(**arguments)
+    if cancellation_event is not None and cancellation_event.is_set():
+        raise InterruptedError("Revoice cancelled.")
+
+    directory = _nova_audio_output_dir()
+    prefix = _safe_audio_prefix(f"NovoLokoRevoice_{engine}")
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = f"{prefix}_{stamp}_{time.time_ns() % 1_000_000:06d}.wav"
+    audio_path = _managed_history_path(directory, filename, (".wav",))
+    metadata_path = _managed_history_path(directory, os.path.splitext(filename)[0] + ".json", (".json",))
+    temporary_metadata = metadata_path + ".partial"
+    try:
+        duration = _write_history_audio(audio, audio_path)
+        metadata = dict(original)
+        metadata.update({
+            "filename": filename,
+            "label": spoken,
+            "voice": str(voice_used),
+            "voice_code": _voice_code(str(voice_used)),
+            "engine": str(engine_used),
+            "revoice_prompt_source": prompt_mode,
+            "created": time.time(),
+            "duration": duration,
+            "has_audio": True,
+            "media_only": False,
+        })
+        with open(temporary_metadata, "w", encoding="utf-8") as handle:
+            json.dump(metadata, handle, ensure_ascii=False, indent=2)
+        os.replace(temporary_metadata, metadata_path)
+    except BaseException:
+        for path in (temporary_metadata, metadata_path, audio_path):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except OSError:
+                pass
+        raise
+    entry = next(
+        (item for item in _audio_history_entries() if item.get("filename") == filename),
+        None,
+    )
+    if entry is None:
+        raise RuntimeError("Revoice audio was created but its Media Studio entry could not be loaded.")
+    return entry
 
 
 class NovaVoicePrompt:
@@ -1318,6 +1529,68 @@ try:
         except Exception:
             limit = 1000
         return web.json_response({"ok": True, "items": _audio_history_entries(limit)})
+
+    @PromptServer.instance.routes.get("/nova_voice/voices")
+    async def nova_voice_voices(request):
+        from .lokobridge_nodes import _voice_options
+
+        return web.json_response({
+            "ok": True,
+            "omniloko": _voice_options(force_refresh=True),
+            "kokoro": list(KOKORO_VOICES),
+        })
+
+    @PromptServer.instance.routes.post("/nova_voice/audio/delete")
+    async def nova_voice_audio_delete(request):
+        try:
+            data = await request.json()
+            result = await asyncio.to_thread(_delete_history_entry, data.get("filename"))
+            return web.json_response({"ok": True, **result})
+        except (ValueError, FileNotFoundError) as exc:
+            return web.json_response({"ok": False, "error": str(exc)}, status=400)
+        except Exception as exc:
+            return web.json_response({"ok": False, "error": str(exc) or "The history entry could not be deleted."}, status=500)
+
+    @PromptServer.instance.routes.post("/nova_voice/audio/revoice")
+    async def nova_voice_audio_revoice(request):
+        try:
+            data = await request.json()
+        except Exception:
+            return web.json_response({"ok": False, "error": "Invalid revoice request."}, status=400)
+        request_id = str(data.get("requestId") or "").strip()
+        if not request_id or len(request_id) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]+", request_id):
+            return web.json_response({"ok": False, "error": "A valid revoice request ID is required."}, status=400)
+        cancellation_event = threading.Event()
+        with _REVOICE_JOBS_LOCK:
+            if request_id in _REVOICE_JOBS:
+                return web.json_response({"ok": False, "error": "That revoice request is already active."}, status=409)
+            _REVOICE_JOBS[request_id] = cancellation_event
+        try:
+            entry = await asyncio.to_thread(_revoice_history_entry, data, cancellation_event)
+            return web.json_response({"ok": True, "item": entry})
+        except (InterruptedError, KeyboardInterrupt):
+            return web.json_response({"ok": False, "cancelled": True, "error": "Revoice cancelled."}, status=409)
+        except (ValueError, FileNotFoundError) as exc:
+            return web.json_response({"ok": False, "error": str(exc)}, status=400)
+        except Exception as exc:
+            return web.json_response({"ok": False, "error": str(exc) or "Revoice failed."}, status=500)
+        finally:
+            with _REVOICE_JOBS_LOCK:
+                _REVOICE_JOBS.pop(request_id, None)
+
+    @PromptServer.instance.routes.post("/nova_voice/audio/revoice/cancel")
+    async def nova_voice_audio_revoice_cancel(request):
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        request_id = str(data.get("requestId") or "").strip()
+        with _REVOICE_JOBS_LOCK:
+            cancellation_event = _REVOICE_JOBS.get(request_id)
+        if cancellation_event is None:
+            return web.json_response({"ok": True, "accepted": False})
+        cancellation_event.set()
+        return web.json_response({"ok": True, "accepted": True})
 
     @PromptServer.instance.routes.get("/nova_voice/audio/file")
     async def nova_voice_audio_file(request):

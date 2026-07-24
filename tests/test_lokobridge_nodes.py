@@ -944,7 +944,7 @@ class LokoBridgeNodeTests(unittest.TestCase):
             post = next(item for item in context.host.requests if item["path"].endswith("/jobs/speech"))
             request = json.loads(post["body"])
             self.assertEqual("NovoLoko", request["clientName"])
-            self.assertEqual("3.4.0", request["clientVersion"])
+            self.assertEqual("3.5.0", request["clientVersion"])
             self.assertEqual({"kind": "profile-current"}, request["voice"])
             self.assertFalse(request["normalizeLoudness"])
             self.assertEqual("hello bridge", spoken)

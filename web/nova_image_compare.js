@@ -523,7 +523,7 @@ function nodeState(node) {
                 : (MODES.includes(value) ? value : DEFAULTS.mode);
         })(),
         orientation: props.novaCompareOrientation || global.orientation || DEFAULTS.orientation,
-        position: clamp(Number(props.novaComparePosition ?? global.position / 100) * 100, 1, 99),
+        position: clamp(Number(props.novaComparePosition ?? global.position / 100) * 100, 0, 100),
         opacity: clamp(Number(props.novaCompareOpacity ?? global.opacity / 100) * 100, 0, 100),
         lineOpacity: clamp(Number(props.novaCompareLineOpacity ?? global.lineOpacity / 100) * 100, 0, 100),
         guide: props.novaCompareGuide ?? global.guide ?? DEFAULTS.guide,
@@ -2038,8 +2038,8 @@ function ensureFullViewer() {
                 state.orientation === "Vertical"
                     ? (event.clientX - rect.left) / rect.width * 100
                     : (event.clientY - rect.top) / rect.height * 100,
-                1,
-                99,
+                0,
+                100,
             );
             persistState(state);
             render();

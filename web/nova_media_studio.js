@@ -237,6 +237,7 @@ function createStudio(viewer) {
     let audioLoadToken = 0;
     let sessionActive = false;
     let generationOverride = false;
+    let activeRevoiceRequestId = "";
     let subtitleDragging = false;
     let subtitleMoved = false;
     let subtitlePointerId = null;
@@ -434,6 +435,8 @@ function createStudio(viewer) {
     const openAudio = makeButton("Audio Folder", "Open NovoLokoVoice/Audio");
     const openImages = makeButton("Image Folder", "Open NovoLokoVoice/Audio/Images");
     const revealCurrent = makeButton("Reveal Current", "Reveal the current audio file in Explorer/Finder");
+    const revoiceCurrent = makeButton("Revoice Current", "Create new speech while reusing the exact stored images and prompt");
+    const deleteCurrent = makeButton("Delete Current", "Delete the selected Media Studio entry and unshared managed files");
 
     audioDock.append(
         audioCaption,
@@ -450,8 +453,83 @@ function createStudio(viewer) {
         openAudio,
         openImages,
         revealCurrent,
+        revoiceCurrent,
+        deleteCurrent,
     );
-    overlay.append(promptPanel, subtitleStylePanel, audioDock);
+
+    const revoicePanel = document.createElement("section");
+    revoicePanel.style.cssText = [
+        "display:none", "position:absolute", "z-index:30", "left:50%", "top:50%",
+        "transform:translate(-50%,-50%)", "width:min(620px,92vw)", "max-height:86vh",
+        "overflow:auto", "padding:16px", "border-radius:10px",
+        "border:1px solid rgba(255,255,255,.24)", "box-shadow:0 12px 50px rgba(0,0,0,.72)"
+    ].join(";");
+    const revoiceTitle = document.createElement("strong");
+    revoiceTitle.textContent = "Revoice Current";
+    revoiceTitle.style.cssText = "display:block;font-size:17px;margin-bottom:12px";
+    const revoiceGrid = document.createElement("div");
+    revoiceGrid.style.cssText = "display:grid;grid-template-columns:150px minmax(220px,1fr);gap:8px;align-items:center";
+    const revoicePrompt = makeSelect(["Spoken", "Manual", "Enhanced"], "Spoken", "Stored prompt source");
+    const revoiceEngine = makeSelect(["OmniLoko", "Kokoro"], "OmniLoko", "Exactly one voice backend is used");
+    const omniVoice = makeSelect(["Current OmniLoko Profile"], "Current OmniLoko Profile", "OmniLoko profile or saved preset");
+    const kokoroVoice = makeSelect(["af_nova | NovoLoko (US Female)"], "af_nova | NovoLoko (US Female)", "Packaged Kokoro voice");
+    const advancedToggle = document.createElement("input");
+    advancedToggle.type = "checkbox";
+    const prefixInput = document.createElement("input");
+    prefixInput.type = "text";
+    prefixInput.placeholder = "Optional prefix";
+    const maxCharacters = document.createElement("input");
+    maxCharacters.type = "number";
+    maxCharacters.min = "1";
+    maxCharacters.max = "20000";
+    maxCharacters.value = "2000";
+    const normalizeLoudness = document.createElement("input");
+    normalizeLoudness.type = "checkbox";
+    normalizeLoudness.checked = true;
+    const timeoutSeconds = document.createElement("input");
+    timeoutSeconds.type = "number";
+    timeoutSeconds.min = "1";
+    timeoutSeconds.max = "3600";
+    timeoutSeconds.value = "300";
+    const speedInput = document.createElement("input");
+    speedInput.type = "number";
+    speedInput.min = "0.5";
+    speedInput.max = "2";
+    speedInput.step = "0.05";
+    speedInput.value = "1";
+    const deviceSelect = makeSelect(["Auto", "CUDA", "CPU"], "Auto", "Kokoro device");
+    const revoiceRows = {};
+    function revoiceRow(key, label, control) {
+        const labelElement = document.createElement("label");
+        labelElement.textContent = label;
+        const wrapper = document.createElement("div");
+        wrapper.append(control);
+        wrapper.style.minWidth = "0";
+        control.style.width = control.type === "checkbox" ? "" : "100%";
+        control.style.boxSizing = "border-box";
+        revoiceGrid.append(labelElement, wrapper);
+        revoiceRows[key] = [labelElement, wrapper];
+    }
+    revoiceRow("prompt", "Prompt source", revoicePrompt);
+    revoiceRow("engine", "Engine", revoiceEngine);
+    revoiceRow("omni", "OmniLoko voice", omniVoice);
+    revoiceRow("kokoro", "Kokoro voice", kokoroVoice);
+    revoiceRow("advanced", "Advanced", advancedToggle);
+    revoiceRow("prefix", "Prefix", prefixInput);
+    revoiceRow("max", "Max characters", maxCharacters);
+    revoiceRow("normalize", "Normalize loudness", normalizeLoudness);
+    revoiceRow("timeout", "Timeout seconds", timeoutSeconds);
+    revoiceRow("speed", "Speed", speedInput);
+    revoiceRow("device", "Device", deviceSelect);
+    const revoiceStatus = document.createElement("div");
+    revoiceStatus.style.cssText = "min-height:22px;margin-top:10px;font:12px/1.4 sans-serif";
+    const revoiceActions = document.createElement("div");
+    revoiceActions.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:12px";
+    const cancelRevoice = makeButton("Cancel", "Close or cancel active revoice generation");
+    const generateRevoice = makeButton("Generate Revoice", "Generate audio only; image-generation nodes are not queued");
+    revoiceActions.append(cancelRevoice, generateRevoice);
+    revoicePanel.append(revoiceTitle, revoiceGrid, revoiceStatus, revoiceActions);
+    overlay.append(promptPanel, subtitleStylePanel, revoicePanel, audioDock);
 
     function theme() {
         return THEMES[state.theme] || THEMES[DEFAULTS.theme];
@@ -545,6 +623,7 @@ function createStudio(viewer) {
         audioDock.style.background = currentTheme.panel;
         promptPanel.style.background = currentTheme.panel2;
         subtitleStylePanel.style.background = currentTheme.panel2;
+        revoicePanel.style.background = currentTheme.panel2;
 
         viewport.style.backgroundImage = "none";
         if (state.background === "Checker") {
@@ -1070,6 +1149,152 @@ function createStudio(viewer) {
         }
     }
 
+    function setRevoiceRowVisible(key, visible) {
+        for (const element of revoiceRows[key] || []) {
+            element.style.display = visible ? "" : "none";
+        }
+    }
+
+    function updateRevoiceFields() {
+        const omni = revoiceEngine.value === "OmniLoko";
+        const advanced = advancedToggle.checked;
+        setRevoiceRowVisible("omni", omni);
+        setRevoiceRowVisible("kokoro", !omni);
+        setRevoiceRowVisible("prefix", advanced);
+        setRevoiceRowVisible("max", advanced);
+        setRevoiceRowVisible("normalize", advanced && omni);
+        setRevoiceRowVisible("timeout", advanced && omni);
+        setRevoiceRowVisible("speed", advanced && !omni);
+        setRevoiceRowVisible("device", advanced && !omni);
+    }
+
+    function replaceSelectValues(select, values, fallback) {
+        const selected = String(select.value || fallback);
+        const clean = [...new Set((Array.isArray(values) ? values : []).map(String).filter(Boolean))];
+        if (!clean.includes(fallback)) clean.unshift(fallback);
+        if (selected && !clean.includes(selected)) clean.push(selected);
+        select.replaceChildren();
+        for (const value of clean) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            select.append(option);
+        }
+        select.value = selected || fallback;
+    }
+
+    async function refreshRevoiceVoices() {
+        try {
+            const response = await api.fetchApi("/nova_voice/voices", { cache: "no-store" });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "Voice refresh failed.");
+            replaceSelectValues(omniVoice, data.omniloko, "Current OmniLoko Profile");
+            replaceSelectValues(kokoroVoice, data.kokoro, "af_nova | NovoLoko (US Female)");
+            revoiceStatus.textContent = "";
+        } catch (error) {
+            revoiceStatus.textContent = `Voice refresh unavailable: ${error?.message || String(error)}`;
+        }
+    }
+
+    async function openRevoicePanel() {
+        if (!activeHistoryItem()) {
+            notify("Select a Media Studio entry first.", "error");
+            return;
+        }
+        revoicePrompt.value = state.promptMode || "Spoken";
+        revoicePanel.style.display = "block";
+        updateRevoiceFields();
+        await refreshRevoiceVoices();
+    }
+
+    async function deleteCurrentEntry() {
+        const node = activeHistoryNode();
+        const item = activeHistoryItem();
+        if (!node || !item?.filename) {
+            notify("Select a Media Studio entry first.", "error");
+            return;
+        }
+        if (!window.confirm(`Delete the current Media Studio entry?\n\n${item.filename}\n\nShared images used by other entries will be kept.`)) return;
+        audio.pause();
+        const previousIndex = Number(node.__novaCurrentHistoryIndex || 0);
+        try {
+            const response = await api.fetchApi("/nova_voice/audio/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename: item.filename }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "Delete failed.");
+            node.__novaCurrentHistoryItem = null;
+            const nearest = Math.max(0, Math.min(previousIndex, Math.max(0, Number(data.items?.length || 0) - 1)));
+            await window.__novaReloadMediaHistory?.(node, false, nearest);
+            notify(`Deleted ${item.filename}.`);
+        } catch (error) {
+            notify(error?.message || String(error), "error");
+        }
+    }
+
+    async function generateRevoiceEntry() {
+        const node = activeHistoryNode();
+        const item = activeHistoryItem();
+        if (!node || !item?.filename || activeRevoiceRequestId) return;
+        const generatedRequestId = window.crypto?.randomUUID?.();
+        activeRevoiceRequestId = generatedRequestId
+            ? generatedRequestId.replaceAll("-", "")
+            : `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        generateRevoice.disabled = true;
+        revoiceStatus.textContent = `Generating ${revoiceEngine.value} speech only…`;
+        try {
+            const response = await api.fetchApi("/nova_voice/audio/revoice", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    requestId: activeRevoiceRequestId,
+                    filename: item.filename,
+                    promptSource: revoicePrompt.value,
+                    engine: revoiceEngine.value,
+                    voice: revoiceEngine.value === "OmniLoko" ? omniVoice.value : kokoroVoice.value,
+                    advanced: advancedToggle.checked,
+                    prefix: prefixInput.value,
+                    maxCharacters: Number(maxCharacters.value || 2000),
+                    normalizeLoudness: normalizeLoudness.checked,
+                    timeoutSeconds: Number(timeoutSeconds.value || 300),
+                    speed: Number(speedInput.value || 1),
+                    device: deviceSelect.value,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "Revoice failed.");
+            await window.__novaReloadMediaHistory?.(node, true, 0);
+            revoicePanel.style.display = "none";
+            notify(`Revoiced with ${data.item?.voice_code || revoiceEngine.value}; stored images were reused.`);
+        } catch (error) {
+            revoiceStatus.textContent = error?.message || String(error);
+            if (!String(error?.message || "").toLowerCase().includes("cancel")) {
+                notify(error?.message || String(error), "error");
+            }
+        } finally {
+            activeRevoiceRequestId = "";
+            generateRevoice.disabled = false;
+        }
+    }
+
+    async function cancelRevoiceEntry() {
+        if (!activeRevoiceRequestId) {
+            revoicePanel.style.display = "none";
+            return;
+        }
+        revoiceStatus.textContent = "Cancelling…";
+        try {
+            await api.fetchApi("/nova_voice/audio/revoice/cancel", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ requestId: activeRevoiceRequestId }),
+            });
+        } catch (_) {
+        }
+    }
+
     function resetSubtitlePositionOnly() {
         state.subtitleX = DEFAULTS.subtitleX;
         state.subtitleY = DEFAULTS.subtitleY;
@@ -1271,6 +1496,12 @@ function createStudio(viewer) {
     openAudio.addEventListener("click", () => folderAction("audio", false));
     openImages.addEventListener("click", () => folderAction("images", false));
     revealCurrent.addEventListener("click", () => folderAction("audio", true));
+    deleteCurrent.addEventListener("click", deleteCurrentEntry);
+    revoiceCurrent.addEventListener("click", openRevoicePanel);
+    revoiceEngine.addEventListener("change", updateRevoiceFields);
+    advancedToggle.addEventListener("change", updateRevoiceFields);
+    generateRevoice.addEventListener("click", generateRevoiceEntry);
+    cancelRevoice.addEventListener("click", cancelRevoiceEntry);
 
     audio.addEventListener("play", pauseOtherNovaAudio);
     audio.addEventListener("volumechange", () => {

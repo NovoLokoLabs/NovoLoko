@@ -81,7 +81,7 @@ function safeInstall(node, label, installer) {
     try {
         installer(node);
     } catch (error) {
-        console.error(`[NovoLoko v3.4.0] ${label} frontend disabled safely:`, error);
+        console.error(`[NovoLoko v3.5.0] ${label} frontend disabled safely:`, error);
         try {
             node.__novaFrontendError = String(error?.message || error || "unknown error");
             dirty(node);
