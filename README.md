@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.4.0
+# ComfyUI-NovoLoko v3.5.0
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI and press `Ctrl+F5` in the browser.
-5. Load `workflows/NovoLoko AIO v3.4.0 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v3.5.0 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,8 +22,8 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.4.0 - Latest Workflow.json` — full seven-slot prompt stack, unified voice selector, enhancer instructions and status displays, two-pass generation, compare, metadata save, media studio, timer and memory manager.
-- `NovoLoko Compare Studio v3.4.0.json` — minimal image comparison example.
+- `NovoLoko AIO v3.5.0 - Latest Workflow.json` — full seven-slot prompt stack, refreshable unified voice selector, enhancer instructions and status displays, two-pass generation, edge-to-edge compare, metadata save, Media Studio delete/revoice tools, timer and memory manager.
+- `NovoLoko Compare Studio v3.5.0.json` — minimal image comparison example with theme-neutral node chrome.
 
 ## Main nodes
 
@@ -69,7 +69,9 @@ python -m pip install lokobridge-client==1.0.0
 
 Run that command with ComfyUI's own Python executable, not an unrelated system Python. Start OmniLoko normally or with `--bridge-only` before generating. The node supports both **Current OmniLoko Profile** and saved OmniLoko presets.
 
-`NovoLoko Voice TTS` selects OmniLoko, Kokoro or Off without running the inactive backend and without cross-backend fallback. Advanced controls are hidden only in the frontend; all saved values remain serialized and the Python node works when frontend hiding is unavailable.
+`NovoLoko Voice TTS` selects OmniLoko, Kokoro or Off without running the inactive backend and without cross-backend fallback. Advanced controls are hidden only in the frontend; all saved values remain serialized and the Python node works when frontend hiding is unavailable. **Refresh Voices** updates saved OmniLoko presets and packaged Kokoro voices in place without starting another worker. A removed preset stays visibly selected with a stale warning until you choose a replacement.
+
+Media Studio **Revoice Current** generates a new audio/metadata entry through that same unified dispatcher while keeping the selected entry's prompt and exact stored image references. It does not queue image generation. **Delete Current** removes only managed audio/metadata and images no longer referenced by another entry.
 
 ## Troubleshooting
 

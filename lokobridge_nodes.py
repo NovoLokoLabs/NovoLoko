@@ -11,6 +11,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -33,6 +34,7 @@ _SCHEMA_CACHE_LOCK = threading.Lock()
 _SCHEMA_CACHE_EXPIRES_AT = 0.0
 _SCHEMA_CACHE_OPTIONS: tuple[str, ...] = (PROFILE_VOICE,)
 _SCHEMA_CACHE_PRESET_IDS: dict[str, str | None] = {PROFILE_VOICE: None}
+_EXTERNAL_CANCELLATION = threading.local()
 _STALE_PRESET_MESSAGE = (
     "The selected OmniLoko preset is no longer available. Refresh the node after starting OmniLoko "
     "and select the voice again."
@@ -338,11 +340,11 @@ def _preset_choices(
     return options, mapping
 
 
-def _voice_options() -> list[str]:
+def _voice_options(force_refresh: bool = False) -> list[str]:
     global _SCHEMA_CACHE_EXPIRES_AT, _SCHEMA_CACHE_OPTIONS, _SCHEMA_CACHE_PRESET_IDS
     now = time.monotonic()
     with _SCHEMA_CACHE_LOCK:
-        if now < _SCHEMA_CACHE_EXPIRES_AT:
+        if not force_refresh and now < _SCHEMA_CACHE_EXPIRES_AT:
             return list(_SCHEMA_CACHE_OPTIONS)
 
         options = [PROFILE_VOICE]
@@ -429,6 +431,9 @@ def _decode_wav(payload: bytes):
 
 
 def _raise_if_interrupted() -> None:
+    cancellation_event = getattr(_EXTERNAL_CANCELLATION, "event", None)
+    if cancellation_event is not None and cancellation_event.is_set():
+        raise InterruptedError("NovoLoko voice generation was cancelled.")
     try:
         model_management = importlib.import_module("comfy.model_management")
     except ImportError:
@@ -436,6 +441,22 @@ def _raise_if_interrupted() -> None:
     checker = getattr(model_management, "throw_exception_if_processing_interrupted", None)
     if callable(checker):
         checker()
+
+
+@contextmanager
+def _external_cancellation(cancellation_event):
+    previous = getattr(_EXTERNAL_CANCELLATION, "event", None)
+    _EXTERNAL_CANCELLATION.event = cancellation_event
+    try:
+        yield
+    finally:
+        if previous is None:
+            try:
+                delattr(_EXTERNAL_CANCELLATION, "event")
+            except AttributeError:
+                pass
+        else:
+            _EXTERNAL_CANCELLATION.event = previous
 
 
 def _is_interruption(exception: BaseException) -> bool:

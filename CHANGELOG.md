@@ -1,5 +1,13 @@
 # NovoLoko Changelog
 
+## v3.5.0 — Voice, Compare and Media Studio reliability
+
+- Reworked `NovaVoiceEngineTTS` controls so the active backend voice and Advanced options remain serialized while hiding cleanly, with an in-node Refresh Voices action and stale-preset warning.
+- Allowed Compare Studio split positions to reach exact 0% and 100% in vertical and horizontal views, and removed official-workflow node colours that overrode ComfyUI themes.
+- Added path-safe, reference-aware **Delete Current** to Media Studio so shared images remain available to other history entries.
+- Added cancellable **Revoice Current** using the existing unified OmniLoko/Kokoro dispatcher, reusing stored prompts and image references without queueing any image-generation graph.
+- Preserved all 33 node IDs, existing socket/widget ordering and v3.4.x workflow compatibility.
+
 ## v3.4.0 — Subject libraries and unified voice selection
 
 - Added an append-only Subject slot to Prompt Stack AIO with independent file, category, search, selection, seeded random output and summary support.

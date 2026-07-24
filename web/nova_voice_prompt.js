@@ -2835,7 +2835,10 @@ window.__novaSelectHistoryByIndex = (node, index, playNow = true) => {
     selectHistoryByIndex(node, index, Boolean(playNow));
 };
 
-async function loadHistoryWidgets(node, playLatest = false) {
+window.__novaReloadMediaHistory = (node, playLatest = false, preferredIndex = null) =>
+    loadHistoryWidgets(node, Boolean(playLatest), preferredIndex);
+
+async function loadHistoryWidgets(node, playLatest = false, preferredIndex = null) {
     const combo = node.__novaHistoryCombo;
     if (!combo) return;
     const limit = Math.max(1, Math.min(Number(widgetValue(node, "history_limit", 1000)) || 1000, 5000));
@@ -2860,8 +2863,10 @@ async function loadHistoryWidgets(node, playLatest = false) {
         combo.options = combo.options || {};
         combo.options.values = values;
 
-        let targetIndex = 0;
-        if (!playLatest && currentFilename) {
+        let targetIndex = preferredIndex == null
+            ? 0
+            : Math.max(0, Math.min(Number(preferredIndex) || 0, Math.max(0, items.length - 1)));
+        if (preferredIndex == null && !playLatest && currentFilename) {
             const found = items.findIndex((item) => item?.filename === currentFilename);
             if (found >= 0) targetIndex = found;
         }
