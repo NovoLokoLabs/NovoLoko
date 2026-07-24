@@ -566,6 +566,8 @@ def _managed_history_path(directory: str, filename: Any, extensions: tuple[str, 
     raw = str(filename or "").strip()
     if (
         not raw
+        or "/" in raw
+        or "\\" in raw
         or raw != os.path.basename(raw)
         or raw in {".", ".."}
         or not raw.lower().endswith(extensions)
