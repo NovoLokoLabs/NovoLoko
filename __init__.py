@@ -9,6 +9,9 @@ from .voice_nodes import (
     NODE_CLASS_MAPPINGS as VOICE_NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as VOICE_NODE_DISPLAY_NAME_MAPPINGS,
 )
+# Media Studio saves the new entry during execution, then the existing frontend
+# refreshes older history through the HTTP history route after the node returns.
+from . import media_history_runtime as _media_history_runtime  # noqa: F401
 from .lokobridge_nodes import (
     NODE_CLASS_MAPPINGS as LOKOBRIDGE_NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as LOKOBRIDGE_NODE_DISPLAY_NAME_MAPPINGS,
