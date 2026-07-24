@@ -9,6 +9,9 @@ from .voice_nodes import (
     NODE_CLASS_MAPPINGS as VOICE_NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as VOICE_NODE_DISPLAY_NAME_MAPPINGS,
 )
+# Apply bounded, interruptible Media Studio history behaviour after voice_nodes
+# is loaded and before ComfyUI registers the exported node class.
+from . import media_studio_guard as _media_studio_guard  # noqa: F401
 from .lokobridge_nodes import (
     NODE_CLASS_MAPPINGS as LOKOBRIDGE_NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as LOKOBRIDGE_NODE_DISPLAY_NAME_MAPPINGS,
