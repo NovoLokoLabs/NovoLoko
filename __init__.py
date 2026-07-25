@@ -1,5 +1,7 @@
 """Unified NovoLoko custom node package: CSV, prompts, overlays, compare, Whisper and Kokoro."""
 
+from pathlib import Path
+
 from .nodes import (
     NODE_CLASS_MAPPINGS as CORE_NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as CORE_NODE_DISPLAY_NAME_MAPPINGS,
@@ -68,7 +70,10 @@ NODE_DISPLAY_NAME_MAPPINGS.update(WORKFLOW_NODE_DISPLAY_NAME_MAPPINGS)
 NODE_DISPLAY_NAME_MAPPINGS.update(NOVA_CORE_REPLACEMENT_DISPLAY_MAPPINGS)
 
 WEB_DIRECTORY = "./web"
-__version__ = NOVA_VERSION
+try:
+    __version__ = Path(__file__).with_name("RELEASE_VERSION").read_text(encoding="utf-8").strip() or NOVA_VERSION
+except OSError:
+    __version__ = NOVA_VERSION
 
 print(f"[ComfyUI-NovoLoko] Unified NovoLoko v{__version__}: {len(NODE_CLASS_MAPPINGS)} node mappings loaded")
 
