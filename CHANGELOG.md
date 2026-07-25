@@ -1,5 +1,13 @@
 # NovoLoko Changelog
 
+## v3.5.1 — Updater-ready reliability hotfix
+
+- Auto-starts an installed OmniLoko in private bridge-only mode only when a real OmniLoko TTS execution needs it.
+- Shortens the Memory Manager title and lets existing oversized nodes shrink to a compact width.
+- Defers full Media Studio history refresh until after the ComfyUI node returns, preventing large libraries from holding the queue open.
+- Preserves full-resolution history images, the configured history limit, prompts, metadata, delete, revoice, autoplay and gallery navigation.
+- Adds an updater-ready release workflow and clean ZIP packaging for patch releases.
+
 ## v3.5.0 — Voice, Compare and Media Studio reliability
 
 - Reworked `NovaVoiceEngineTTS` controls so the active backend voice and Advanced options remain serialized while hiding cleanly, with an in-node Refresh Voices action and stale-preset warning.
