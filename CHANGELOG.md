@@ -1,5 +1,14 @@
 # NovoLoko Changelog
 
+## v3.6.2 — Visual preview workflow polish
+
+- Adds **View larger** for every stored visual-style preview.
+- Opens images uncropped in a full-screen viewer with fit-to-window and actual-size modes.
+- Makes the floating **Styles** launcher clickable, draggable and position-aware.
+- Adds confirmed, sequential **Generate all missing** support for a complete CSV/YAML library, with progress, stop-and-resume behavior and protection for existing previews.
+- Closes only an OmniLoko process that NovoLoko auto-started, after the final active OmniLoko request; user-opened instances are never closed.
+- Supports Escape, click-outside and an explicit Close button without changing node contracts or workflow links.
+
 ## v3.6.1 — Generated visual previews
 
 - Fits each real style preview completely inside its card instead of cropping it.

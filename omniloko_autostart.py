@@ -17,6 +17,8 @@ from typing import Any
 _AUTO_START_LOCK = threading.Lock()
 _EXECUTION_CONTEXT = threading.local()
 _INSTALLED = False
+_OWNED_PROCESS: subprocess.Popen | None = None
+_ACTIVE_REQUESTS = 0
 
 
 def _logical_drive_roots() -> list[Path]:
@@ -96,6 +98,7 @@ def _bridge_is_ready(module: Any) -> bool:
 
 
 def _start_bridge(module: Any, deadline: float | None) -> None:
+    global _OWNED_PROCESS
     with _AUTO_START_LOCK:
         if _bridge_is_ready(module):
             return
@@ -124,6 +127,8 @@ def _start_bridge(module: Any, deadline: float | None) -> None:
             stop_at = min(stop_at, deadline)
         while time.monotonic() < stop_at:
             if _bridge_is_ready(module):
+                if process.poll() is None:
+                    _OWNED_PROCESS = process
                 return
             # Exit code 17 means another process already owns the bridge. Keep
             # waiting briefly for that owner's discovery file to become visible.
@@ -131,9 +136,75 @@ def _start_bridge(module: Any, deadline: float | None) -> None:
                 break
             time.sleep(0.25)
 
+        _close_process(process)
         raise RuntimeError(
             "OmniLoko was opened automatically, but its private local bridge did not become ready in time."
         )
+
+
+def _post_close_to_windows(pid: int) -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        posted = False
+        enum_proc_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+        def visit(hwnd, _lparam):
+            nonlocal posted
+            window_pid = wintypes.DWORD()
+            ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+            if window_pid.value == int(pid) and ctypes.windll.user32.IsWindowVisible(hwnd):
+                ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)  # WM_CLOSE
+                posted = True
+            return True
+
+        callback = enum_proc_type(visit)
+        ctypes.windll.user32.EnumWindows(callback, 0)
+        return posted
+    except Exception:
+        return False
+
+
+def _close_process(process: subprocess.Popen) -> None:
+    """Close only an OmniLoko process started by this module."""
+
+    if process.poll() is not None:
+        return
+    if _post_close_to_windows(int(process.pid)):
+        try:
+            process.wait(timeout=15)
+            return
+        except subprocess.TimeoutExpired:
+            pass
+    try:
+        process.terminate()
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+    except Exception:
+        pass
+
+
+def _begin_request() -> None:
+    global _ACTIVE_REQUESTS
+    with _AUTO_START_LOCK:
+        _ACTIVE_REQUESTS += 1
+
+
+def _end_request() -> None:
+    global _ACTIVE_REQUESTS, _OWNED_PROCESS
+    process = None
+    with _AUTO_START_LOCK:
+        _ACTIVE_REQUESTS = max(0, _ACTIVE_REQUESTS - 1)
+        if _ACTIVE_REQUESTS == 0 and _OWNED_PROCESS is not None:
+            process = _OWNED_PROCESS
+            _OWNED_PROCESS = None
+    if process is not None:
+        _close_process(process)
 
 
 def ensure_running(module: Any, deadline: float | None = None) -> None:
@@ -179,6 +250,7 @@ def install(module: Any) -> None:
     def speak(self, *args, **kwargs):
         previous = getattr(_EXECUTION_CONTEXT, "active", False)
         _EXECUTION_CONTEXT.active = True
+        _begin_request()
         try:
             return original_speak(self, *args, **kwargs)
         except RuntimeError as exc:
@@ -188,6 +260,7 @@ def install(module: Any) -> None:
                     raise cause
             raise
         finally:
+            _end_request()
             _EXECUTION_CONTEXT.active = previous
 
     module._connect = connect
