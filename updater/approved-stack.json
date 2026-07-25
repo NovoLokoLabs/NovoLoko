@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-25T06:45:00Z",
+  "updated_at": "2026-07-25T12:03:37Z",
   "products": {
     "NovoLoko": {
       "repository": "NovoLokoLabs/NovoLoko",
@@ -17,28 +17,30 @@
     },
     "OmniLoko": {
       "repository": "NovoLokoLabs/OmniLoko",
-      "version": "0.10.2",
-      "tag": "v0.10.2",
-      "commit": "51eb37502af949dd8dc7e8fe59bbd8f04e0471b3",
+      "version": "0.10.3",
+      "tag": "v0.10.3",
+      "commit": "9ea2cb92667817c82d34fd4b69d600fa72e95082",
       "previous_commits": [
+        "51eb37502af949dd8dc7e8fe59bbd8f04e0471b3",
         "696677e6b4a60eee6352b0eb68041dc815745194",
         "5f7af1085798374ee9be721bd9475e7d76105f67",
         "a37ee8244f24da09537dfc08797422eebabe19c5",
         "ec7018c56871b861349ca685dd0f83be99507ecb"
       ],
-      "previous_tags": ["v0.10.1", "v0.10.0"]
+      "previous_tags": ["v0.10.2", "v0.10.1", "v0.10.0"]
     },
     "KokoLoko": {
       "repository": "NovoLokoLabs/KokoLoko",
-      "version": "0.32.1",
-      "tag": "v0.32.1",
-      "commit": "d5dba02e277939691e653d4818f89a7b94ab6d96",
+      "version": "0.32.2",
+      "tag": "v0.32.2",
+      "commit": "fbf9cde475402e6ccc1d071a0b0c4adf954e22a0",
       "previous_commits": [
+        "d5dba02e277939691e653d4818f89a7b94ab6d96",
         "1986ec9c7ec40c4124138edcc134d8da7a91df56",
         "818fcfba6b9f709322232ade3d323ee2492404b1",
         "6c0ab9926978cd28f8b027482e82ad9cce1e25d6"
       ],
-      "previous_tags": ["v0.32.0"]
+      "previous_tags": ["v0.32.1", "v0.32.0"]
     },
     "LokoBridge": {
       "repository": "NovoLokoLabs/LokoBridge",
