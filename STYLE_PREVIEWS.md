@@ -63,7 +63,16 @@ workflow with no image output never replaces the existing preview.
 Select a card with a stored image and click **View larger**. The image opens
 uncropped in a full-screen viewer. Use **Actual size** to display one stored
 image pixel per screen pixel, **Fit to window** to return to the complete-image
-view, or close it with Escape, the Close button or the dark area outside.
+view, the mouse wheel or Zoom buttons to inspect details, and left- or
+middle-drag to pan while zoomed. Previous/Next, the arrow keys and mouse buttons
+4/5 move between saved previews. Right-click, Escape, the Close button or the
+dark area outside exits the viewer.
+
+Use **Refresh** to reload the current CSV/YAML and preview set. **Options**
+remembers whether a newly generated image opens automatically, whether viewer
+navigation wraps at the ends, and whether right-click closes the viewer.
+Double-clicking a style card generates that exact style when no preview is
+already running.
 
 ## Generate a complete CSV/YAML library
 
@@ -73,6 +82,7 @@ floating **Styles** launcher. Choose 512 or 1024 previews, then click
 
 NovoLoko counts every style without a saved preview and warns before starting
 because a large library can require many workflow runs. Runs are queued one at
-a time. Existing previews are not replaced. While running, click **Stop after
-current** to finish the active image safely; clicking **Generate all missing**
-later resumes by processing only the styles still missing previews.
+a time. Existing previews are not replaced. While running, click **Stop
+generating** to interrupt the active preview. That control remains available if
+the browser is closed and reopened, and a later run resumes by processing only
+the styles still missing previews.

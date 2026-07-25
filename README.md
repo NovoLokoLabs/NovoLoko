@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.6.2
+# ComfyUI-NovoLoko v3.6.3
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -25,7 +25,7 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 - `NovoLoko AIO v3.5.0 - Latest Workflow.json` — full seven-slot prompt stack, refreshable unified voice selector, enhancer instructions and status displays, two-pass generation, edge-to-edge compare, metadata save, Media Studio delete/revoice tools, timer and memory manager.
 - `NovoLoko Compare Studio v3.5.0.json` — minimal image comparison example with theme-neutral node chrome.
 
-The v3.6.2 release keeps the existing v3.5.0 workflow files because no serialized sockets, widgets or links changed.
+The v3.6.3 release keeps the existing v3.5.0 workflow files because no serialized sockets, widgets or links changed.
 
 ## Main nodes
 
@@ -47,7 +47,10 @@ dragged anywhere and remembers its position.
 **Generate all missing** runs the current workflow sequentially for every style
 in the selected CSV/YAML that does not have a preview. NovoLoko shows the exact
 run count and a large-library warning first, preserves existing images, and
-allows the run to stop after the current preview and resume later.
+keeps **Stop generating** available after the browser is closed and reopened.
+The browser also provides explicit refresh, persistent convenience options,
+double-click generation, mouse 4/5 style navigation and a large viewer with
+wheel zoom, drag panning, Previous/Next and right-click close.
 
 Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger.
 

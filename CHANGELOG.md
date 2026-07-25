@@ -1,5 +1,15 @@
 # NovoLoko Changelog
 
+## v3.6.3 — Visual-browser interaction controls
+
+- Adds an explicit **Refresh** action for reloading CSV/YAML entries and saved previews without reopening the browser.
+- Keeps preview-generation ownership outside the visual window so closing and reopening it still exposes **Stop generating** and prevents duplicate batches.
+- Adds Previous/Next, mouse 4/5 and arrow-key navigation across saved images and styles.
+- Adds bounded scroll-wheel zoom, zoom buttons, fit/actual-size switching and click-drag panning in the large viewer.
+- Makes right-click exit the large viewer by default and adds persistent convenience options for auto-opening previews, wrapped navigation and right-click closing.
+- Double-clicking a style now queues that exact style when no preview is already generating.
+- Keeps favourite stars visible over captured preview images and preserves all existing node and workflow contracts.
+
 ## v3.6.2 — Visual preview workflow polish
 
 - Adds **View larger** for every stored visual-style preview.
