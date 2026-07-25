@@ -1,5 +1,13 @@
 # NovoLoko Changelog
 
+## v3.5.2 — Visual style and workflow-layout polish
+
+- Added a full-screen visual library to the existing CSV Style Loader with search, categories, favourites, recent history, grid/list views, prompt details, random selection and pagination.
+- Preserved manually resized Prompt Stack AIO dimensions when workflows are saved and reopened.
+- Made the Memory Manager reliably compact by shortening visible controls and capping ComfyUI's calculated default width.
+- Opens the installed OmniLoko application only when an actual OmniLoko voice execution needs it; Kokoro and Off mode remain isolated.
+- Preserved all 33 node IDs, inputs, outputs, socket order, widget order and v3.5.0 workflow links.
+
 ## v3.5.1 — Updater-ready reliability hotfix
 
 - Auto-starts an installed OmniLoko in private bridge-only mode only when a real OmniLoko TTS execution needs it.

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import time
+
+from . import lokobridge_nodes as _lokobridge_nodes
 from .lokobridge_nodes import PROFILE_VOICE, NovaOmniLokoTTS
+from .omniloko_autostart import ensure_running as _ensure_omniloko_running
 from .voice_nodes import KOKORO_VOICES, NovaKokoroTTS, _silent_audio
 
 
@@ -108,6 +112,12 @@ class NovaVoiceEngineTTS:
             )
 
         if selected_engine == "OmniLoko":
+            if str(prefix or "").strip() or str(text or "").strip():
+                try:
+                    deadline = time.monotonic() + max(1, int(timeout_seconds))
+                except (TypeError, ValueError):
+                    deadline = None
+                _ensure_omniloko_running(_lokobridge_nodes, deadline)
             audio, spoken, status, voice_used = NovaOmniLokoTTS().speak(
                 text=text,
                 voice=selected_voice,

@@ -1,4 +1,4 @@
-"""Lazy OmniLoko bridge auto-start for execution-time TTS requests.
+"""Lazy OmniLoko app auto-start for execution-time TTS requests.
 
 The node schema may probe available voices while ComfyUI is starting. Those probes
 must stay passive. OmniLoko is started only while an actual TTS node execution is
@@ -107,16 +107,14 @@ def _start_bridge(module: Any, deadline: float | None) -> None:
                 "Install OmniLoko with the NovoLokoLabs updater or set OMNILOKO_EXE to its full path."
             )
 
-        creation_flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW
         try:
             process = subprocess.Popen(
-                [str(executable), "--bridge-only"],
+                [str(executable)],
                 cwd=str(executable.parent),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 close_fds=True,
-                creationflags=creation_flags,
             )
         except Exception as exc:
             raise RuntimeError(f"OmniLoko could not be auto-started: {exc}") from exc
@@ -134,8 +132,15 @@ def _start_bridge(module: Any, deadline: float | None) -> None:
             time.sleep(0.25)
 
         raise RuntimeError(
-            "OmniLoko was started automatically, but its private local bridge did not become ready in time."
+            "OmniLoko was opened automatically, but its private local bridge did not become ready in time."
         )
+
+
+def ensure_running(module: Any, deadline: float | None = None) -> None:
+    """Open OmniLoko only for an explicit OmniLoko execution that needs its bridge."""
+
+    if not _bridge_is_ready(module):
+        _start_bridge(module, deadline)
 
 
 def _is_unavailable_error(exception: BaseException) -> bool:

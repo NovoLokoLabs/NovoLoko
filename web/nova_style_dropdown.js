@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 function widget(node, name) {
-    return node.widgets?.find((w) => w.name === name);
+    return node.widgets?.find((item) => item.name === name);
 }
 
 function isNovaStyleLoader(nodeData) {
@@ -13,96 +13,486 @@ function isNovaStyleLoader(nodeData) {
 }
 
 function isCharacterLoader(nodeData) {
-    const name = nodeData?.name || "";
-    return name.startsWith("NovaLoadCharactersCSVPro");
+    return String(nodeData?.name || "").startsWith("NovaLoadCharactersCSVPro");
 }
 
-function setComboValues(w, values, fallback) {
-    if (!w || !Array.isArray(values) || values.length === 0) return;
-    w.type = "combo";
-    w.options = w.options || {};
-    w.options.values = values;
-    if (!values.includes(w.value)) {
-        w.value = values.includes(fallback) ? fallback : values[0];
+function setComboValues(target, values, fallback) {
+    if (!target || !Array.isArray(values) || values.length === 0) return;
+    target.type = "combo";
+    target.options ||= {};
+    target.options.values = values;
+    if (!values.includes(target.value)) {
+        target.value = values.includes(fallback) ? fallback : values[0];
     }
 }
 
+function markDirty(node) {
+    node.setDirtyCanvas?.(true, true);
+    app.graph?.setDirtyCanvas?.(true, true);
+}
+
+function browserParams(node, nodeData, overrides = {}) {
+    const kind = isCharacterLoader(nodeData) ? "characters" : "styles";
+    return new URLSearchParams({
+        csv: String(widget(node, "csv_file_path")?.value || ""),
+        kind,
+        search: String(overrides.search ?? widget(node, "search")?.value ?? ""),
+        category: String(overrides.category ?? widget(node, "category")?.value ?? "All"),
+        favorites_only: String(Boolean(overrides.favoritesOnly)),
+        history_only: String(Boolean(overrides.historyOnly)),
+        page: String(overrides.page || 1),
+        page_size: String(overrides.pageSize || 24),
+        compact: String(Boolean(overrides.browserOnly)),
+    });
+}
+
+async function fetchStyles(node, nodeData, overrides = {}) {
+    const response = await api.fetchApi(`/nova_styles_csv_pro/list?${browserParams(node, nodeData, overrides)}`);
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error(`Style library returned HTTP ${response.status}`);
+    }
+    if (!response.ok || !data?.ok) throw new Error(data?.error || `Style library returned HTTP ${response.status}`);
+    return data;
+}
+
 async function refreshNovaCSVDropdown(node, nodeData, quiet = false) {
-    const csv = widget(node, "csv_file_path");
     const style = widget(node, "style");
     const category = widget(node, "category");
-    const search = widget(node, "search");
+    if (!widget(node, "csv_file_path") || !style) return;
 
-    if (!csv || !style) return;
-
-    const kind = isCharacterLoader(nodeData) ? "characters" : "styles";
-    const fallbackStyle = kind === "characters" ? "No Character/None" : "No Style";
-    const fallbackCategory = "All";
-
-    const params = new URLSearchParams();
-    params.set("csv", csv.value || "");
-    params.set("kind", kind);
-    params.set("search", search?.value || "");
-    params.set("category", category?.value || "All");
-
+    const character = isCharacterLoader(nodeData);
     try {
-        const response = await api.fetchApi(`/nova_styles_csv_pro/list?${params.toString()}`);
-        const data = await response.json();
-        if (!data.ok) throw new Error(data.error || "CSV list request failed");
-
-        setComboValues(style, data.styles || [], fallbackStyle);
-        setComboValues(category, data.categories || [], fallbackCategory);
-
-        node.setDirtyCanvas?.(true, true);
-        app.graph?.setDirtyCanvas?.(true, true);
-
+        const data = await fetchStyles(node, nodeData);
+        setComboValues(style, data.styles || [], character ? "No Character/None" : "No Style");
+        setComboValues(category, data.categories || [], "All");
+        markDirty(node);
         if (!quiet) {
-            console.log(`[NovoLoko Style File] Dropdown refreshed: ${data.filtered_count}/${data.count} from ${data.resolved_path}`);
+            console.log(`[NovoLoko Style Library] Dropdown refreshed: ${data.filtered_count}/${data.count} from ${data.file_name}`);
         }
-    } catch (err) {
-        console.warn("[NovoLoko Style File] Dropdown refresh failed:", err);
+    } catch (error) {
+        console.warn("[NovoLoko Style Library] Dropdown refresh failed:", error);
     }
 }
 
 function debounceRefresh(node, nodeData) {
     clearTimeout(node.__novaCSVRefreshTimer);
-    node.__novaCSVRefreshTimer = setTimeout(() => refreshNovaCSVDropdown(node, nodeData, true), 250);
+    node.__novaCSVRefreshTimer = setTimeout(
+        () => refreshNovaCSVDropdown(node, nodeData, true),
+        250,
+    );
 }
 
 function wrapWidgetCallback(node, nodeData, name) {
-    const w = widget(node, name);
-    if (!w || w.__novaWrapped) return;
-    const old = w.callback;
-    w.callback = function (...args) {
-        const result = old?.apply(this, args);
+    const target = widget(node, name);
+    if (!target || target.__novaWrapped) return;
+    const previous = target.callback;
+    target.callback = function (...args) {
+        const result = previous?.apply(this, args);
         debounceRefresh(node, nodeData);
         return result;
     };
-    w.__novaWrapped = true;
+    target.__novaWrapped = true;
+}
+
+function hashHue(value) {
+    let hash = 2166136261;
+    for (const character of String(value || "")) {
+        hash ^= character.charCodeAt(0);
+        hash = Math.imul(hash, 16777619);
+    }
+    return Math.abs(hash) % 360;
+}
+
+function swatchBackground(item) {
+    const hue = hashHue(`${item.category}/${item.name}`);
+    const second = (hue + 42 + (hashHue(item.prompt) % 90)) % 360;
+    return [
+        `radial-gradient(circle at 24% 22%, hsla(${second},90%,72%,.82), transparent 24%)`,
+        `radial-gradient(circle at 76% 70%, hsla(${hue},90%,58%,.76), transparent 31%)`,
+        `linear-gradient(135deg, hsl(${hue},45%,16%), hsl(${second},55%,34%))`,
+    ].join(",");
+}
+
+function ensureBrowserStyles() {
+    if (document.getElementById("nova-style-browser-css")) return;
+    const style = document.createElement("style");
+    style.id = "nova-style-browser-css";
+    style.textContent = `
+        .nova-style-browser{position:fixed;inset:0;z-index:100000;background:rgba(3,5,9,.84);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:24px;color:#eef3ff;font:13px/1.35 Inter,Segoe UI,sans-serif}
+        .nova-style-dialog{width:min(1240px,96vw);height:min(880px,94vh);display:flex;flex-direction:column;background:#171a21;border:1px solid #3a4050;border-radius:18px;box-shadow:0 28px 90px #000b;overflow:hidden}
+        .nova-style-head{display:flex;gap:12px;align-items:center;padding:17px 20px;border-bottom:1px solid #303541;background:linear-gradient(100deg,#242936,#161920)}
+        .nova-style-title{font-size:20px;font-weight:800;letter-spacing:.2px;flex:1}.nova-style-count{color:#aeb9d0}
+        .nova-style-controls{display:grid;grid-template-columns:minmax(210px,1fr) minmax(180px,260px) auto auto auto auto;gap:9px;padding:13px 20px;border-bottom:1px solid #2c313c;background:#1d2129}
+        .nova-style-controls input,.nova-style-controls select,.nova-style-browser button{border:1px solid #3b4251;border-radius:9px;background:#252a34;color:#f5f7ff;padding:9px 11px;font:inherit}
+        .nova-style-browser button{cursor:pointer;font-weight:700}.nova-style-browser button:hover{border-color:#7b9cff;background:#30394b}.nova-style-browser button.active{background:#315fcf;border-color:#73a0ff}
+        .nova-style-content{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;min-height:0;flex:1}
+        .nova-style-grid{padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));grid-auto-rows:190px;gap:12px;overflow:auto;align-content:start;background:#11141a}
+        .nova-style-grid.list{grid-template-columns:1fr;grid-auto-rows:92px}
+        .nova-style-card{position:relative;display:flex;flex-direction:column;padding:0;overflow:hidden;text-align:left;border:1px solid #3b4251;border-radius:12px;background:#242934;color:#f5f7ff;cursor:pointer}
+        .nova-style-card:hover,.nova-style-card:focus{outline:none;border-color:#7b9cff;background:#30394b}
+        .nova-style-card.selected{border:2px solid #6ca1ff!important;box-shadow:0 0 0 3px #2865d755}
+        .nova-style-swatch{height:112px;position:relative;flex:none}.nova-style-grid.list .nova-style-card{display:grid;grid-template-columns:144px 1fr}.nova-style-grid.list .nova-style-swatch{height:100%}
+        .nova-style-swatch:after{content:"";position:absolute;inset:12%;border:1px solid #ffffff38;border-radius:50% 22% 50% 28%;transform:rotate(-14deg);box-shadow:inset 0 0 24px #fff2}
+        .nova-style-card-copy{padding:9px 10px;min-width:0}.nova-style-card-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-style-card-category{color:#9fabbd;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .nova-style-star{position:absolute;right:7px;top:7px;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111b!important;font-size:17px!important}.nova-style-star.on{color:#ffd45a}
+        .nova-style-detail{border-left:1px solid #303541;background:#1b1f27;padding:18px;overflow:auto}.nova-style-detail h3{font-size:18px;margin:0 0 5px}.nova-style-detail .category{color:#8baeff;margin-bottom:16px}.nova-style-detail .label{color:#8f9bb0;text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.8px;margin-top:15px}.nova-style-detail .text{white-space:pre-wrap;color:#d5dbea;margin-top:5px}
+        .nova-style-empty{grid-column:1/-1;align-self:center;justify-self:center;color:#98a3b7;font-size:16px;text-align:center}
+        .nova-style-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #303541;background:#1d2129}.nova-style-pages{display:flex;gap:6px;flex:1;justify-content:center}.nova-style-page{min-width:38px}
+        @media(max-width:850px){.nova-style-controls{grid-template-columns:1fr 1fr auto}.nova-style-content{grid-template-columns:1fr}.nova-style-detail{display:none}}
+    `;
+    document.head.append(style);
+}
+
+function setSelectedStyle(node, item) {
+    const style = widget(node, "style");
+    const mode = widget(node, "mode");
+    const manual = widget(node, "manual_style_name");
+    if (style) {
+        const values = Array.isArray(style.options?.values) ? [...style.options.values] : [];
+        if (!values.includes(item.name)) values.push(item.name);
+        setComboValues(style, values, item.name);
+        style.value = item.name;
+        style.callback?.(item.name);
+    }
+    if (manual) manual.value = "";
+    if (mode) {
+        mode.value = "Manual";
+        mode.callback?.("Manual");
+    }
+    markDirty(node);
+}
+
+async function setFavourite(item, enabled, kind) {
+    const response = await api.fetchApi("/nova_favorites/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            kind,
+            action: enabled ? "add" : "remove",
+            names: [item.name],
+        }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.ok) throw new Error(data?.error || "Favourite update failed");
+}
+
+function openStyleBrowser(node, nodeData) {
+    ensureBrowserStyles();
+    node.__novaStyleBrowser?.remove();
+
+    const state = {
+        page: 1,
+        pageSize: 24,
+        search: String(widget(node, "search")?.value || ""),
+        category: String(widget(node, "category")?.value || "All"),
+        favoritesOnly: false,
+        historyOnly: false,
+        list: false,
+        selected: null,
+        data: null,
+        browserOnly: true,
+    };
+    const favoriteKind = isCharacterLoader(nodeData) ? "characters" : "styles";
+
+    const overlay = document.createElement("div");
+    overlay.className = "nova-style-browser";
+    overlay.tabIndex = -1;
+    node.__novaStyleBrowser = overlay;
+    const dialog = document.createElement("section");
+    dialog.className = "nova-style-dialog";
+    const head = document.createElement("header");
+    head.className = "nova-style-head";
+    const title = document.createElement("div");
+    title.className = "nova-style-title";
+    title.textContent = "NovoLoko Visual Style Library";
+    const count = document.createElement("div");
+    count.className = "nova-style-count";
+    const close = document.createElement("button");
+    close.textContent = "Close ×";
+    head.append(title, count, close);
+
+    const controls = document.createElement("div");
+    controls.className = "nova-style-controls";
+    const search = document.createElement("input");
+    search.placeholder = "Search style names and prompt text…";
+    search.value = state.search;
+    const category = document.createElement("select");
+    const favorites = document.createElement("button");
+    favorites.textContent = "★ Favourites";
+    const history = document.createElement("button");
+    history.textContent = "↶ Recent";
+    const random = document.createElement("button");
+    random.textContent = "⤨ Random";
+    const view = document.createElement("button");
+    view.textContent = "☷ List";
+    controls.append(search, category, favorites, history, random, view);
+
+    const content = document.createElement("div");
+    content.className = "nova-style-content";
+    const grid = document.createElement("div");
+    grid.className = "nova-style-grid";
+    const detail = document.createElement("aside");
+    detail.className = "nova-style-detail";
+    detail.innerHTML = "<h3>Select a style</h3><div class='text'>Click a card to select it. Double-click to select and close.</div>";
+    content.append(grid, detail);
+
+    const foot = document.createElement("footer");
+    foot.className = "nova-style-foot";
+    const status = document.createElement("span");
+    status.textContent = "Loading…";
+    const pages = document.createElement("div");
+    pages.className = "nova-style-pages";
+    foot.append(status, pages);
+    dialog.append(head, controls, content, foot);
+    overlay.append(dialog);
+    document.body.append(overlay);
+
+    const closeBrowser = () => {
+        if (node.__novaStyleBrowser === overlay) node.__novaStyleBrowser = null;
+        overlay.remove();
+    };
+    close.onclick = closeBrowser;
+    overlay.addEventListener("pointerdown", (event) => {
+        if (event.target === overlay) closeBrowser();
+    });
+    overlay.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeBrowser();
+    });
+    for (const eventName of ["wheel", "pointerdown", "pointermove", "pointerup"]) {
+        dialog.addEventListener(eventName, (event) => event.stopPropagation());
+    }
+
+    function showDetail(item) {
+        detail.replaceChildren();
+        const heading = document.createElement("h3");
+        heading.textContent = item.clean_name || item.name;
+        const categoryText = document.createElement("div");
+        categoryText.className = "category";
+        categoryText.textContent = item.category;
+        detail.append(heading, categoryText);
+        for (const [label, value] of [["Positive prompt", item.prompt], ["Negative prompt", item.negative]]) {
+            const labelElement = document.createElement("div");
+            labelElement.className = "label";
+            labelElement.textContent = label;
+            const textElement = document.createElement("div");
+            textElement.className = "text";
+            textElement.textContent = value || "None";
+            detail.append(labelElement, textElement);
+        }
+    }
+
+    function renderPages() {
+        pages.replaceChildren();
+        const pageCount = Number(state.data?.page_count || 1);
+        const candidates = [...new Set([1, state.page - 1, state.page, state.page + 1, pageCount])]
+            .filter((value) => value >= 1 && value <= pageCount)
+            .sort((a, b) => a - b);
+        for (const pageNumber of candidates) {
+            const button = document.createElement("button");
+            button.className = `nova-style-page${pageNumber === state.page ? " active" : ""}`;
+            button.textContent = String(pageNumber);
+            button.onclick = () => {
+                state.page = pageNumber;
+                void load();
+            };
+            pages.append(button);
+        }
+    }
+
+    function renderCards() {
+        grid.replaceChildren();
+        const items = state.data?.items || [];
+        if (!items.length) {
+            const empty = document.createElement("div");
+            empty.className = "nova-style-empty";
+            empty.textContent = state.historyOnly
+                ? "No recent styles match this library and filter."
+                : "No styles match. Clear the search or choose another category.";
+            grid.append(empty);
+            return;
+        }
+        for (const item of items) {
+            const card = document.createElement("div");
+            card.className = `nova-style-card${state.selected?.name === item.name ? " selected" : ""}`;
+            card.title = item.prompt || item.name;
+            card.tabIndex = 0;
+            card.setAttribute("role", "button");
+            const swatch = document.createElement("div");
+            swatch.className = "nova-style-swatch";
+            swatch.style.background = swatchBackground(item);
+            const copy = document.createElement("div");
+            copy.className = "nova-style-card-copy";
+            const name = document.createElement("div");
+            name.className = "nova-style-card-name";
+            name.textContent = item.clean_name || item.name;
+            const group = document.createElement("div");
+            group.className = "nova-style-card-category";
+            group.textContent = item.category;
+            copy.append(name, group);
+            const star = document.createElement("button");
+            star.className = `nova-style-star${item.favorite ? " on" : ""}`;
+            star.textContent = item.favorite ? "★" : "☆";
+            star.title = item.favorite ? "Remove from favourites" : "Add to favourites";
+            star.onclick = async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                try {
+                    await setFavourite(item, !item.favorite, favoriteKind);
+                    item.favorite = !item.favorite;
+                    renderCards();
+                } catch (error) {
+                    status.textContent = error.message;
+                }
+            };
+            card.onclick = () => {
+                state.selected = item;
+                setSelectedStyle(node, item);
+                showDetail(item);
+                renderCards();
+                status.textContent = `Selected ${item.clean_name || item.name}`;
+            };
+            card.ondblclick = () => {
+                setSelectedStyle(node, item);
+                closeBrowser();
+            };
+            card.onkeydown = (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    card.click();
+                }
+            };
+            card.append(swatch, copy, star);
+            grid.append(card);
+        }
+    }
+
+    async function load() {
+        status.textContent = "Loading styles…";
+        grid.setAttribute("aria-busy", "true");
+        try {
+            const data = await fetchStyles(node, nodeData, state);
+            state.data = data;
+            state.page = Number(data.page || 1);
+            count.textContent = `${Number(data.filtered_count || 0).toLocaleString()} of ${Number(data.count || 0).toLocaleString()} styles`;
+            status.textContent = `${data.file_name} • page ${data.page} of ${data.page_count}`;
+            const currentCategory = state.category;
+            category.replaceChildren();
+            for (const name of data.categories || ["All"]) {
+                const option = document.createElement("option");
+                option.value = name;
+                option.textContent = name;
+                category.append(option);
+            }
+            category.value = [...category.options].some((option) => option.value === currentCategory)
+                ? currentCategory
+                : "All";
+            renderCards();
+            renderPages();
+        } catch (error) {
+            grid.replaceChildren();
+            const empty = document.createElement("div");
+            empty.className = "nova-style-empty";
+            empty.textContent = "The style library could not be loaded. Check the CSV/YAML path and try Reload.";
+            grid.append(empty);
+            status.textContent = String(error?.message || "Style library unavailable");
+        } finally {
+            grid.removeAttribute("aria-busy");
+        }
+    }
+
+    let searchTimer;
+    search.oninput = () => {
+        state.search = search.value;
+        state.page = 1;
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => void load(), 180);
+    };
+    category.onchange = () => {
+        state.category = category.value;
+        state.page = 1;
+        void load();
+    };
+    favorites.onclick = () => {
+        state.favoritesOnly = !state.favoritesOnly;
+        state.historyOnly = false;
+        state.page = 1;
+        favorites.classList.toggle("active", state.favoritesOnly);
+        history.classList.remove("active");
+        void load();
+    };
+    history.onclick = () => {
+        state.historyOnly = !state.historyOnly;
+        state.favoritesOnly = false;
+        state.page = 1;
+        history.classList.toggle("active", state.historyOnly);
+        favorites.classList.remove("active");
+        void load();
+    };
+    random.onclick = () => {
+        const items = state.data?.items || [];
+        if (!items.length) return;
+        const item = items[Math.floor(Math.random() * items.length)];
+        state.selected = item;
+        setSelectedStyle(node, item);
+        showDetail(item);
+        renderCards();
+        status.textContent = `Random selection: ${item.clean_name || item.name}`;
+    };
+    view.onclick = () => {
+        state.list = !state.list;
+        grid.classList.toggle("list", state.list);
+        view.textContent = state.list ? "▦ Grid" : "☷ List";
+        view.classList.toggle("active", state.list);
+    };
+
+    overlay.focus();
+    void load();
 }
 
 app.registerExtension({
-    name: "NovoLoko.CSVStyleDropdownRefresh",
+    name: "NovoLoko.CSVStyleVisualLibrary.v352",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (!isNovaStyleLoader(nodeData)) return;
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const result = originalOnNodeCreated?.apply(this, arguments);
-
             const node = this;
-            if (!node.__novaCSVRefreshButtonAdded) {
-                node.addWidget("button", "🔄 Reload CSV / YAML Dropdown", null, () => refreshNovaCSVDropdown(node, nodeData, false));
-                node.__novaCSVRefreshButtonAdded = true;
+
+            if (!node.__novaCSVVisualBrowserAdded) {
+                const browse = node.addWidget(
+                    "button",
+                    isCharacterLoader(nodeData) ? "Browse characters visually…" : "Browse styles visually…",
+                    null,
+                    () => openStyleBrowser(node, nodeData),
+                );
+                browse.serialize = false;
+                const reload = node.addWidget(
+                    "button",
+                    "↻ Reload CSV / YAML",
+                    null,
+                    () => refreshNovaCSVDropdown(node, nodeData, false),
+                );
+                reload.serialize = false;
+                node.__novaCSVVisualBrowserAdded = true;
             }
 
             for (const name of ["csv_file_path", "category", "search", "favorites_list", "use_saved_favorites"]) {
                 wrapWidgetCallback(node, nodeData, name);
             }
 
-            // Initial refresh after the node appears, so the dropdown matches the CSV path currently in the widget.
             setTimeout(() => refreshNovaCSVDropdown(node, nodeData, true), 100);
             return result;
+        };
+
+        const originalOnRemoved = nodeType.prototype.onRemoved;
+        nodeType.prototype.onRemoved = function () {
+            this.__novaStyleBrowser?.remove();
+            this.__novaStyleBrowser = null;
+            return originalOnRemoved?.apply(this, arguments);
         };
     },
 });
