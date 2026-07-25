@@ -1,0 +1,85 @@
+name: Publish NovoLoko release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - RELEASE_VERSION
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Validate release source
+        run: |
+          python tools/validate_project.py
+          python -m unittest discover -s tests -v
+
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          version="$(tr -d '[:space:]' < RELEASE_VERSION)"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build clean release ZIP
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          rm -rf dist
+          mkdir -p dist/stage/ComfyUI-NovoLoko
+          rsync -a ./ dist/stage/ComfyUI-NovoLoko/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'dist/' \
+            --exclude 'tests/' \
+            --exclude 'tools/' \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            --exclude 'AGENTS.md' \
+            --exclude 'CODEX_START_HERE.md' \
+            --exclude 'requirements-dev.txt'
+          cd dist/stage
+          zip -qr "../NovoLoko-v${version}.zip" ComfyUI-NovoLoko
+          cd ..
+          sha256sum "NovoLoko-v${version}.zip" > "NovoLoko-v${version}.sha256"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          tag="${{ steps.version.outputs.tag }}"
+          notes="RELEASE_NOTES.md"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "dist/NovoLoko-v${version}.zip" "dist/NovoLoko-v${version}.sha256" --clobber
+          else
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "NovoLoko v${version}" \
+              --notes-file "$notes" \
+              "dist/NovoLoko-v${version}.zip" \
+              "dist/NovoLoko-v${version}.sha256"
+          fi
