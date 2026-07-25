@@ -1,5 +1,11 @@
 # NovoLoko Changelog
 
+## v3.6.2 — Large style preview viewer
+
+- Adds **View larger** for every stored visual-style preview.
+- Opens images uncropped in a full-screen viewer with fit-to-window and actual-size modes.
+- Supports Escape, click-outside and an explicit Close button without changing card selection or generation behavior.
+
 ## v3.6.1 — Generated visual previews
 
 - Fits each real style preview completely inside its card instead of cropping it.

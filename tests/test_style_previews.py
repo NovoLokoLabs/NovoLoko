@@ -176,6 +176,11 @@ class StylePreviewTests(unittest.TestCase):
             "finalGeneratedImage",
             "/view?${params}",
             "uploadPreview(item, state.csv, state.previewSize, file)",
+            "View larger",
+            "nova-style-preview-viewer",
+            "Actual size",
+            "Fit to window",
+            "image.naturalWidth",
         ):
             self.assertIn(marker, browser)
         self.assertNotIn("object-fit:cover", browser)

@@ -164,6 +164,11 @@ function ensureBrowserStyles() {
         .nova-style-star{position:absolute;right:7px;top:7px;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111b!important;font-size:17px!important}.nova-style-star.on{color:#ffd45a}
         .nova-style-detail{border-left:1px solid #303541;background:#1b1f27;padding:18px;overflow:auto}.nova-style-detail h3{font-size:18px;margin:0 0 5px}.nova-style-detail .category{color:#8baeff;margin-bottom:16px}.nova-style-detail .label{color:#8f9bb0;text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.8px;margin-top:15px}.nova-style-detail .text{white-space:pre-wrap;color:#d5dbea;margin-top:5px}
         .nova-style-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.nova-style-detail-actions button{flex:1 1 auto}
+        .nova-style-preview-viewer{position:fixed;inset:0;z-index:100010;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.92)}
+        .nova-style-preview-viewer-panel{width:min(1180px,96vw);height:min(940px,94vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #3b4251;border-radius:15px;background:#11141a;box-shadow:0 28px 90px #000}
+        .nova-style-preview-viewer-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #303541}.nova-style-preview-viewer-title{flex:1;font-size:15px;font-weight:800}
+        .nova-style-preview-viewer-stage{min-height:0;flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:#080a0e}.nova-style-preview-viewer-stage.actual{align-items:flex-start;justify-content:flex-start}
+        .nova-style-preview-viewer-image{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.nova-style-preview-viewer-image.actual{max-width:none;max-height:none}
         .nova-style-empty{grid-column:1/-1;align-self:center;justify-self:center;color:#98a3b7;font-size:16px;text-align:center}
         .nova-style-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #303541;background:#1d2129}.nova-style-pages{display:flex;gap:6px;flex:1;justify-content:center}.nova-style-page{min-width:38px}
         .nova-style-standalone-launcher{position:fixed;right:22px;bottom:88px;z-index:9998;border:1px solid #668cff;border-radius:12px;background:#243f87;color:white;padding:10px 14px;font:700 13px Inter,Segoe UI,sans-serif;box-shadow:0 8px 24px #0008;cursor:pointer}
@@ -520,6 +525,65 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         }
     }
 
+    function openLargePreview(item) {
+        if (!item.preview_url) return;
+        const viewer = document.createElement("div");
+        viewer.className = "nova-style-preview-viewer";
+        viewer.tabIndex = -1;
+        const panel = document.createElement("section");
+        panel.className = "nova-style-preview-viewer-panel";
+        const viewerHead = document.createElement("header");
+        viewerHead.className = "nova-style-preview-viewer-head";
+        const viewerTitle = document.createElement("div");
+        viewerTitle.className = "nova-style-preview-viewer-title";
+        viewerTitle.textContent = item.clean_name || item.name;
+        const sizeToggle = document.createElement("button");
+        sizeToggle.textContent = "Actual size";
+        const closeViewer = document.createElement("button");
+        closeViewer.textContent = "Close ×";
+        const stage = document.createElement("div");
+        stage.className = "nova-style-preview-viewer-stage";
+        const image = document.createElement("img");
+        image.className = "nova-style-preview-viewer-image";
+        image.src = item.preview_url;
+        image.alt = `${item.clean_name || item.name} large preview`;
+        image.draggable = false;
+        image.onload = () => {
+            viewerTitle.textContent = `${item.clean_name || item.name} · ${image.naturalWidth}×${image.naturalHeight}`;
+        };
+        image.onerror = () => {
+            viewerTitle.textContent = "Preview image could not be loaded";
+            sizeToggle.disabled = true;
+        };
+        let actualSize = false;
+        sizeToggle.onclick = () => {
+            actualSize = !actualSize;
+            image.classList.toggle("actual", actualSize);
+            stage.classList.toggle("actual", actualSize);
+            sizeToggle.textContent = actualSize ? "Fit to window" : "Actual size";
+        };
+        const closeLargePreview = () => viewer.remove();
+        closeViewer.onclick = closeLargePreview;
+        viewer.addEventListener("pointerdown", (event) => {
+            if (event.target === viewer) closeLargePreview();
+        });
+        viewer.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                event.stopPropagation();
+                closeLargePreview();
+            }
+        });
+        for (const eventName of ["wheel", "pointerdown", "pointermove", "pointerup"]) {
+            panel.addEventListener(eventName, (event) => event.stopPropagation());
+        }
+        viewerHead.append(viewerTitle, sizeToggle, closeViewer);
+        stage.append(image);
+        panel.append(viewerHead, stage);
+        viewer.append(panel);
+        document.body.append(viewer);
+        viewer.focus();
+    }
+
     function showDetail(item) {
         detail.replaceChildren();
         const heading = document.createElement("h3");
@@ -569,6 +633,11 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         generateImage.title = "Apply this style, run the current ComfyUI workflow, and save its final image on this card";
         generateImage.disabled = state.generating;
         generateImage.onclick = () => void applyAndGenerate(item);
+        const viewLarge = document.createElement("button");
+        viewLarge.textContent = "View larger";
+        viewLarge.title = "Open this stored preview in a large uncropped viewer";
+        viewLarge.disabled = !item.preview_url;
+        viewLarge.onclick = () => openLargePreview(item);
         const addImage = document.createElement("button");
         addImage.textContent = item.preview_url ? "Replace image…" : "Add image…";
         const imageInput = document.createElement("input");
@@ -604,7 +673,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 status.textContent = String(error?.message || "Preview removal failed");
             }
         };
-        actions.append(copyPositive, copyNegative, generateImage, addImage, removeImage, imageInput);
+        actions.append(copyPositive, copyNegative, generateImage, viewLarge, addImage, removeImage, imageInput);
         detail.append(actions);
     }
 
@@ -790,7 +859,7 @@ window.NovoLokoStyleBrowser = {
 };
 
 app.registerExtension({
-    name: "NovoLoko.CSVStyleVisualLibrary.v361",
+    name: "NovoLoko.CSVStyleVisualLibrary.v362",
     setup() {
         if (document.getElementById("nova-style-standalone-launcher")) return;
         ensureBrowserStyles();

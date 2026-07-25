@@ -1,18 +1,15 @@
-# NovoLoko v3.6.1
+# NovoLoko v3.6.2
 
-This patch makes the local visual style library useful as a generate-and-review
-workflow without changing any serialized node contract.
+This patch adds a large, uncropped viewer for stored visual-style previews.
 
 ## Improved
 
-- Real preview images now fit completely inside their cards without cropping.
-- **Generate + save preview** applies the selected style, queues the current
-  ComfyUI workflow and saves its final generated image to that style.
-- Generation works from Prompt Stack and CSV/YAML Style Loader browsers.
-- Standalone generation finds the selected compatible node, or the only
-  compatible node in the workflow.
-- Existing preview images are preserved if generation fails or returns no image.
-- Manual add, replace, remove and 512/1024 batch importing remain available.
+- Adds **View larger** to cards that have a real stored preview.
+- Opens previews in a full-screen fit-to-window viewer.
+- Adds an actual-size mode for inspecting the stored 512 or 1024 image.
+- Supports Escape, click-outside and an explicit Close button.
+- Keeps generate-and-save, manual upload, batch import and card selection
+  behavior unchanged.
 
 ## Compatibility
 
