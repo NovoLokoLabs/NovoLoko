@@ -1,4 +1,5 @@
 import csv
+import io
 import json
 import os
 import random
@@ -9,6 +10,27 @@ try:
     import yaml
 except Exception:
     yaml = None
+
+try:
+    from .style_previews import (
+        PREVIEW_MAX_UPLOAD_BYTES,
+        PREVIEW_SIZES,
+        library_key as _preview_library_key,
+        preview_path as _preview_path,
+        resize_and_store_preview as _resize_and_store_preview,
+        safe_preview_path as _safe_preview_path,
+        style_key as _preview_style_key,
+    )
+except ImportError:
+    from style_previews import (
+        PREVIEW_MAX_UPLOAD_BYTES,
+        PREVIEW_SIZES,
+        library_key as _preview_library_key,
+        preview_path as _preview_path,
+        resize_and_store_preview as _resize_and_store_preview,
+        safe_preview_path as _safe_preview_path,
+        style_key as _preview_style_key,
+    )
 
 NOVA_VERSION = "3.5.0"
 
@@ -1984,6 +2006,8 @@ def _style_browser_payload(
     include_style_names=True,
 ):
     styles = _read_styles(csv_file_path)
+    resolved_library = _resolve_csv_path(csv_file_path)
+    preview_library_id = _preview_library_key(resolved_library, _node_dir())
     saved_favorites = _load_favorites(kind)
     _mark_favorites(styles, saved_favorites)
     categories = ["All"] + sorted(set(str(item.get("category") or "Uncategorized") for item in styles))
@@ -2019,17 +2043,25 @@ def _style_browser_payload(
     page = max(1, min(int(page or 1), page_count))
     start = (page - 1) * page_size
     page_items = filtered[start:start + page_size]
-    items = [
-        {
+    items = []
+    for item in page_items:
+        item_style_key = _preview_style_key(str(item.get("name") or ""))
+        stored_preview = _safe_preview_path(_node_dir(), preview_library_id, item_style_key)
+        preview_url = ""
+        if stored_preview.is_file():
+            preview_url = (
+                f"/nova_style_previews/image/{preview_library_id}/{item_style_key}"
+                f"?v={stored_preview.stat().st_mtime_ns}"
+            )
+        items.append({
             "name": str(item.get("name") or ""),
             "clean_name": _strip_number(str(item.get("name") or "")),
             "category": str(item.get("category") or "Uncategorized"),
             "prompt": str(item.get("prompt") or "")[:500],
             "negative": str(item.get("negative") or "")[:300],
             "favorite": bool(item.get("favorite")),
-        }
-        for item in page_items
-    ]
+            "preview_url": preview_url,
+        })
 
     is_char = "char" in str(kind or "").lower()
     style_rescue = ["No Character/None", "0000 | No Character/None"] if is_char else ["No Style", "0000 | No Style"]
@@ -2047,7 +2079,7 @@ def _style_browser_payload(
         "page_count": page_count,
         "page_size": page_size,
         "items": items,
-        "file_name": os.path.basename(_resolve_csv_path(csv_file_path)),
+        "file_name": os.path.basename(resolved_library),
     }
 
 
@@ -2106,5 +2138,105 @@ try:
             return web.json_response({"ok": True, "kind": kind, "favorites": current})
         except Exception as e:
             return web.json_response({"ok": False, "error": str(e)}, status=400)
+
+    @PromptServer.instance.routes.get("/nova_style_previews/image/{library_id}/{style_id}")
+    async def nova_style_preview_image(request):
+        try:
+            path = _safe_preview_path(
+                _node_dir(),
+                request.match_info.get("library_id", ""),
+                request.match_info.get("style_id", ""),
+            )
+            if not path.is_file():
+                raise web.HTTPNotFound()
+            return web.FileResponse(
+                path,
+                headers={
+                    "Cache-Control": "private, max-age=31536000, immutable",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        except web.HTTPException:
+            raise
+        except Exception:
+            raise web.HTTPNotFound()
+
+    @PromptServer.instance.routes.post("/nova_style_previews/upload")
+    async def nova_style_preview_upload(request):
+        try:
+            reader = await request.multipart()
+            fields = {}
+            image_data = None
+            image_type = ""
+            async for field in reader:
+                if field.name == "image":
+                    image_type = str(field.headers.get("Content-Type") or "").split(";", 1)[0].lower()
+                    if image_type not in {"image/png", "image/jpeg", "image/webp"}:
+                        raise ValueError("Preview must be a PNG, JPEG, or WebP image.")
+                    chunks = bytearray()
+                    while True:
+                        chunk = await field.read_chunk(size=256 * 1024)
+                        if not chunk:
+                            break
+                        chunks.extend(chunk)
+                        if len(chunks) > PREVIEW_MAX_UPLOAD_BYTES:
+                            raise ValueError("Preview image exceeds the 32 MiB upload limit.")
+                    image_data = bytes(chunks)
+                elif field.name in {"csv", "style", "size"}:
+                    value = await field.text()
+                    fields[field.name] = str(value or "")[:4096]
+
+            csv_file_path = fields.get("csv", DEFAULT_CSV)
+            style_name = fields.get("style", "").strip()
+            size = int(fields.get("size", 512) or 512)
+            if not style_name:
+                raise ValueError("Select a style before adding its preview.")
+            if size not in PREVIEW_SIZES:
+                raise ValueError("Preview size must be 512 or 1024.")
+            if not image_data:
+                raise ValueError("Choose an image to add.")
+
+            resolved_library = _resolve_csv_path(csv_file_path)
+            known_names = {str(item.get("name") or "") for item in _read_styles(csv_file_path)}
+            if style_name not in known_names:
+                raise ValueError("The selected style is not present in this library.")
+
+            destination = _preview_path(_node_dir(), resolved_library, style_name)
+            _resize_and_store_preview(io.BytesIO(image_data), destination, size)
+            library_id = _preview_library_key(resolved_library, _node_dir())
+            style_id = _preview_style_key(style_name)
+            return web.json_response({
+                "ok": True,
+                "preview_url": (
+                    f"/nova_style_previews/image/{library_id}/{style_id}"
+                    f"?v={destination.stat().st_mtime_ns}"
+                ),
+                "size": size,
+            })
+        except Exception as error:
+            return web.json_response(
+                {"ok": False, "error": str(error)[:300]},
+                status=400,
+            )
+
+    @PromptServer.instance.routes.post("/nova_style_previews/delete")
+    async def nova_style_preview_delete(request):
+        try:
+            data = await request.json()
+            csv_file_path = str(data.get("csv") or DEFAULT_CSV)
+            style_name = str(data.get("style") or "").strip()
+            if not style_name:
+                raise ValueError("Select a style before removing its preview.")
+            resolved_library = _resolve_csv_path(csv_file_path)
+            destination = _preview_path(_node_dir(), resolved_library, style_name)
+            removed = destination.is_file()
+            if removed:
+                destination.unlink()
+            return web.json_response({"ok": True, "removed": removed})
+        except Exception as error:
+            return web.json_response(
+                {"ok": False, "error": str(error)[:300]},
+                status=400,
+            )
 except Exception:
     pass

@@ -12,6 +12,7 @@ venv/
 # ComfyUI/runtime state
 data/history.json
 data/favorites_*.json
+data/style_previews/
 output/
 input/
 temp/

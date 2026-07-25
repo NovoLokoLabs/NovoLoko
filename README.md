@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.5.2
+# ComfyUI-NovoLoko v3.6.0
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -25,11 +25,17 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 - `NovoLoko AIO v3.5.0 - Latest Workflow.json` — full seven-slot prompt stack, refreshable unified voice selector, enhancer instructions and status displays, two-pass generation, edge-to-edge compare, metadata save, Media Studio delete/revoice tools, timer and memory manager.
 - `NovoLoko Compare Studio v3.5.0.json` — minimal image comparison example with theme-neutral node chrome.
 
-The v3.5.2 polish release keeps the existing v3.5.0 workflow files because no serialized sockets, widgets or links changed.
+The v3.6.0 release keeps the existing v3.5.0 workflow files because no serialized sockets, widgets or links changed.
 
 ## Main nodes
 
-Prompt tools include Prompt Stack AIO Pro, Prompt Enhancer Pro, Manual Prompt + YAML Styler, source selector, CSV style/character loaders, prompt switches, Text Prompt and Text Display. The CSV Style Loader now includes a full-screen visual library with search, categories, favourites, recent history, grid/list views, prompt details and pagination.
+Prompt tools include Prompt Stack AIO Pro, Prompt Enhancer Pro, Manual Prompt + YAML Styler, source selector, CSV style/character loaders, prompt switches, Text Prompt and Text Display. The full-screen visual library includes search, categories, favourites, recent history, grid/list views, prompt details and pagination. It can be opened from the CSV Style Loader, Prompt Stack's Medium controls or the standalone **Styles** button.
+
+Visual cards can use private local PNG, JPEG or WebP previews. Select a style and
+choose **Add image...**, or drag a folder onto `POPULATE_STYLE_PREVIEWS.bat` to
+populate the library at 512x512 or 1024x1024. Preview files remain under
+`data/style_previews/`, are ignored by Git and are preserved by updater overlay
+installs. See `STYLE_PREVIEWS.md`.
 
 Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger.
 
