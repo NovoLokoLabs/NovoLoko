@@ -1,21 +1,19 @@
-# NovoLoko v3.6.2
+# NovoLoko v3.6.3
 
-This patch finishes the visual-preview workflow and OmniLoko auto-start lifecycle.
+This patch makes the visual style browser faster and easier to control.
 
 ## Improved
 
-- Adds **View larger** to cards that have a real stored preview.
-- Opens previews in a full-screen fit-to-window viewer.
-- Adds an actual-size mode for inspecting the stored 512 or 1024 image.
-- Supports Escape, click-outside and an explicit Close button.
-- Makes the floating **Styles** launcher reliable, draggable and position-aware.
-- Adds **Generate all missing** for an entire CSV/YAML library. It warns with
-  the exact workload, runs sequentially, preserves existing previews and can
-  stop after the current image so a later run resumes the missing set.
-- Automatically closes only the OmniLoko process started by NovoLoko after the
-  final active OmniLoko request. A user-opened OmniLoko remains open, and
-  Kokoro/Off never launch it.
-- Keeps manual upload, existing image-folder batch import and card selection.
+- Adds an explicit **Refresh** button for the current CSV/YAML and preview set.
+- Keeps **Stop generating** available when the browser is closed and reopened,
+  interrupts the active ComfyUI preview job and prevents duplicate batches.
+- Adds mouse 4/5 and arrow-key navigation through styles and saved previews.
+- Adds bounded wheel zoom, zoom buttons, fit/actual-size modes and drag panning.
+- Right-click closes the large viewer by default.
+- Double-click queues the selected style when generation is idle.
+- Keeps favourite stars visible on cards with real captured images.
+- Adds persistent options for generated-image auto-open, wrapped navigation and
+  right-click closing.
 
 ## Compatibility
 

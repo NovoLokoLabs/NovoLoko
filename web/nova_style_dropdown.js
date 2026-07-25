@@ -5,7 +5,45 @@ const DEFAULT_STANDALONE_LIBRARY = "styles/novoloko_all_yaml_styles.yaml";
 const MAX_GENERATED_PREVIEW_BYTES = 32 * 1024 * 1024;
 const GENERATED_PREVIEW_TIMEOUT_MS = 30 * 60 * 1000;
 const LAUNCHER_POSITION_KEY = "novoloko.styleBrowserLauncher.v1";
+const BROWSER_SETTINGS_KEY = "novoloko.styleBrowserSettings.v1";
 let standaloneBrowser = null;
+const previewBatchSession = {
+    running: false,
+    cancelRequested: false,
+    mode: "",
+    currentPromptId: "",
+    completed: 0,
+    total: 0,
+    library: "",
+    message: "",
+    listeners: new Set(),
+};
+
+function readBrowserSettings() {
+    const defaults = {
+        autoOpenGenerated: true,
+        wrapViewerNavigation: true,
+        rightClickClosesViewer: true,
+    };
+    try {
+        return { ...defaults, ...JSON.parse(localStorage.getItem(BROWSER_SETTINGS_KEY) || "{}") };
+    } catch {
+        return defaults;
+    }
+}
+
+function saveBrowserSettings(settings) {
+    try {
+        localStorage.setItem(BROWSER_SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+        // Settings remain active for this page when storage is unavailable.
+    }
+}
+
+function publishBatchStatus(message = previewBatchSession.message) {
+    previewBatchSession.message = message;
+    for (const listener of [...previewBatchSession.listeners]) listener(previewBatchSession);
+}
 
 function widget(node, name) {
     return node?.widgets?.find((item) => item.name === name);
@@ -53,7 +91,9 @@ function browserParams(node, nodeData, overrides = {}) {
 }
 
 async function fetchStyles(node, nodeData, overrides = {}) {
-    const response = await api.fetchApi(`/nova_styles_csv_pro/list?${browserParams(node, nodeData, overrides)}`);
+    const response = await api.fetchApi(`/nova_styles_csv_pro/list?${browserParams(node, nodeData, overrides)}`, {
+        cache: "no-store",
+    });
     let data;
     try {
         data = await response.json();
@@ -146,10 +186,10 @@ function ensureBrowserStyles() {
     style.id = "nova-style-browser-css";
     style.textContent = `
         .nova-style-browser{position:fixed;inset:0;z-index:100000;background:rgba(3,5,9,.84);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:24px;color:#eef3ff;font:13px/1.35 Inter,Segoe UI,sans-serif}
-        .nova-style-dialog{width:min(1240px,96vw);height:min(880px,94vh);display:flex;flex-direction:column;background:#171a21;border:1px solid #3a4050;border-radius:18px;box-shadow:0 28px 90px #000b;overflow:hidden}
+        .nova-style-dialog{position:relative;width:min(1420px,96vw);height:min(920px,94vh);display:flex;flex-direction:column;background:#171a21;border:1px solid #3a4050;border-radius:18px;box-shadow:0 28px 90px #000b;overflow:hidden}
         .nova-style-head{display:flex;gap:12px;align-items:center;padding:17px 20px;border-bottom:1px solid #303541;background:linear-gradient(100deg,#242936,#161920)}
         .nova-style-title{font-size:20px;font-weight:800;letter-spacing:.2px;flex:1}.nova-style-count{color:#aeb9d0}
-        .nova-style-controls{display:grid;grid-template-columns:minmax(210px,1fr) minmax(180px,260px) auto auto auto auto auto auto;gap:9px;padding:13px 20px;border-bottom:1px solid #2c313c;background:#1d2129}
+        .nova-style-controls{display:flex;flex-wrap:wrap;gap:9px;padding:13px 20px;border-bottom:1px solid #2c313c;background:#1d2129}.nova-style-controls input{flex:1 1 230px}.nova-style-controls select{flex:0 1 240px}
         .nova-style-controls input,.nova-style-controls select,.nova-style-browser button{border:1px solid #3b4251;border-radius:9px;background:#252a34;color:#f5f7ff;padding:9px 11px;font:inherit}
         .nova-style-browser button{cursor:pointer;font-weight:700}.nova-style-browser button:hover{border-color:#7b9cff;background:#30394b}.nova-style-browser button.active{background:#315fcf;border-color:#73a0ff}
         .nova-style-content{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;min-height:0;flex:1}
@@ -162,20 +202,22 @@ function ensureBrowserStyles() {
         .nova-style-swatch:after{content:"";position:absolute;inset:12%;border:1px solid #ffffff38;border-radius:50% 22% 50% 28%;transform:rotate(-14deg);box-shadow:inset 0 0 24px #fff2}
         .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0b0d12;z-index:1}
         .nova-style-card-copy{padding:9px 10px;min-width:0}.nova-style-card-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-style-card-category{color:#9fabbd;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .nova-style-star{position:absolute;right:7px;top:7px;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111b!important;font-size:17px!important}.nova-style-star.on{color:#ffd45a}
+        .nova-style-star{position:absolute;right:7px;top:7px;z-index:5;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111e!important;font-size:17px!important;box-shadow:0 2px 10px #000b}.nova-style-star.on{color:#ffd45a}
         .nova-style-detail{border-left:1px solid #303541;background:#1b1f27;padding:18px;overflow:auto}.nova-style-detail h3{font-size:18px;margin:0 0 5px}.nova-style-detail .category{color:#8baeff;margin-bottom:16px}.nova-style-detail .label{color:#8f9bb0;text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.8px;margin-top:15px}.nova-style-detail .text{white-space:pre-wrap;color:#d5dbea;margin-top:5px}
         .nova-style-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.nova-style-detail-actions button{flex:1 1 auto}
         .nova-style-preview-viewer{position:fixed;inset:0;z-index:100010;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.92)}
         .nova-style-preview-viewer-panel{width:min(1180px,96vw);height:min(940px,94vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #3b4251;border-radius:15px;background:#11141a;box-shadow:0 28px 90px #000}
-        .nova-style-preview-viewer-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #303541}.nova-style-preview-viewer-title{flex:1;font-size:15px;font-weight:800}
-        .nova-style-preview-viewer-stage{min-height:0;flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:#080a0e}.nova-style-preview-viewer-stage.actual{align-items:flex-start;justify-content:flex-start}
+        .nova-style-preview-viewer-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #303541}.nova-style-preview-viewer-title{flex:1;min-width:240px;font-size:15px;font-weight:800}.nova-style-preview-zoom{min-width:52px;text-align:center;color:#b9c5da;font-weight:700}
+        .nova-style-preview-viewer-stage{min-height:0;flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:#080a0e}.nova-style-preview-viewer-stage.overflow-x{justify-content:flex-start}.nova-style-preview-viewer-stage.overflow-y{align-items:flex-start}
+        .nova-style-preview-viewer-stage.zoomed{cursor:grab}.nova-style-preview-viewer-stage.panning{cursor:grabbing;user-select:none}
         .nova-style-preview-viewer-image{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.nova-style-preview-viewer-image.actual{max-width:none;max-height:none}
         .nova-style-empty{grid-column:1/-1;align-self:center;justify-self:center;color:#98a3b7;font-size:16px;text-align:center}
         .nova-style-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #303541;background:#1d2129}.nova-style-pages{display:flex;gap:6px;flex:1;justify-content:center}.nova-style-page{min-width:38px}
+        .nova-style-settings{position:absolute;right:18px;top:116px;z-index:8;min-width:290px;padding:12px;border:1px solid #424b5d;border-radius:12px;background:#20252f;box-shadow:0 18px 45px #000b}.nova-style-settings.hidden{display:none}.nova-style-setting{display:flex;align-items:center;gap:9px;padding:7px 4px}.nova-style-setting input{width:17px;height:17px}
         .nova-style-standalone-launcher{position:fixed;right:22px;bottom:88px;z-index:99999;border:1px solid #668cff;border-radius:12px;background:#243f87;color:white;padding:10px 14px;font:700 13px Inter,Segoe UI,sans-serif;box-shadow:0 8px 24px #0008;cursor:grab;touch-action:none;user-select:none;pointer-events:auto}
         .nova-style-standalone-launcher.dragging{cursor:grabbing}
         .nova-style-standalone-launcher:hover{background:#315fcf}
-        @media(max-width:850px){.nova-style-controls{grid-template-columns:1fr 1fr auto}.nova-style-content{grid-template-columns:1fr}.nova-style-detail{display:none}}
+        @media(max-width:850px){.nova-style-content{grid-template-columns:1fr}.nova-style-detail{display:none}}
     `;
     document.head.append(style);
 }
@@ -286,9 +328,10 @@ function delay(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function waitForGeneratedImage(promptId, onProgress) {
+async function waitForGeneratedImage(promptId, onProgress, isCancelled = () => false) {
     const deadline = Date.now() + GENERATED_PREVIEW_TIMEOUT_MS;
     while (Date.now() < deadline) {
+        if (isCancelled()) throw new Error("Preview generation stopped.");
         const response = await api.fetchApi(`/history/${encodeURIComponent(promptId)}`, {
             cache: "no-store",
         });
@@ -390,8 +433,14 @@ async function setFavourite(item, enabled, kind) {
 
 function openStyleBrowser(node, nodeData = {}, options = {}) {
     ensureBrowserStyles();
-    if (node) node.__novaStyleBrowser?.remove();
-    else standaloneBrowser?.remove();
+    if (node) {
+        if (typeof node.__novaStyleBrowser?.__novaClose === "function") node.__novaStyleBrowser.__novaClose();
+        else node.__novaStyleBrowser?.remove();
+    } else if (typeof standaloneBrowser?.__novaClose === "function") {
+        standaloneBrowser.__novaClose();
+    } else {
+        standaloneBrowser?.remove();
+    }
 
     const state = {
         page: 1,
@@ -408,9 +457,8 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         kind: String(options.kind || (isCharacterLoader(nodeData) ? "characters" : "styles")),
         previewSize: Number(options.previewSize || 512) === 1024 ? 1024 : 512,
         generating: false,
-        batchRunning: false,
-        batchCancelRequested: false,
     };
+    const browserSettings = readBrowserSettings();
     const favoriteKind = state.kind;
 
     const overlay = document.createElement("div");
@@ -437,6 +485,9 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     search.placeholder = "Search style names and prompt text…";
     search.value = state.search;
     const category = document.createElement("select");
+    const refresh = document.createElement("button");
+    refresh.textContent = "↻ Refresh";
+    refresh.title = "Reload this CSV/YAML and its saved preview images";
     const favorites = document.createElement("button");
     favorites.textContent = "★ Favourites";
     const history = document.createElement("button");
@@ -457,7 +508,9 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     const generateAll = document.createElement("button");
     generateAll.textContent = "Generate all missing";
     generateAll.title = "Run the current workflow once for every style in this CSV/YAML that does not yet have a preview";
-    controls.append(search, category, favorites, history, random, view, previewSize, generateAll);
+    const settingsButton = document.createElement("button");
+    settingsButton.textContent = "⚙ Options";
+    controls.append(search, category, refresh, favorites, history, random, view, previewSize, generateAll, settingsButton);
 
     const content = document.createElement("div");
     content.className = "nova-style-content";
@@ -465,7 +518,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     grid.className = "nova-style-grid";
     const detail = document.createElement("aside");
     detail.className = "nova-style-detail";
-    detail.innerHTML = "<h3>Select a style</h3><div class='text'>Click a card to select it. Double-click to select and close.</div>";
+    detail.innerHTML = "<h3>Select a style</h3><div class='text'>Click a card to select it. Double-click to run that style when no preview is already generating.</div>";
     content.append(grid, detail);
 
     const foot = document.createElement("footer");
@@ -476,14 +529,50 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     pages.className = "nova-style-pages";
     foot.append(status, pages);
     dialog.append(head, controls, content, foot);
+    const settingsPanel = document.createElement("div");
+    settingsPanel.className = "nova-style-settings hidden";
+    function addSetting(label, key) {
+        const row = document.createElement("label");
+        row.className = "nova-style-setting";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = Boolean(browserSettings[key]);
+        input.onchange = () => {
+            browserSettings[key] = input.checked;
+            saveBrowserSettings(browserSettings);
+        };
+        const text = document.createElement("span");
+        text.textContent = label;
+        row.append(input, text);
+        settingsPanel.append(row);
+    }
+    addSetting("Open preview after a single generated style", "autoOpenGenerated");
+    addSetting("Wrap Previous/Next at the ends", "wrapViewerNavigation");
+    addSetting("Right-click closes the large viewer", "rightClickClosesViewer");
+    dialog.append(settingsPanel);
     overlay.append(dialog);
     document.body.append(overlay);
 
+    const syncBatchControls = (session) => {
+        if (session.running) {
+            generateAll.textContent = session.cancelRequested ? "Stopping…" : "■ Stop generating";
+            generateAll.classList.add("active");
+            if (session.message) status.textContent = session.message;
+        } else {
+            generateAll.textContent = "Generate all missing";
+            generateAll.classList.remove("active");
+        }
+    };
+    previewBatchSession.listeners.add(syncBatchControls);
+    syncBatchControls(previewBatchSession);
+
     const closeBrowser = () => {
+        previewBatchSession.listeners.delete(syncBatchControls);
         if (node?.__novaStyleBrowser === overlay) node.__novaStyleBrowser = null;
         if (standaloneBrowser === overlay) standaloneBrowser = null;
         overlay.remove();
     };
+    overlay.__novaClose = closeBrowser;
     close.onclick = closeBrowser;
     overlay.addEventListener("pointerdown", (event) => {
         if (event.target === overlay) closeBrowser();
@@ -491,9 +580,22 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     overlay.addEventListener("keydown", (event) => {
         if (event.key === "Escape") closeBrowser();
     });
+    dialog.addEventListener("pointerdown", (event) => {
+        if (event.button === 3 || event.button === 4) event.preventDefault();
+    });
+    dialog.addEventListener("pointerup", (event) => {
+        if (event.button !== 3 && event.button !== 4) return;
+        event.preventDefault();
+        void navigateStyle(event.button === 3 ? -1 : 1);
+    });
     for (const eventName of ["wheel", "pointerdown", "pointermove", "pointerup"]) {
         dialog.addEventListener(eventName, (event) => event.stopPropagation());
     }
+    settingsButton.onclick = (event) => {
+        event.stopPropagation();
+        settingsPanel.classList.toggle("hidden");
+        settingsButton.classList.toggle("active", !settingsPanel.classList.contains("hidden"));
+    };
 
     function applySelection(item) {
         state.selected = item;
@@ -509,33 +611,78 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         if (visible) visible.preview_url = item.preview_url;
     }
 
-    async function applyAndGenerate(item, batchPosition = "") {
-        if (state.generating) return;
+    async function requestPreviewStop() {
+        if (!previewBatchSession.running || previewBatchSession.cancelRequested) return;
+        previewBatchSession.cancelRequested = true;
+        publishBatchStatus("Stopping the active preview generation…");
+        if (!previewBatchSession.currentPromptId || typeof api.interrupt !== "function") return;
+        try {
+            await api.interrupt();
+        } catch {
+            publishBatchStatus("Stop requested. Waiting for ComfyUI to release the active preview…");
+        }
+    }
+
+    async function applyAndGenerate(item, batchPosition = "", isBatch = false) {
+        const ownsSession = !isBatch;
+        if (state.generating || (ownsSession && previewBatchSession.running)) {
+            const message = "A style preview is already generating. Stop it or wait for it to finish.";
+            status.textContent = message;
+            return { ok: false, message };
+        }
+        if (ownsSession) {
+            previewBatchSession.running = true;
+            previewBatchSession.cancelRequested = false;
+            previewBatchSession.mode = "single";
+            previewBatchSession.currentPromptId = "";
+            previewBatchSession.completed = 0;
+            previewBatchSession.total = 1;
+            previewBatchSession.library = state.csv;
+            publishBatchStatus(`Preparing ${item.clean_name || item.name}…`);
+        }
         state.generating = true;
         showDetail(item);
+        const setGenerationStatus = (message) => {
+            status.textContent = message;
+            if (previewBatchSession.running) publishBatchStatus(message);
+        };
         try {
             if (options.standalone) applyStandaloneStyle(item, state.csv);
             else applySelection(item);
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-            status.textContent = `${batchPosition}Queueing ${item.clean_name || item.name} with the current workflow…`;
+            setGenerationStatus(`${batchPosition}Queueing ${item.clean_name || item.name} with the current workflow…`);
             const promptId = await queueCurrentWorkflow();
-            status.textContent = `${batchPosition}Workflow queued. Waiting for its final image…`;
+            previewBatchSession.currentPromptId = promptId;
+            if (previewBatchSession.cancelRequested && typeof api.interrupt === "function") {
+                await api.interrupt();
+            }
+            setGenerationStatus(`${batchPosition}Workflow queued. Waiting for its final image…`);
             const generated = await waitForGeneratedImage(promptId, () => {
-                status.textContent = `${batchPosition}Generating preview…`;
-            });
-            status.textContent = `${batchPosition}Saving ${state.previewSize}×${state.previewSize} preview…`;
+                setGenerationStatus(`${batchPosition}Generating preview…`);
+            }, () => previewBatchSession.cancelRequested);
+            if (previewBatchSession.cancelRequested) throw new Error("Preview generation stopped.");
+            setGenerationStatus(`${batchPosition}Saving ${state.previewSize}×${state.previewSize} preview…`);
             const file = await downloadGeneratedImage(generated);
             const result = await uploadPreview(item, state.csv, state.previewSize, file);
             item.preview_url = result.preview_url;
             updateVisiblePreview(item);
             renderCards();
-            status.textContent = `${batchPosition}Generated and saved ${result.size}×${result.size} preview`;
+            setGenerationStatus(`${batchPosition}Generated and saved ${result.size}×${result.size} preview`);
+            if (!isBatch && browserSettings.autoOpenGenerated) openLargePreview(item);
             return { ok: true };
         } catch (error) {
             const message = String(error?.message || "Preview generation failed");
-            status.textContent = message;
+            setGenerationStatus(message);
             return { ok: false, message };
         } finally {
+            if (isBatch) previewBatchSession.currentPromptId = "";
+            if (ownsSession) {
+                previewBatchSession.running = false;
+                previewBatchSession.cancelRequested = false;
+                previewBatchSession.mode = "";
+                previewBatchSession.currentPromptId = "";
+                publishBatchStatus();
+            }
             state.generating = false;
             if (overlay.isConnected) showDetail(item);
         }
@@ -566,19 +713,33 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     }
 
     async function generateWholeLibrary() {
-        if (state.batchRunning) {
-            state.batchCancelRequested = true;
-            generateAll.textContent = "Stopping after current preview…";
-            generateAll.disabled = true;
+        if (previewBatchSession.running) {
+            await requestPreviewStop();
             return;
         }
+        previewBatchSession.running = true;
+        previewBatchSession.cancelRequested = false;
+        previewBatchSession.mode = "batch";
+        previewBatchSession.currentPromptId = "";
+        previewBatchSession.completed = 0;
+        previewBatchSession.total = 0;
+        previewBatchSession.library = state.csv;
+        publishBatchStatus("Checking the complete CSV/YAML for missing previews…");
+        let finalMessage = "";
+        let missing = [];
+        let completed = 0;
         try {
             generateAll.disabled = true;
             status.textContent = "Checking the complete CSV/YAML for missing previews…";
             const allItems = await fetchWholeLibrary();
-            const missing = allItems.filter((item) => canGeneratePreview(item) && !item.preview_url);
+            missing = allItems.filter((item) => canGeneratePreview(item) && !item.preview_url);
+            previewBatchSession.total = missing.length;
+            if (previewBatchSession.cancelRequested) {
+                finalMessage = "Preview generation stopped before any styles were queued.";
+                return;
+            }
             if (!missing.length) {
-                status.textContent = "Every style in this CSV/YAML already has a preview.";
+                finalMessage = "Every style in this CSV/YAML already has a preview.";
                 return;
             }
             const warning = [
@@ -589,42 +750,52 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 "You can stop after the current preview from this button.",
             ].join("\n");
             if (!window.confirm(warning)) {
-                status.textContent = "Whole-library preview generation was cancelled.";
+                finalMessage = "Whole-library preview generation was cancelled.";
                 return;
             }
-            state.batchRunning = true;
-            state.batchCancelRequested = false;
+            publishBatchStatus(`Starting 1 of ${missing.length.toLocaleString()} missing previews…`);
             generateAll.disabled = false;
-            generateAll.textContent = "Stop after current";
-            let completed = 0;
             for (const item of missing) {
-                if (state.batchCancelRequested) break;
+                if (previewBatchSession.cancelRequested) break;
                 const position = `[${completed + 1}/${missing.length}] `;
-                const result = await applyAndGenerate(item, position);
+                const result = await applyAndGenerate(item, position, true);
                 if (!result?.ok) {
-                    status.textContent = `${position}Stopped: ${result?.message || "preview generation failed"}`;
+                    if (!previewBatchSession.cancelRequested) {
+                        finalMessage = `${position}Stopped: ${result?.message || "preview generation failed"}`;
+                    }
                     break;
                 }
                 completed += 1;
+                previewBatchSession.completed = completed;
             }
-            if (state.batchCancelRequested) {
-                status.textContent = `Stopped after ${completed.toLocaleString()} of ${missing.length.toLocaleString()} missing previews. Run again to resume the remaining styles.`;
+            if (previewBatchSession.cancelRequested) {
+                finalMessage = `Stopped after ${completed.toLocaleString()} of ${missing.length.toLocaleString()} missing previews. Run again to resume the remaining styles.`;
             } else if (completed === missing.length) {
-                status.textContent = `Completed all ${completed.toLocaleString()} missing previews.`;
+                finalMessage = `Completed all ${completed.toLocaleString()} missing previews.`;
             }
         } catch (error) {
-            status.textContent = String(error?.message || "Whole-library preview generation failed");
+            finalMessage = String(error?.message || "Whole-library preview generation failed");
         } finally {
-            state.batchRunning = false;
-            state.batchCancelRequested = false;
+            previewBatchSession.running = false;
+            previewBatchSession.cancelRequested = false;
+            previewBatchSession.mode = "";
+            previewBatchSession.currentPromptId = "";
+            previewBatchSession.completed = completed;
+            previewBatchSession.total = missing.length;
+            publishBatchStatus(finalMessage);
             generateAll.disabled = false;
-            generateAll.textContent = "Generate all missing";
+            if (finalMessage && overlay.isConnected) status.textContent = finalMessage;
             if (state.selected && overlay.isConnected) showDetail(state.selected);
         }
     }
 
     function openLargePreview(item) {
         if (!item.preview_url) return;
+        let currentItem = item;
+        let fitMode = true;
+        let zoom = 1;
+        let navigating = false;
+        let pan = null;
         const viewer = document.createElement("div");
         viewer.className = "nova-style-preview-viewer";
         viewer.tabIndex = -1;
@@ -634,7 +805,18 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         viewerHead.className = "nova-style-preview-viewer-head";
         const viewerTitle = document.createElement("div");
         viewerTitle.className = "nova-style-preview-viewer-title";
-        viewerTitle.textContent = item.clean_name || item.name;
+        viewerTitle.textContent = currentItem.clean_name || currentItem.name;
+        const previous = document.createElement("button");
+        previous.textContent = "← Previous";
+        const next = document.createElement("button");
+        next.textContent = "Next →";
+        const zoomOut = document.createElement("button");
+        zoomOut.textContent = "Zoom −";
+        const zoomLabel = document.createElement("span");
+        zoomLabel.className = "nova-style-preview-zoom";
+        zoomLabel.textContent = "Fit";
+        const zoomIn = document.createElement("button");
+        zoomIn.textContent = "Zoom +";
         const sizeToggle = document.createElement("button");
         sizeToggle.textContent = "Actual size";
         const closeViewer = document.createElement("button");
@@ -643,23 +825,163 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         stage.className = "nova-style-preview-viewer-stage";
         const image = document.createElement("img");
         image.className = "nova-style-preview-viewer-image";
-        image.src = item.preview_url;
-        image.alt = `${item.clean_name || item.name} large preview`;
         image.draggable = false;
+        function updateTitle() {
+            const dimensions = image.naturalWidth && image.naturalHeight
+                ? ` · ${image.naturalWidth}×${image.naturalHeight}`
+                : "";
+            viewerTitle.textContent = `${currentItem.clean_name || currentItem.name}${dimensions}`;
+        }
+        function applyView() {
+            image.classList.toggle("actual", !fitMode);
+            stage.classList.toggle("zoomed", !fitMode);
+            if (fitMode) {
+                image.style.width = "";
+                image.style.height = "";
+                stage.classList.remove("overflow-x", "overflow-y");
+                zoomLabel.textContent = "Fit";
+                sizeToggle.textContent = "Actual size";
+            } else {
+                const renderedWidth = Math.max(1, image.naturalWidth * zoom);
+                const renderedHeight = Math.max(1, image.naturalHeight * zoom);
+                image.style.width = `${renderedWidth}px`;
+                image.style.height = "auto";
+                stage.classList.toggle("overflow-x", renderedWidth > Math.max(1, stage.clientWidth - 32));
+                stage.classList.toggle("overflow-y", renderedHeight > Math.max(1, stage.clientHeight - 32));
+                zoomLabel.textContent = `${Math.round(zoom * 100)}%`;
+                sizeToggle.textContent = "Fit to window";
+            }
+        }
+        function setZoom(multiplier) {
+            if (!image.naturalWidth) return;
+            if (fitMode) {
+                const fittedWidth = Math.max(1, image.getBoundingClientRect().width);
+                zoom = fittedWidth / image.naturalWidth;
+            }
+            fitMode = false;
+            zoom = Math.min(8, Math.max(0.1, zoom * multiplier));
+            applyView();
+        }
+        function loadViewerItem(nextItem) {
+            currentItem = nextItem;
+            fitMode = true;
+            zoom = 1;
+            stage.scrollTo({ left: 0, top: 0 });
+            image.alt = `${currentItem.clean_name || currentItem.name} large preview`;
+            image.src = currentItem.preview_url;
+            viewerTitle.textContent = currentItem.clean_name || currentItem.name;
+            applyView();
+        }
         image.onload = () => {
-            viewerTitle.textContent = `${item.clean_name || item.name} · ${image.naturalWidth}×${image.naturalHeight}`;
+            updateTitle();
+            applyView();
         };
         image.onerror = () => {
             viewerTitle.textContent = "Preview image could not be loaded";
             sizeToggle.disabled = true;
+            zoomOut.disabled = true;
+            zoomIn.disabled = true;
         };
-        let actualSize = false;
         sizeToggle.onclick = () => {
-            actualSize = !actualSize;
-            image.classList.toggle("actual", actualSize);
-            stage.classList.toggle("actual", actualSize);
-            sizeToggle.textContent = actualSize ? "Fit to window" : "Actual size";
+            if (fitMode) {
+                fitMode = false;
+                zoom = 1;
+            } else {
+                fitMode = true;
+            }
+            applyView();
         };
+        zoomOut.onclick = () => setZoom(1 / 1.15);
+        zoomIn.onclick = () => setZoom(1.15);
+        stage.addEventListener("wheel", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setZoom(event.deltaY < 0 ? 1.15 : 1 / 1.15);
+        }, { passive: false });
+        stage.addEventListener("pointerdown", (event) => {
+            if (fitMode || (event.button !== 0 && event.button !== 1)) return;
+            event.preventDefault();
+            pan = {
+                pointerId: event.pointerId,
+                x: event.clientX,
+                y: event.clientY,
+                left: stage.scrollLeft,
+                top: stage.scrollTop,
+            };
+            stage.setPointerCapture?.(event.pointerId);
+            stage.classList.add("panning");
+        });
+        stage.addEventListener("pointermove", (event) => {
+            if (!pan || event.pointerId !== pan.pointerId) return;
+            event.preventDefault();
+            stage.scrollLeft = pan.left - (event.clientX - pan.x);
+            stage.scrollTop = pan.top - (event.clientY - pan.y);
+        });
+        const endPan = (event) => {
+            if (!pan || event.pointerId !== pan.pointerId) return;
+            stage.releasePointerCapture?.(event.pointerId);
+            pan = null;
+            stage.classList.remove("panning");
+        };
+        stage.addEventListener("pointerup", endPan);
+        stage.addEventListener("pointercancel", endPan);
+        image.ondblclick = (event) => {
+            event.preventDefault();
+            sizeToggle.click();
+        };
+
+        async function navigatePreview(direction) {
+            if (navigating) return;
+            navigating = true;
+            previous.disabled = true;
+            next.disabled = true;
+            try {
+                const firstData = state.data || await fetchStyles(node, nodeData, state);
+                const pageCount = Math.max(1, Number(firstData.page_count || 1));
+                let page = Number(state.page || firstData.page || 1);
+                let pageData = firstData;
+                for (let checkedPages = 0; checkedPages < pageCount; checkedPages += 1) {
+                    const items = pageData.items || [];
+                    const currentIndex = items.findIndex((candidate) => candidate.name === currentItem.name);
+                    let index = currentIndex >= 0
+                        ? currentIndex + direction
+                        : (direction > 0 ? 0 : items.length - 1);
+                    while (index >= 0 && index < items.length) {
+                        const candidate = items[index];
+                        if (candidate.preview_url && candidate.name !== currentItem.name) {
+                            state.page = page;
+                            state.data = pageData;
+                            state.selected = candidate;
+                            renderCards();
+                            renderPages();
+                            showDetail(candidate);
+                            loadViewerItem(candidate);
+                            return;
+                        }
+                        index += direction;
+                    }
+                    let nextPage = page + direction;
+                    if (nextPage < 1 || nextPage > pageCount) {
+                        if (!browserSettings.wrapViewerNavigation) break;
+                        nextPage = direction > 0 ? 1 : pageCount;
+                    }
+                    page = nextPage;
+                    pageData = await fetchStyles(node, nodeData, { ...state, page });
+                }
+                viewerTitle.textContent = "No other saved preview in this filter";
+                setTimeout(() => {
+                    if (viewer.isConnected) updateTitle();
+                }, 1200);
+            } catch {
+                viewerTitle.textContent = "Could not load the next saved preview";
+            } finally {
+                navigating = false;
+                previous.disabled = false;
+                next.disabled = false;
+            }
+        }
+        previous.onclick = () => void navigatePreview(-1);
+        next.onclick = () => void navigatePreview(1);
         const closeLargePreview = () => viewer.remove();
         closeViewer.onclick = closeLargePreview;
         viewer.addEventListener("pointerdown", (event) => {
@@ -669,16 +991,37 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             if (event.key === "Escape") {
                 event.stopPropagation();
                 closeLargePreview();
+            } else if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                void navigatePreview(-1);
+            } else if (event.key === "ArrowRight") {
+                event.preventDefault();
+                void navigatePreview(1);
             }
         });
-        for (const eventName of ["wheel", "pointerdown", "pointermove", "pointerup"]) {
+        viewer.addEventListener("contextmenu", (event) => {
+            if (!browserSettings.rightClickClosesViewer) return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeLargePreview();
+        });
+        panel.addEventListener("pointerdown", (event) => {
+            if (event.button === 3 || event.button === 4) event.preventDefault();
+        });
+        panel.addEventListener("pointerup", (event) => {
+            if (event.button !== 3 && event.button !== 4) return;
+            event.preventDefault();
+            void navigatePreview(event.button === 3 ? -1 : 1);
+        });
+        for (const eventName of ["pointerdown", "pointermove", "pointerup"]) {
             panel.addEventListener(eventName, (event) => event.stopPropagation());
         }
-        viewerHead.append(viewerTitle, sizeToggle, closeViewer);
+        viewerHead.append(viewerTitle, previous, next, zoomOut, zoomLabel, zoomIn, sizeToggle, closeViewer);
         stage.append(image);
         panel.append(viewerHead, stage);
         viewer.append(panel);
         document.body.append(viewer);
+        loadViewerItem(currentItem);
         viewer.focus();
     }
 
@@ -729,7 +1072,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         const generateImage = document.createElement("button");
         generateImage.textContent = state.generating ? "Generating preview…" : "Generate + save preview";
         generateImage.title = "Apply this style, run the current ComfyUI workflow, and save its final image on this card";
-        generateImage.disabled = state.generating || state.batchRunning;
+        generateImage.disabled = state.generating || previewBatchSession.running;
         generateImage.onclick = () => void applyAndGenerate(item);
         const viewLarge = document.createElement("button");
         viewLarge.textContent = "View larger";
@@ -808,6 +1151,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         for (const item of items) {
             const card = document.createElement("div");
             card.className = `nova-style-card${state.selected?.name === item.name ? " selected" : ""}`;
+            card.dataset.styleName = item.name;
             card.title = item.prompt || item.name;
             card.tabIndex = 0;
             card.setAttribute("role", "button");
@@ -836,6 +1180,10 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                     status.textContent = error.message;
                 }
             };
+            star.ondblclick = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            };
             card.onclick = () => {
                 state.selected = item;
                 if (!options.standalone) applySelection(item);
@@ -843,15 +1191,13 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 renderCards();
                 status.textContent = `Selected ${item.clean_name || item.name}`;
             };
-            card.ondblclick = () => {
-                if (options.standalone) {
-                    void copyText(item.prompt).then(() => {
-                        status.textContent = "Positive prompt copied";
-                    });
-                } else {
-                    applySelection(item);
-                    closeBrowser();
+            card.ondblclick = (event) => {
+                event.preventDefault();
+                if (previewBatchSession.running || state.generating) {
+                    status.textContent = "A preview is already generating. Stop it or wait before running another style.";
+                    return;
                 }
+                void applyAndGenerate(item);
             };
             card.onkeydown = (event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -861,6 +1207,41 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             };
             card.append(swatch, copy, star);
             grid.append(card);
+        }
+    }
+
+    async function navigateStyle(direction) {
+        const currentData = state.data;
+        const pageCount = Math.max(1, Number(currentData?.page_count || 1));
+        let page = Number(state.page || 1);
+        let data = currentData;
+        let index = (data?.items || []).findIndex((candidate) => candidate.name === state.selected?.name);
+        for (let checkedPages = 0; checkedPages < pageCount; checkedPages += 1) {
+            const items = data?.items || [];
+            index = index >= 0 ? index + direction : (direction > 0 ? 0 : items.length - 1);
+            if (index >= 0 && index < items.length) {
+                const selected = items[index];
+                state.selected = selected;
+                if (!options.standalone) applySelection(selected);
+                showDetail(selected);
+                renderCards();
+                const selectedCard = [...grid.querySelectorAll(".nova-style-card")]
+                    .find((card) => card.dataset.styleName === selected.name);
+                selectedCard?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                status.textContent = `Selected ${selected.clean_name || selected.name}`;
+                return;
+            }
+            let nextPage = page + direction;
+            if (nextPage < 1 || nextPage > pageCount) {
+                if (!browserSettings.wrapViewerNavigation) return;
+                nextPage = direction > 0 ? 1 : pageCount;
+            }
+            page = nextPage;
+            data = await fetchStyles(node, nodeData, { ...state, page });
+            state.page = page;
+            state.data = data;
+            index = direction > 0 ? -1 : (data.items || []).length;
+            renderPages();
         }
     }
 
@@ -886,6 +1267,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 : "All";
             renderCards();
             renderPages();
+            if (previewBatchSession.running) syncBatchControls(previewBatchSession);
         } catch (error) {
             grid.replaceChildren();
             const empty = document.createElement("div");
@@ -909,6 +1291,18 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         state.category = category.value;
         state.page = 1;
         void load();
+    };
+    refresh.onclick = async () => {
+        refresh.disabled = true;
+        status.textContent = "Refreshing styles and saved previews…";
+        try {
+            await load();
+            if (!previewBatchSession.running) {
+                status.textContent = `${state.data?.file_name || "Style library"} refreshed`;
+            }
+        } finally {
+            refresh.disabled = false;
+        }
     };
     favorites.onclick = () => {
         state.favoritesOnly = !state.favoritesOnly;
@@ -945,7 +1339,10 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     previewSize.onchange = () => {
         state.previewSize = Number(previewSize.value) === 1024 ? 1024 : 512;
     };
-    generateAll.onclick = () => void generateWholeLibrary();
+    generateAll.onclick = () => {
+        if (previewBatchSession.running) void requestPreviewStop();
+        else void generateWholeLibrary();
+    };
 
     overlay.focus();
     void load();

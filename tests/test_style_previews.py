@@ -185,7 +185,7 @@ class StylePreviewTests(unittest.TestCase):
             "fetchWholeLibrary",
             "missing.length.toLocaleString()",
             "Existing previews will not be replaced",
-            "Stop after current",
+            "■ Stop generating",
             "LAUNCHER_POSITION_KEY",
             "setPointerCapture",
             "Click to open. Drag to move.",
@@ -200,6 +200,29 @@ class StylePreviewTests(unittest.TestCase):
             "onSelect(item)",
         ):
             self.assertIn(marker, stack)
+
+    def test_frontend_has_persistent_generation_and_viewer_convenience_controls(self) -> None:
+        browser = (ROOT / "web/nova_style_dropdown.js").read_text(encoding="utf-8")
+
+        for marker in (
+            "↻ Refresh",
+            'cache: "no-store"',
+            "previewBatchSession",
+            "requestPreviewStop",
+            "await api.interrupt()",
+            "Open preview after a single generated style",
+            "Wrap Previous/Next at the ends",
+            "Right-click closes the large viewer",
+            "event.button === 3",
+            "event.button === 4",
+            'stage.addEventListener("wheel"',
+            "Math.min(8, Math.max(0.1",
+            'viewer.addEventListener("contextmenu"',
+            "card.ondblclick",
+            "void applyAndGenerate(item)",
+            "z-index:5",
+        ):
+            self.assertIn(marker, browser)
 
     def test_generated_preview_state_is_ignored(self) -> None:
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
