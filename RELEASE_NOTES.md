@@ -1,13 +1,21 @@
-# NovoLoko v3.5.1
+# NovoLoko v3.5.2
 
-This hotfix release makes the recently merged reliability fixes available through the NovoLokoLabs updater.
+This polish release improves gallery-like style browsing and workflow layout without changing any serialized node contract.
+
+## Added
+
+- Full-screen visual style library for the existing CSV Style Loader.
+- Search across style names and prompt text, category filtering, favourites, recent history, random selection, grid/list views, prompt details and pagination.
 
 ## Fixed
 
-- OmniLoko starts automatically in private bridge-only mode when an actual OmniLoko TTS execution needs it.
-- The Memory Manager can be resized to a compact width and uses a shorter visible title.
-- Media Studio no longer re-scans a large saved library inside the ComfyUI execution critical path.
-- Full-resolution Media Studio images, the configured history limit, prompts, metadata, delete, revoice, autoplay and gallery navigation remain unchanged.
+- Prompt Stack AIO now restores the exact width and height saved by ComfyUI.
+- Memory Manager remains compact after ComfyUI recalculates widget widths.
+- OmniLoko opens automatically for real OmniLoko voice jobs only; Kokoro and Off mode never launch it.
+
+## Compatibility
+
+All 33 node IDs, inputs, outputs, socket order, widget order and v3.5.0 workflow links are unchanged.
 
 ## Upgrade
 

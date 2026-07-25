@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.5.1
+# ComfyUI-NovoLoko v3.5.2
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -25,11 +25,11 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 - `NovoLoko AIO v3.5.0 - Latest Workflow.json` — full seven-slot prompt stack, refreshable unified voice selector, enhancer instructions and status displays, two-pass generation, edge-to-edge compare, metadata save, Media Studio delete/revoice tools, timer and memory manager.
 - `NovoLoko Compare Studio v3.5.0.json` — minimal image comparison example with theme-neutral node chrome.
 
-The v3.5.1 hotfix keeps the existing v3.5.0 workflow files because no serialized sockets, widgets or links changed.
+The v3.5.2 polish release keeps the existing v3.5.0 workflow files because no serialized sockets, widgets or links changed.
 
 ## Main nodes
 
-Prompt tools include Prompt Stack AIO Pro, Prompt Enhancer Pro, Manual Prompt + YAML Styler, source selector, CSV style/character loaders, prompt switches, Text Prompt and Text Display.
+Prompt tools include Prompt Stack AIO Pro, Prompt Enhancer Pro, Manual Prompt + YAML Styler, source selector, CSV style/character loaders, prompt switches, Text Prompt and Text Display. The CSV Style Loader now includes a full-screen visual library with search, categories, favourites, recent history, grid/list views, prompt details and pagination.
 
 Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger.
 
@@ -69,7 +69,7 @@ ComfyUI Manager and normal runtime dependency installation install `lokobridge-c
 python -m pip install lokobridge-client==1.0.0
 ```
 
-Run that command with ComfyUI's own Python executable, not an unrelated system Python. When an actual OmniLoko TTS job is queued, NovoLoko now starts an installed OmniLoko automatically in private `--bridge-only` mode if the bridge is not already running. Voice-list and schema refreshes remain passive and do not start the application.
+Run that command with ComfyUI's own Python executable, not an unrelated system Python. When an actual OmniLoko TTS job is queued, NovoLoko opens the installed OmniLoko application automatically if its private bridge is not already running. Kokoro and Off mode never start OmniLoko; voice-list and schema refreshes remain passive.
 
 `NovoLoko Voice TTS` selects OmniLoko, Kokoro or Off without running the inactive backend and without cross-backend fallback. Advanced controls are hidden only in the frontend; all saved values remain serialized and the Python node works when frontend hiding is unavailable. **Refresh Voices** updates saved OmniLoko presets and packaged Kokoro voices in place without starting another worker. A removed preset stays visibly selected with a stale warning until you choose a replacement.
 

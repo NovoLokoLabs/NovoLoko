@@ -166,10 +166,6 @@ function applySubjectPresentationOrder(node) {
     const desiredSet = new Set(desired);
     const remaining = (node.widgets || []).filter((widget) => !desiredSet.has(widget));
     node.widgets = [...desired, ...remaining];
-    node.setSize?.([
-        Math.max(Number(node.size?.[0]) || 0, 820),
-        Math.max(Number(node.size?.[1]) || 0, 1580),
-    ]);
 }
 
 function repairMissingSubjectDefaults(node) {
@@ -412,7 +408,7 @@ function scheduleFullRefresh(node, delay = 260) {
     );
 }
 
-function configureProNode(node) {
+function configureProNode(node, newNode = false) {
     if (!node.__novaAIOProConfigured) {
         node.__novaAIOProConfigured = true;
         node.__novaAIOInitialising = true;
@@ -450,11 +446,11 @@ function configureProNode(node) {
         );
         clearSearch.serialize = false;
 
-        const oldSize = node.size || [820, 1480];
-        node.setSize?.([
-            Math.max(Number(oldSize[0]) || 0, 820),
-            Math.max(Number(oldSize[1]) || 0, 1580),
-        ]);
+        node.min_size = [360, 420];
+        if (newNode && !node.__novaAIOInitialSizeApplied) {
+            node.__novaAIOInitialSizeApplied = true;
+            node.setSize?.([820, 1580]);
+        }
     }
 
     // onNodeCreated can fire before saved values are restored. onGraphConfigured
@@ -530,7 +526,7 @@ app.registerExtension({
             // restoration. Never reorder widgets during that gap.
             clearTimeout(this.__novaAIOCreatedTimer);
             this.__novaAIOCreatedTimer = setTimeout(() => {
-                if (PRO_NODE_NAMES.has(name)) configureProNode(this);
+                if (PRO_NODE_NAMES.has(name)) configureProNode(this, true);
                 else configureLegacyNode(this);
             }, 1000);
             return result;

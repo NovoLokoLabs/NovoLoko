@@ -41,6 +41,9 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
     def setUp(self) -> None:
         _Backend.calls = []
         _Backend.error = None
+        patcher = mock.patch.object(self.module, "_ensure_omniloko_running")
+        self.ensure_omniloko = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_schema_and_output_order_are_stable(self) -> None:
         node = self.module.NovaVoiceEngineTTS
@@ -66,6 +69,7 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
             )
         self.assertEqual(1, len(omni.calls))
         self.assertEqual([], kokoro.calls)
+        self.ensure_omniloko.assert_called_once()
         self.assertEqual("Current OmniLoko Profile", result[3])
         self.assertEqual("OmniLoko", result[4])
 
@@ -78,6 +82,7 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
             )
         self.assertEqual([], omni.calls)
         self.assertEqual(1, len(kokoro.calls))
+        self.ensure_omniloko.assert_not_called()
         self.assertEqual("af_heart | Heart (US Female)", result[3])
         self.assertEqual("Kokoro", result[4])
 
@@ -93,6 +98,7 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
             disabled = self.module.NovaVoiceEngineTTS().speak(text="hello", engine="OmniLoko", enabled=False)
         self.assertEqual([], omni.calls)
         self.assertEqual([], kokoro.calls)
+        self.ensure_omniloko.assert_not_called()
         self.assertEqual("Off", off[4])
         self.assertEqual("OmniLoko", disabled[4])
         self.assertEqual("silence", off[0])
@@ -105,6 +111,14 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
                 self.module.NovaVoiceEngineTTS().speak(text="hello", engine="OmniLoko")
         self.assertEqual(1, len(omni.calls))
         self.assertEqual([], kokoro.calls)
+        self.ensure_omniloko.assert_called_once()
+
+    def test_empty_omniloko_text_does_not_open_the_app(self) -> None:
+        kokoro = type("KokoroBackend", (_Backend,), {"calls": [], "error": None})
+        omni = type("OmniBackend", (_Backend,), {"calls": [], "error": None})
+        with mock.patch.object(self.module, "NovaOmniLokoTTS", omni), mock.patch.object(self.module, "NovaKokoroTTS", kokoro):
+            self.module.NovaVoiceEngineTTS().speak(text="  ", engine="OmniLoko", prefix="")
+        self.ensure_omniloko.assert_not_called()
 
     def test_registration_keeps_all_three_voice_nodes(self) -> None:
         package_name = "novoloko_unified_complete_tests"

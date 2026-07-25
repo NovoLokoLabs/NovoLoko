@@ -1971,6 +1971,86 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 }
 
 
+def _style_browser_payload(
+    csv_file_path,
+    *,
+    search="",
+    category="All",
+    favorites_only=False,
+    history_only=False,
+    page=1,
+    page_size=24,
+    kind="styles",
+    include_style_names=True,
+):
+    styles = _read_styles(csv_file_path)
+    saved_favorites = _load_favorites(kind)
+    _mark_favorites(styles, saved_favorites)
+    categories = ["All"] + sorted(set(str(item.get("category") or "Uncategorized") for item in styles))
+
+    requested_filter = bool(str(search or "").strip()) or category != "All" or favorites_only
+    filtered = (
+        _filter_styles(
+            styles,
+            category,
+            search,
+            favorites_only,
+            "",
+            saved_favorites=saved_favorites,
+        )
+        if requested_filter
+        else list(styles)
+    )
+
+    if history_only:
+        history = _load_json("history.json", [])
+        recent_names = []
+        for entry in history if isinstance(history, list) else []:
+            for name in str(entry.get("selected") or "").split(" + "):
+                clean = name.strip()
+                if clean and clean not in recent_names:
+                    recent_names.append(clean)
+        by_name = {str(item.get("name") or ""): item for item in filtered}
+        filtered = [by_name[name] for name in recent_names if name in by_name]
+
+    page_size = max(6, min(int(page_size or 24), 60))
+    total = len(filtered)
+    page_count = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(int(page or 1), page_count))
+    start = (page - 1) * page_size
+    page_items = filtered[start:start + page_size]
+    items = [
+        {
+            "name": str(item.get("name") or ""),
+            "clean_name": _strip_number(str(item.get("name") or "")),
+            "category": str(item.get("category") or "Uncategorized"),
+            "prompt": str(item.get("prompt") or "")[:500],
+            "negative": str(item.get("negative") or "")[:300],
+            "favorite": bool(item.get("favorite")),
+        }
+        for item in page_items
+    ]
+
+    is_char = "char" in str(kind or "").lower()
+    style_rescue = ["No Character/None", "0000 | No Character/None"] if is_char else ["No Style", "0000 | No Style"]
+    category_rescue = ["All", "No Character"] if is_char else ["All", "No Style"]
+    return {
+        "ok": True,
+        "styles": _merge_unique_lists(
+            style_rescue,
+            [item["name"] for item in filtered] if include_style_names else [],
+        ),
+        "categories": _merge_unique_lists(category_rescue, categories),
+        "count": len(styles),
+        "filtered_count": total,
+        "page": page,
+        "page_count": page_count,
+        "page_size": page_size,
+        "items": items,
+        "file_name": os.path.basename(_resolve_csv_path(csv_file_path)),
+    }
+
+
 # Optional frontend refresh endpoint. The node still works without this.
 try:
     from server import PromptServer
@@ -1982,24 +2062,20 @@ try:
         search = request.query.get("search", "")
         category = request.query.get("category", "All")
         try:
-            styles = _read_styles(csv_file_path)
-            cats = ["All"] + sorted(set(s["category"] for s in styles))
             kind = request.query.get("kind", "styles")
             favorites_only = str(request.query.get("favorites_only", "false")).lower() in {"1", "true", "yes", "on"}
-            filtered = _filter_styles(styles, category, search, favorites_only, "", saved_favorites=_load_favorites(kind)) if (search or category != "All" or favorites_only) else styles
-            if not filtered:
-                filtered = styles
-            is_char = "char" in str(kind or "").lower()
-            style_rescue = ["No Character/None", "0000 | No Character/None"] if is_char else ["No Style", "0000 | No Style"]
-            category_rescue = ["All", "No Character"] if is_char else ["All", "No Style"]
-            return web.json_response({
-                "ok": True,
-                "styles": _merge_unique_lists(style_rescue, [s["name"] for s in filtered]),
-                "categories": _merge_unique_lists(category_rescue, cats),
-                "count": len(styles),
-                "filtered_count": len(filtered),
-                "resolved_path": _resolve_csv_path(csv_file_path),
-            })
+            history_only = str(request.query.get("history_only", "false")).lower() in {"1", "true", "yes", "on"}
+            return web.json_response(_style_browser_payload(
+                csv_file_path,
+                search=search,
+                category=category,
+                favorites_only=favorites_only,
+                history_only=history_only,
+                page=request.query.get("page", 1),
+                page_size=request.query.get("page_size", 24),
+                kind=kind,
+                include_style_names=str(request.query.get("compact", "false")).lower() not in {"1", "true", "yes", "on"},
+            ))
         except Exception as e:
             return web.json_response({"ok": False, "error": str(e)}, status=400)
 
