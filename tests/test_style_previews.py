@@ -168,8 +168,17 @@ class StylePreviewTests(unittest.TestCase):
             "/nova_style_previews/delete",
             "for (const size of [512, 1024])",
             "preview_url",
+            "object-fit:contain",
+            "Generate + save preview",
+            "queueCurrentWorkflow",
+            "api.queuePrompt(0, prompt)",
+            "/history/${encodeURIComponent(promptId)}",
+            "finalGeneratedImage",
+            "/view?${params}",
+            "uploadPreview(item, state.csv, state.previewSize, file)",
         ):
             self.assertIn(marker, browser)
+        self.assertNotIn("object-fit:cover", browser)
         for marker in (
             "Browse Medium styles visually",
             "window.NovoLokoStyleBrowser",

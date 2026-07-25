@@ -2,6 +2,8 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const DEFAULT_STANDALONE_LIBRARY = "styles/novoloko_all_yaml_styles.yaml";
+const MAX_GENERATED_PREVIEW_BYTES = 32 * 1024 * 1024;
+const GENERATED_PREVIEW_TIMEOUT_MS = 30 * 60 * 1000;
 let standaloneBrowser = null;
 
 function widget(node, name) {
@@ -157,7 +159,7 @@ function ensureBrowserStyles() {
         .nova-style-card.selected{border:2px solid #6ca1ff!important;box-shadow:0 0 0 3px #2865d755}
         .nova-style-swatch{height:112px;position:relative;flex:none}.nova-style-grid.list .nova-style-card{display:grid;grid-template-columns:144px 1fr}.nova-style-grid.list .nova-style-swatch{height:100%}
         .nova-style-swatch:after{content:"";position:absolute;inset:12%;border:1px solid #ffffff38;border-radius:50% 22% 50% 28%;transform:rotate(-14deg);box-shadow:inset 0 0 24px #fff2}
-        .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#151820;z-index:1}
+        .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0b0d12;z-index:1}
         .nova-style-card-copy{padding:9px 10px;min-width:0}.nova-style-card-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-style-card-category{color:#9fabbd;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .nova-style-star{position:absolute;right:7px;top:7px;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111b!important;font-size:17px!important}.nova-style-star.on{color:#ffd45a}
         .nova-style-detail{border-left:1px solid #303541;background:#1b1f27;padding:18px;overflow:auto}.nova-style-detail h3{font-size:18px;margin:0 0 5px}.nova-style-detail .category{color:#8baeff;margin-bottom:16px}.nova-style-detail .label{color:#8f9bb0;text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.8px;margin-top:15px}.nova-style-detail .text{white-space:pre-wrap;color:#d5dbea;margin-top:5px}
@@ -226,6 +228,145 @@ async function deletePreview(item, csv) {
     return data;
 }
 
+function graphNodes(graph = app.graph, visited = new Set()) {
+    if (!graph || visited.has(graph)) return [];
+    visited.add(graph);
+    const result = [];
+    for (const node of graph._nodes || []) {
+        result.push(node);
+        if (node.subgraph) result.push(...graphNodes(node.subgraph, visited));
+    }
+    return result;
+}
+
+async function runWidgetQueueHooks(name) {
+    const pending = [];
+    for (const node of graphNodes()) {
+        for (const target of node.widgets || []) {
+            const callback = target?.[name];
+            if (typeof callback !== "function") continue;
+            const result = callback.call(target, { isPartialExecution: false });
+            if (result && typeof result.then === "function") pending.push(result);
+        }
+    }
+    await Promise.all(pending);
+}
+
+async function queueCurrentWorkflow() {
+    if (typeof app.graphToPrompt !== "function" || typeof api.queuePrompt !== "function") {
+        throw new Error("This ComfyUI version cannot queue the current workflow from the style browser.");
+    }
+    await runWidgetQueueHooks("beforeQueued");
+    const prompt = await app.graphToPrompt();
+    const queued = await api.queuePrompt(0, prompt);
+    await runWidgetQueueHooks("afterQueued");
+    const promptId = String(queued?.prompt_id || "");
+    if (!promptId) throw new Error("ComfyUI did not return a prompt ID for the preview run.");
+    return promptId;
+}
+
+function finalGeneratedImage(historyEntry) {
+    const candidates = [];
+    for (const output of Object.values(historyEntry?.outputs || {})) {
+        for (const item of output?.images || []) {
+            if (item?.filename) candidates.push(item);
+        }
+    }
+    return candidates.at(-1) || null;
+}
+
+function delay(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function waitForGeneratedImage(promptId, onProgress) {
+    const deadline = Date.now() + GENERATED_PREVIEW_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+        const response = await api.fetchApi(`/history/${encodeURIComponent(promptId)}`, {
+            cache: "no-store",
+        });
+        if (!response.ok) throw new Error(`ComfyUI history returned HTTP ${response.status}.`);
+        const history = await response.json();
+        const entry = history?.[promptId];
+        if (entry) {
+            const status = String(entry.status?.status_str || "").toLowerCase();
+            if (status === "error") throw new Error("The preview workflow failed. Check ComfyUI's execution error.");
+            const image = finalGeneratedImage(entry);
+            if (image) return image;
+            if (entry.status?.completed) {
+                throw new Error("The workflow completed without an image output to use as the preview.");
+            }
+        }
+        onProgress?.();
+        await delay(750);
+    }
+    throw new Error("The preview workflow did not finish within 30 minutes.");
+}
+
+async function downloadGeneratedImage(image) {
+    const params = new URLSearchParams({
+        filename: String(image.filename || ""),
+        subfolder: String(image.subfolder || ""),
+        type: String(image.type || "output"),
+    });
+    const response = await api.fetchApi(`/view?${params}`);
+    if (!response.ok) throw new Error(`Generated image download returned HTTP ${response.status}.`);
+    const declaredLength = Number(response.headers.get("Content-Length") || 0);
+    if (declaredLength > MAX_GENERATED_PREVIEW_BYTES) {
+        throw new Error("The generated image is too large to use as a style preview.");
+    }
+    const contentType = String(response.headers.get("Content-Type") || "").split(";", 1)[0].trim();
+    if (!contentType.startsWith("image/")) {
+        throw new Error("ComfyUI returned a non-image output for the generated preview.");
+    }
+    const blob = await response.blob();
+    if (!blob.size || blob.size > MAX_GENERATED_PREVIEW_BYTES) {
+        throw new Error("The generated image is empty or too large to use as a style preview.");
+    }
+    return new File([blob], String(image.filename || "novoloko-preview.png"), {
+        type: contentType,
+    });
+}
+
+function applyStandaloneStyle(item, csv) {
+    const compatible = graphNodes().filter((candidate) =>
+        widget(candidate, "medium_selection") || widget(candidate, "style")
+    );
+    const selected = app.canvas?.current_node;
+    const target = compatible.includes(selected)
+        ? selected
+        : (compatible.length === 1 ? compatible[0] : null);
+    if (!target) {
+        throw new Error(
+            "Open this browser from Prompt Stack or a Style Loader, or select the one target node before generating."
+        );
+    }
+
+    const medium = widget(target, "medium_selection");
+    if (medium) {
+        const file = widget(target, "medium_file_path");
+        if (file) {
+            file.value = csv;
+            file.callback?.(csv);
+        }
+        const value = String(item.name || "").replace(/[\\/]+/g, " › ").trim();
+        const values = [...new Set([...(medium.options?.values || []), value])];
+        medium.options ||= {};
+        medium.options.values = values;
+        medium.value = value;
+        medium.callback?.(value);
+        markDirty(target);
+        return;
+    }
+
+    const file = widget(target, "csv_file_path");
+    if (file) {
+        file.value = csv;
+        file.callback?.(csv);
+    }
+    setSelectedStyle(target, item);
+}
+
 async function setFavourite(item, enabled, kind) {
     const response = await api.fetchApi("/nova_favorites/action", {
         method: "POST",
@@ -259,6 +400,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         csv: String(options.csv ?? widget(node, "csv_file_path")?.value ?? DEFAULT_STANDALONE_LIBRARY),
         kind: String(options.kind || (isCharacterLoader(nodeData) ? "characters" : "styles")),
         previewSize: Number(options.previewSize || 512) === 1024 ? 1024 : 512,
+        generating: false,
     };
     const favoriteKind = state.kind;
 
@@ -350,6 +492,34 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         }
     }
 
+    async function applyAndGenerate(item) {
+        if (state.generating) return;
+        state.generating = true;
+        showDetail(item);
+        try {
+            if (options.standalone) applyStandaloneStyle(item, state.csv);
+            else applySelection(item);
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            status.textContent = `Queueing ${item.clean_name || item.name} with the current workflow…`;
+            const promptId = await queueCurrentWorkflow();
+            status.textContent = "Workflow queued. Waiting for its final image…";
+            const generated = await waitForGeneratedImage(promptId, () => {
+                status.textContent = "Generating preview…";
+            });
+            status.textContent = `Saving ${state.previewSize}×${state.previewSize} preview…`;
+            const file = await downloadGeneratedImage(generated);
+            const result = await uploadPreview(item, state.csv, state.previewSize, file);
+            item.preview_url = result.preview_url;
+            renderCards();
+            status.textContent = `Generated and saved ${result.size}×${result.size} preview`;
+        } catch (error) {
+            status.textContent = String(error?.message || "Preview generation failed");
+        } finally {
+            state.generating = false;
+            if (overlay.isConnected) showDetail(item);
+        }
+    }
+
     function showDetail(item) {
         detail.replaceChildren();
         const heading = document.createElement("h3");
@@ -394,6 +564,11 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 status.textContent = "Clipboard access was unavailable";
             }
         };
+        const generateImage = document.createElement("button");
+        generateImage.textContent = state.generating ? "Generating preview…" : "Generate + save preview";
+        generateImage.title = "Apply this style, run the current ComfyUI workflow, and save its final image on this card";
+        generateImage.disabled = state.generating;
+        generateImage.onclick = () => void applyAndGenerate(item);
         const addImage = document.createElement("button");
         addImage.textContent = item.preview_url ? "Replace image…" : "Add image…";
         const imageInput = document.createElement("input");
@@ -429,7 +604,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 status.textContent = String(error?.message || "Preview removal failed");
             }
         };
-        actions.append(copyPositive, copyNegative, addImage, removeImage, imageInput);
+        actions.append(copyPositive, copyNegative, generateImage, addImage, removeImage, imageInput);
         detail.append(actions);
     }
 
@@ -615,7 +790,7 @@ window.NovoLokoStyleBrowser = {
 };
 
 app.registerExtension({
-    name: "NovoLoko.CSVStyleVisualLibrary.v360",
+    name: "NovoLoko.CSVStyleVisualLibrary.v361",
     setup() {
         if (document.getElementById("nova-style-standalone-launcher")) return;
         ensureBrowserStyles();
