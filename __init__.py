@@ -12,10 +12,12 @@ from .voice_nodes import (
 # Media Studio saves the new entry during execution, then the existing frontend
 # refreshes older history through the HTTP history route after the node returns.
 from . import media_history_runtime as _media_history_runtime  # noqa: F401
+from . import lokobridge_nodes as _lokobridge_nodes
 from .lokobridge_nodes import (
     NODE_CLASS_MAPPINGS as LOKOBRIDGE_NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as LOKOBRIDGE_NODE_DISPLAY_NAME_MAPPINGS,
 )
+from .omniloko_autostart import install as _install_omniloko_autostart
 from .unified_voice_node import (
     NODE_CLASS_MAPPINGS as UNIFIED_VOICE_NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as UNIFIED_VOICE_NODE_DISPLAY_NAME_MAPPINGS,
@@ -36,6 +38,14 @@ from .nova_core_nodes import (
     NODE_CLASS_MAPPINGS as NOVA_CORE_REPLACEMENT_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as NOVA_CORE_REPLACEMENT_DISPLAY_MAPPINGS,
 )
+
+# Keep schema/voice dropdown probes passive, but auto-start OmniLoko when an
+# actual TTS execution needs it.
+_install_omniloko_autostart(_lokobridge_nodes)
+
+# The previous long title forced LiteGraph to keep the VRAM cleanup node much
+# wider than its controls require.
+NOVA_CORE_REPLACEMENT_DISPLAY_MAPPINGS["NovaMemoryManager"] = "NovoLoko Memory Manager"
 
 NODE_CLASS_MAPPINGS = {}
 NODE_CLASS_MAPPINGS.update(CORE_NODE_CLASS_MAPPINGS)
