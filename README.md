@@ -41,7 +41,13 @@ Use **Generate + save preview** to apply the selected style to the current
 Prompt Stack or Style Loader, queue the current workflow and automatically save
 its final generated image onto that card. Real previews fit inside cards without
 cropping. **View larger** opens the stored image in a full-screen viewer with
-fit-to-window and actual-size modes.
+fit-to-window and actual-size modes. The floating **Styles** launcher can be
+dragged anywhere and remembers its position.
+
+**Generate all missing** runs the current workflow sequentially for every style
+in the selected CSV/YAML that does not have a preview. NovoLoko shows the exact
+run count and a large-library warning first, preserves existing images, and
+allows the run to stop after the current preview and resume later.
 
 Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger.
 
@@ -81,7 +87,7 @@ ComfyUI Manager and normal runtime dependency installation install `lokobridge-c
 python -m pip install lokobridge-client==1.0.0
 ```
 
-Run that command with ComfyUI's own Python executable, not an unrelated system Python. When an actual OmniLoko TTS job is queued, NovoLoko opens the installed OmniLoko application automatically if its private bridge is not already running. Kokoro and Off mode never start OmniLoko; voice-list and schema refreshes remain passive.
+Run that command with ComfyUI's own Python executable, not an unrelated system Python. When an actual OmniLoko TTS job is queued, NovoLoko opens the installed OmniLoko application automatically if its private bridge is not already running. After the final active request, NovoLoko closes only the OmniLoko process it started; an already-open user instance is left alone. Kokoro and Off mode never start OmniLoko; voice-list and schema refreshes remain passive.
 
 `NovoLoko Voice TTS` selects OmniLoko, Kokoro or Off without running the inactive backend and without cross-backend fallback. Advanced controls are hidden only in the frontend; all saved values remain serialized and the Python node works when frontend hiding is unavailable. **Refresh Voices** updates saved OmniLoko presets and packaged Kokoro voices in place without starting another worker. A removed preset stays visibly selected with a stale warning until you choose a replacement.
 

@@ -4,10 +4,11 @@ import { api } from "../../scripts/api.js";
 const DEFAULT_STANDALONE_LIBRARY = "styles/novoloko_all_yaml_styles.yaml";
 const MAX_GENERATED_PREVIEW_BYTES = 32 * 1024 * 1024;
 const GENERATED_PREVIEW_TIMEOUT_MS = 30 * 60 * 1000;
+const LAUNCHER_POSITION_KEY = "novoloko.styleBrowserLauncher.v1";
 let standaloneBrowser = null;
 
 function widget(node, name) {
-    return node.widgets?.find((item) => item.name === name);
+    return node?.widgets?.find((item) => item.name === name);
 }
 
 function isNovaStyleLoader(nodeData) {
@@ -148,7 +149,7 @@ function ensureBrowserStyles() {
         .nova-style-dialog{width:min(1240px,96vw);height:min(880px,94vh);display:flex;flex-direction:column;background:#171a21;border:1px solid #3a4050;border-radius:18px;box-shadow:0 28px 90px #000b;overflow:hidden}
         .nova-style-head{display:flex;gap:12px;align-items:center;padding:17px 20px;border-bottom:1px solid #303541;background:linear-gradient(100deg,#242936,#161920)}
         .nova-style-title{font-size:20px;font-weight:800;letter-spacing:.2px;flex:1}.nova-style-count{color:#aeb9d0}
-        .nova-style-controls{display:grid;grid-template-columns:minmax(210px,1fr) minmax(180px,260px) auto auto auto auto auto;gap:9px;padding:13px 20px;border-bottom:1px solid #2c313c;background:#1d2129}
+        .nova-style-controls{display:grid;grid-template-columns:minmax(210px,1fr) minmax(180px,260px) auto auto auto auto auto auto;gap:9px;padding:13px 20px;border-bottom:1px solid #2c313c;background:#1d2129}
         .nova-style-controls input,.nova-style-controls select,.nova-style-browser button{border:1px solid #3b4251;border-radius:9px;background:#252a34;color:#f5f7ff;padding:9px 11px;font:inherit}
         .nova-style-browser button{cursor:pointer;font-weight:700}.nova-style-browser button:hover{border-color:#7b9cff;background:#30394b}.nova-style-browser button.active{background:#315fcf;border-color:#73a0ff}
         .nova-style-content{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;min-height:0;flex:1}
@@ -171,7 +172,8 @@ function ensureBrowserStyles() {
         .nova-style-preview-viewer-image{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.nova-style-preview-viewer-image.actual{max-width:none;max-height:none}
         .nova-style-empty{grid-column:1/-1;align-self:center;justify-self:center;color:#98a3b7;font-size:16px;text-align:center}
         .nova-style-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #303541;background:#1d2129}.nova-style-pages{display:flex;gap:6px;flex:1;justify-content:center}.nova-style-page{min-width:38px}
-        .nova-style-standalone-launcher{position:fixed;right:22px;bottom:88px;z-index:9998;border:1px solid #668cff;border-radius:12px;background:#243f87;color:white;padding:10px 14px;font:700 13px Inter,Segoe UI,sans-serif;box-shadow:0 8px 24px #0008;cursor:pointer}
+        .nova-style-standalone-launcher{position:fixed;right:22px;bottom:88px;z-index:99999;border:1px solid #668cff;border-radius:12px;background:#243f87;color:white;padding:10px 14px;font:700 13px Inter,Segoe UI,sans-serif;box-shadow:0 8px 24px #0008;cursor:grab;touch-action:none;user-select:none;pointer-events:auto}
+        .nova-style-standalone-launcher.dragging{cursor:grabbing}
         .nova-style-standalone-launcher:hover{background:#315fcf}
         @media(max-width:850px){.nova-style-controls{grid-template-columns:1fr 1fr auto}.nova-style-content{grid-template-columns:1fr}.nova-style-detail{display:none}}
     `;
@@ -406,6 +408,8 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         kind: String(options.kind || (isCharacterLoader(nodeData) ? "characters" : "styles")),
         previewSize: Number(options.previewSize || 512) === 1024 ? 1024 : 512,
         generating: false,
+        batchRunning: false,
+        batchCancelRequested: false,
     };
     const favoriteKind = state.kind;
 
@@ -450,7 +454,10 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         previewSize.append(option);
     }
     previewSize.value = String(state.previewSize);
-    controls.append(search, category, favorites, history, random, view, previewSize);
+    const generateAll = document.createElement("button");
+    generateAll.textContent = "Generate all missing";
+    generateAll.title = "Run the current workflow once for every style in this CSV/YAML that does not yet have a preview";
+    controls.append(search, category, favorites, history, random, view, previewSize, generateAll);
 
     const content = document.createElement("div");
     content.className = "nova-style-content";
@@ -497,7 +504,12 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         }
     }
 
-    async function applyAndGenerate(item) {
+    function updateVisiblePreview(item) {
+        const visible = (state.data?.items || []).find((candidate) => candidate.name === item.name);
+        if (visible) visible.preview_url = item.preview_url;
+    }
+
+    async function applyAndGenerate(item, batchPosition = "") {
         if (state.generating) return;
         state.generating = true;
         showDetail(item);
@@ -505,23 +517,109 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             if (options.standalone) applyStandaloneStyle(item, state.csv);
             else applySelection(item);
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-            status.textContent = `Queueing ${item.clean_name || item.name} with the current workflow…`;
+            status.textContent = `${batchPosition}Queueing ${item.clean_name || item.name} with the current workflow…`;
             const promptId = await queueCurrentWorkflow();
-            status.textContent = "Workflow queued. Waiting for its final image…";
+            status.textContent = `${batchPosition}Workflow queued. Waiting for its final image…`;
             const generated = await waitForGeneratedImage(promptId, () => {
-                status.textContent = "Generating preview…";
+                status.textContent = `${batchPosition}Generating preview…`;
             });
-            status.textContent = `Saving ${state.previewSize}×${state.previewSize} preview…`;
+            status.textContent = `${batchPosition}Saving ${state.previewSize}×${state.previewSize} preview…`;
             const file = await downloadGeneratedImage(generated);
             const result = await uploadPreview(item, state.csv, state.previewSize, file);
             item.preview_url = result.preview_url;
+            updateVisiblePreview(item);
             renderCards();
-            status.textContent = `Generated and saved ${result.size}×${result.size} preview`;
+            status.textContent = `${batchPosition}Generated and saved ${result.size}×${result.size} preview`;
+            return { ok: true };
         } catch (error) {
-            status.textContent = String(error?.message || "Preview generation failed");
+            const message = String(error?.message || "Preview generation failed");
+            status.textContent = message;
+            return { ok: false, message };
         } finally {
             state.generating = false;
             if (overlay.isConnected) showDetail(item);
+        }
+    }
+
+    function canGeneratePreview(item) {
+        const clean = String(item?.clean_name || item?.name || "").trim().toLowerCase();
+        return clean && !["none", "no style", "random"].includes(clean);
+    }
+
+    async function fetchWholeLibrary() {
+        const overrides = {
+            ...state,
+            search: "",
+            category: "All",
+            favoritesOnly: false,
+            historyOnly: false,
+            page: 1,
+            pageSize: 60,
+        };
+        const first = await fetchStyles(node, nodeData, overrides);
+        const items = [...(first.items || [])];
+        for (let page = 2; page <= Number(first.page_count || 1); page += 1) {
+            const next = await fetchStyles(node, nodeData, { ...overrides, page });
+            items.push(...(next.items || []));
+        }
+        return items;
+    }
+
+    async function generateWholeLibrary() {
+        if (state.batchRunning) {
+            state.batchCancelRequested = true;
+            generateAll.textContent = "Stopping after current preview…";
+            generateAll.disabled = true;
+            return;
+        }
+        try {
+            generateAll.disabled = true;
+            status.textContent = "Checking the complete CSV/YAML for missing previews…";
+            const allItems = await fetchWholeLibrary();
+            const missing = allItems.filter((item) => canGeneratePreview(item) && !item.preview_url);
+            if (!missing.length) {
+                status.textContent = "Every style in this CSV/YAML already has a preview.";
+                return;
+            }
+            const warning = [
+                `Generate ${missing.length.toLocaleString()} missing style previews?`,
+                "",
+                "This runs the current ComfyUI workflow once per style, one at a time.",
+                "A large CSV/YAML may take many hours. Existing previews will not be replaced.",
+                "You can stop after the current preview from this button.",
+            ].join("\n");
+            if (!window.confirm(warning)) {
+                status.textContent = "Whole-library preview generation was cancelled.";
+                return;
+            }
+            state.batchRunning = true;
+            state.batchCancelRequested = false;
+            generateAll.disabled = false;
+            generateAll.textContent = "Stop after current";
+            let completed = 0;
+            for (const item of missing) {
+                if (state.batchCancelRequested) break;
+                const position = `[${completed + 1}/${missing.length}] `;
+                const result = await applyAndGenerate(item, position);
+                if (!result?.ok) {
+                    status.textContent = `${position}Stopped: ${result?.message || "preview generation failed"}`;
+                    break;
+                }
+                completed += 1;
+            }
+            if (state.batchCancelRequested) {
+                status.textContent = `Stopped after ${completed.toLocaleString()} of ${missing.length.toLocaleString()} missing previews. Run again to resume the remaining styles.`;
+            } else if (completed === missing.length) {
+                status.textContent = `Completed all ${completed.toLocaleString()} missing previews.`;
+            }
+        } catch (error) {
+            status.textContent = String(error?.message || "Whole-library preview generation failed");
+        } finally {
+            state.batchRunning = false;
+            state.batchCancelRequested = false;
+            generateAll.disabled = false;
+            generateAll.textContent = "Generate all missing";
+            if (state.selected && overlay.isConnected) showDetail(state.selected);
         }
     }
 
@@ -631,7 +729,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         const generateImage = document.createElement("button");
         generateImage.textContent = state.generating ? "Generating preview…" : "Generate + save preview";
         generateImage.title = "Apply this style, run the current ComfyUI workflow, and save its final image on this card";
-        generateImage.disabled = state.generating;
+        generateImage.disabled = state.generating || state.batchRunning;
         generateImage.onclick = () => void applyAndGenerate(item);
         const viewLarge = document.createElement("button");
         viewLarge.textContent = "View larger";
@@ -847,6 +945,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     previewSize.onchange = () => {
         state.previewSize = Number(previewSize.value) === 1024 ? 1024 : 512;
     };
+    generateAll.onclick = () => void generateWholeLibrary();
 
     overlay.focus();
     void load();
@@ -858,23 +957,115 @@ window.NovoLokoStyleBrowser = {
     },
 };
 
-app.registerExtension({
-    name: "NovoLoko.CSVStyleVisualLibrary.v362",
-    setup() {
-        if (document.getElementById("nova-style-standalone-launcher")) return;
-        ensureBrowserStyles();
-        const launcher = document.createElement("button");
-        launcher.id = "nova-style-standalone-launcher";
-        launcher.className = "nova-style-standalone-launcher";
-        launcher.textContent = "🎨 Styles";
-        launcher.title = "Open the standalone NovoLoko visual style browser";
-        launcher.onclick = () => openStyleBrowser(null, {}, {
+function clampLauncherPosition(launcher, left, top) {
+    const margin = 8;
+    const width = launcher.offsetWidth || 104;
+    const height = launcher.offsetHeight || 42;
+    return {
+        left: Math.max(margin, Math.min(Number(left) || margin, window.innerWidth - width - margin)),
+        top: Math.max(margin, Math.min(Number(top) || margin, window.innerHeight - height - margin)),
+    };
+}
+
+function placeLauncher(launcher, left, top, persist = false) {
+    const position = clampLauncherPosition(launcher, left, top);
+    launcher.style.left = `${position.left}px`;
+    launcher.style.top = `${position.top}px`;
+    launcher.style.right = "auto";
+    launcher.style.bottom = "auto";
+    if (persist) {
+        try {
+            localStorage.setItem(LAUNCHER_POSITION_KEY, JSON.stringify(position));
+        } catch {
+            // The launcher still works when browser storage is unavailable.
+        }
+    }
+}
+
+function installStandaloneLauncher() {
+    const existing = document.getElementById("nova-style-standalone-launcher");
+    if (existing) return existing;
+    ensureBrowserStyles();
+    const launcher = document.createElement("button");
+    launcher.id = "nova-style-standalone-launcher";
+    launcher.className = "nova-style-standalone-launcher";
+    launcher.textContent = "🎨 Styles";
+    launcher.title = "Click to open. Drag to move.";
+    let saved = null;
+    try {
+        saved = JSON.parse(localStorage.getItem(LAUNCHER_POSITION_KEY) || "null");
+    } catch {
+        saved = null;
+    }
+    (document.body || document.documentElement).append(launcher);
+    requestAnimationFrame(() => {
+        if (Number.isFinite(saved?.left) && Number.isFinite(saved?.top)) {
+            placeLauncher(launcher, saved.left, saved.top);
+        }
+    });
+
+    let drag = null;
+    let suppressClick = false;
+    launcher.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        event.stopPropagation();
+        const box = launcher.getBoundingClientRect();
+        drag = {
+            pointerId: event.pointerId,
+            originX: event.clientX,
+            originY: event.clientY,
+            left: box.left,
+            top: box.top,
+            moved: false,
+        };
+        launcher.classList.add("dragging");
+        launcher.setPointerCapture?.(event.pointerId);
+    });
+    launcher.addEventListener("pointermove", (event) => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const dx = event.clientX - drag.originX;
+        const dy = event.clientY - drag.originY;
+        if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+        placeLauncher(launcher, drag.left + dx, drag.top + dy);
+    });
+    launcher.addEventListener("pointerup", (event) => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.stopPropagation();
+        suppressClick = drag.moved;
+        const box = launcher.getBoundingClientRect();
+        placeLauncher(launcher, box.left, box.top, true);
+        launcher.classList.remove("dragging");
+        launcher.releasePointerCapture?.(event.pointerId);
+        drag = null;
+    });
+    launcher.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (suppressClick) {
+            suppressClick = false;
+            return;
+        }
+        openStyleBrowser(null, {}, {
             standalone: true,
             csv: DEFAULT_STANDALONE_LIBRARY,
             kind: "styles",
             title: "NovoLoko Standalone Style Browser",
         });
-        document.body.append(launcher);
+    });
+    window.addEventListener("resize", () => {
+        if (!launcher.isConnected || !launcher.style.left) return;
+        const box = launcher.getBoundingClientRect();
+        placeLauncher(launcher, box.left, box.top, true);
+    });
+    return launcher;
+}
+
+app.registerExtension({
+    name: "NovoLoko.CSVStyleVisualLibrary.v363",
+    setup() {
+        installStandaloneLauncher();
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (!isNovaStyleLoader(nodeData)) return;

@@ -64,3 +64,15 @@ Select a card with a stored image and click **View larger**. The image opens
 uncropped in a full-screen viewer. Use **Actual size** to display one stored
 image pixel per screen pixel, **Fit to window** to return to the complete-image
 view, or close it with Escape, the Close button or the dark area outside.
+
+## Generate a complete CSV/YAML library
+
+Open the visual browser from Prompt Stack, a Style Loader, or the movable
+floating **Styles** launcher. Choose 512 or 1024 previews, then click
+**Generate all missing**.
+
+NovoLoko counts every style without a saved preview and warns before starting
+because a large library can require many workflow runs. Runs are queued one at
+a time. Existing previews are not replaced. While running, click **Stop after
+current** to finish the active image safely; clicking **Generate all missing**
+later resumes by processing only the styles still missing previews.

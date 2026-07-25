@@ -181,6 +181,15 @@ class StylePreviewTests(unittest.TestCase):
             "Actual size",
             "Fit to window",
             "image.naturalWidth",
+            "Generate all missing",
+            "fetchWholeLibrary",
+            "missing.length.toLocaleString()",
+            "Existing previews will not be replaced",
+            "Stop after current",
+            "LAUNCHER_POSITION_KEY",
+            "setPointerCapture",
+            "Click to open. Drag to move.",
+            "node?.widgets?.find",
         ):
             self.assertIn(marker, browser)
         self.assertNotIn("object-fit:cover", browser)
