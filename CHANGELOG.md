@@ -1,5 +1,12 @@
 # NovoLoko Changelog
 
+## v3.6.1 — Generated visual previews
+
+- Fits each real style preview completely inside its card instead of cropping it.
+- Adds **Generate + save preview** to apply the selected style, run the current ComfyUI workflow and automatically attach its final image to that style.
+- Supports generation from Prompt Stack, CSV/YAML Style Loader and the standalone browser when one compatible target node is selected or available.
+- Keeps manual image replacement, 512/1024 resizing, private local storage and all 33 serialized node contracts unchanged.
+
 ## v3.6.0 — Local visual preview libraries
 
 - Added real user-supplied PNG, JPEG and WebP preview images to the visual style browser, stored privately under `data/style_previews`.

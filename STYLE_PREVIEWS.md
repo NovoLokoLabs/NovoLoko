@@ -45,3 +45,15 @@ POPULATE_STYLE_PREVIEWS.bat "<image-folder>" "styles/novoloko_all_yaml_styles.ya
 
 The browser never exposes source-image paths. Only opaque preview identifiers
 are sent to the ComfyUI frontend.
+
+## Generate directly from the current workflow
+
+Open the visual browser from Prompt Stack or a CSV/YAML Style Loader, select a
+style, then click **Generate + save preview**. NovoLoko applies that exact style,
+queues the current ComfyUI workflow, waits for its final image output and saves
+it onto the selected card at the chosen 512 or 1024 preview size.
+
+The standalone browser can do the same when the workflow contains one compatible
+Prompt Stack or Style Loader. If there are several compatible nodes, select the
+intended node first or open the browser from that node. A failed workflow or a
+workflow with no image output never replaces the existing preview.
