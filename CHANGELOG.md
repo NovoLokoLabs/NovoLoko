@@ -1,5 +1,14 @@
 # NovoLoko Changelog
 
+## v3.6.0 — Local visual preview libraries
+
+- Added real user-supplied PNG, JPEG and WebP preview images to the visual style browser, stored privately under `data/style_previews`.
+- Added direct 512x512 or 1024x1024 preview import, replacement and removal without exposing source paths.
+- Added an always-available standalone Styles launcher and connected the same visual browser to Prompt Stack's Medium selector.
+- Added `POPULATE_STYLE_PREVIEWS.bat` for safe filename or ordered batch population from an existing image folder.
+- Kept generated previews out of Git and release archives while allowing updater overlays to preserve them.
+- Preserved all 33 node IDs, inputs, outputs, socket order, widget order and v3.5.0 workflow links.
+
 ## v3.5.2 — Visual style and workflow-layout polish
 
 - Added a full-screen visual library to the existing CSV Style Loader with search, categories, favourites, recent history, grid/list views, prompt details, random selection and pagination.

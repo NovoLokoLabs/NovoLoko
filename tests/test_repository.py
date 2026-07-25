@@ -29,6 +29,10 @@ class RepositoryTests(unittest.TestCase):
             "nova_compare.py",
             "voice_nodes.py",
             "unified_voice_node.py",
+            "style_previews.py",
+            "STYLE_PREVIEWS.md",
+            "POPULATE_STYLE_PREVIEWS.bat",
+            "tools/populate_style_previews.py",
             "tools/validate_project.py",
         ]
         for relative in required:

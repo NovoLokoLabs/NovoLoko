@@ -446,6 +446,44 @@ function configureProNode(node, newNode = false) {
         );
         clearSearch.serialize = false;
 
+        const visualMedium = node.addWidget(
+            "button",
+            "🎨 Browse Medium styles visually…",
+            null,
+            () => {
+                const browser = window.NovoLokoStyleBrowser;
+                if (!browser?.open) {
+                    console.warn("[NovoLoko Prompt Stack] Visual browser is still loading. Try again in a moment.");
+                    return;
+                }
+                const file = getWidget(node, "medium_file_path");
+                const category = getWidget(node, "medium_category");
+                const search = getWidget(node, "medium_search");
+                const selection = getWidget(node, "medium_selection");
+                browser.open({
+                    node,
+                    csv: String(file?.value || "styles/novoloko_all_yaml_styles.yaml"),
+                    kind: "styles",
+                    search: String(search?.value || ""),
+                    category: restoreMenuValue(category?.value || "All"),
+                    title: "NovoLoko Prompt Stack — Medium styles",
+                    onSelect(item) {
+                        if (!selection) return;
+                        const value = flatMenuValue(item.name);
+                        const values = uniqueValues([
+                            ...(selection.options?.values || []),
+                            value,
+                        ]);
+                        setFlatComboValues(selection, values, value, false);
+                        selection.value = value;
+                        selection.callback?.(value);
+                        markDirty(node);
+                    },
+                });
+            },
+        );
+        visualMedium.serialize = false;
+
         node.min_size = [360, 420];
         if (newNode && !node.__novaAIOInitialSizeApplied) {
             node.__novaAIOInitialSizeApplied = true;

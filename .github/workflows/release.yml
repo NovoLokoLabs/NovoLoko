@@ -60,6 +60,10 @@ jobs:
             --exclude 'AGENTS.md' \
             --exclude 'CODEX_START_HERE.md' \
             --exclude 'requirements-dev.txt'
+          mkdir -p dist/stage/ComfyUI-NovoLoko/tools
+          cp tools/migrate_workflow_to_novoloko.py \
+             tools/populate_style_previews.py \
+             dist/stage/ComfyUI-NovoLoko/tools/
           cd dist/stage
           zip -qr "../NovoLoko-v${version}.zip" ComfyUI-NovoLoko
           cd ..
