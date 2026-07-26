@@ -161,6 +161,41 @@ class UiPolishTests(unittest.TestCase):
         self.assertIn("app.graph?.setDirtyCanvas?.(true, true)", source)
         self.assertNotIn("setSize", source)
 
+    def test_seed_lab_buttons_queue_random_and_fixed_runs_without_forcing_size(self) -> None:
+        source = (ROOT / "web/nova_core_nodes.js").read_text(encoding="utf-8")
+        seed_block = source[
+            source.index("function installSeedLab(node)"):
+            source.index("function timerSetting")
+        ]
+        for marker in (
+            "Manual Random Seed",
+            "Fixed Seed Run",
+            "queueSeedWorkflow",
+            "app.graphToPrompt()",
+            "api.queuePrompt(0, prompt)",
+            'runSeedQueueHooks("beforeQueued")',
+            'runSeedQueueHooks("afterQueued")',
+        ):
+            self.assertIn(marker, source)
+        self.assertNotIn("setSize", seed_block)
+
+    def test_compare_guide_and_line_opacity_update_without_resize_reset(self) -> None:
+        source = (ROOT / "web/nova_image_compare.js").read_text(encoding="utf-8")
+        self.assertIn("if (includeGuide && state.guide)", source)
+        self.assertIn(
+            'guideLine.style.display = state.guide && opacity > 0 ? "block" : "none"',
+            source,
+        )
+        configure_block = source[
+            source.index("const originalConfigure = nodeType.prototype.onConfigure"):
+            source.index("const originalExecuted = nodeType.prototype.onExecuted")
+        ]
+        self.assertNotIn("setSize", configure_block)
+        self.assertIn(
+            "requestAnimationFrame(() => this.__novaCompareUI?.refresh?.())",
+            source,
+        )
+
     def test_old_workflow_titles_are_repaired_without_touching_prompt_widgets(self) -> None:
         source = (ROOT / "web/nova_workflow_text_repair.js").read_text(encoding="utf-8")
         for marker in (

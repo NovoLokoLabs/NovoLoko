@@ -1,5 +1,19 @@
 # NovoLoko Changelog
 
+## v3.9.1 — Style workflow and comparison controls
+
+- Remembers the last 512 or 1024 style-preview size across browser sessions and
+  shows each saved preview's actual pixel size on its card.
+- Opens the visual CSV/YAML style browser directly from Manual Prompt and lets
+  that node apply either CSV or YAML style records without changing its sockets
+  or serialized widget order.
+- Makes Seed Lab's manual-random action queue the workflow immediately and adds
+  a separate **Fixed Seed Run** button.
+- Makes Compare Studio's Guide toggle hide the complete divider and makes line
+  transparency update both the node preview and full-screen composition.
+- Preserves saved and manually resized node dimensions; no configure-time resize
+  operation was added.
+
 ## v3.9.0 — Expanded libraries and persistent Desktop style tools
 
 - Imports the updated installed CSV/YAML libraries, including 397 uploaded

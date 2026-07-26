@@ -26,15 +26,18 @@ from .nova_metadata import (
 
 
 def _style_files() -> List[str]:
-    root = os.path.join(_node_dir(), "styles")
+    root = _node_dir()
     files = []
-    if os.path.isdir(root):
-        for dirpath, _, filenames in os.walk(root):
+    for folder in ("styles", "csv"):
+        search_root = os.path.join(root, folder)
+        if not os.path.isdir(search_root):
+            continue
+        for dirpath, _, filenames in os.walk(search_root):
             for filename in filenames:
-                if filename.lower().endswith((".yaml", ".yml")):
+                if filename.lower().endswith((".csv", ".yaml", ".yml")):
                     full = os.path.join(dirpath, filename)
-                    files.append(os.path.relpath(full, _node_dir()).replace("\\", "/"))
-    files.sort(key=lambda value: (0 if value.endswith("camera.yaml") else 1, value.lower()))
+                    files.append(os.path.relpath(full, root).replace("\\", "/"))
+    files.sort(key=lambda value: (0 if value == "styles/camera.yaml" else 1, value.lower()))
     return files or ["styles/camera.yaml"]
 
 
@@ -61,7 +64,7 @@ def _template_names(style_file: str) -> List[str]:
 
 
 class NovaPromptStyler:
-    """Native replacement for the iTools/manual YAML prompt styler."""
+    """Manual prompt source with optional CSV/YAML style application."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -372,7 +375,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "NovaPromptStyler": "NovoLoko Manual Prompt + YAML Styler",
+    "NovaPromptStyler": "NovoLoko Manual Prompt + CSV / YAML Styler",
     "NovaPromptStackSwitch": "NovoLoko Prompt Stack — All Slots Switch",
     "NovaSaveImageMetadata": "NovoLoko Save Image — Prompt + Workflow Metadata",
 }
