@@ -1,5 +1,16 @@
 # NovoLoko Changelog
 
+## v3.9.3 — Revised style libraries and saved node dimensions
+
+- Imports the latest nine user-edited wildcard CSV libraries and their nine
+  matching YAML libraries from the installed `_FINAL` source copies.
+- Keeps the canonical release filenames so users do not receive duplicate
+  `_FINAL` entries.
+- Stores Seed Lab and Voice TTS manual width/height during resizing and
+  serialization.
+- Restores those saved dimensions after the nodes' asynchronous DOM controls
+  finish loading, without changing serialized inputs, outputs or widget order.
+
 ## v3.9.2 — Compare, style viewer, and OmniLoko launch polish
 
 - Matches Media Studio's split controls: **Guide** shows or hides only the

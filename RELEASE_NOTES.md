@@ -1,25 +1,24 @@
-# NovoLoko v3.9.2
+# NovoLoko v3.9.3
 
-This patch release completes the requested Compare Studio, style-viewer and
-OmniLoko launch behavior in ComfyUI Desktop:
+This patch release imports the latest user-edited style libraries and makes
+manual Seed Lab and Voice TTS dimensions survive workflow save/reopen in ComfyUI
+Desktop:
 
-- makes Compare Studio match Media Studio by keeping the split divider and
-  draggable guide handle independent
-- makes **Guide On/Off** control only the handle and **Line** control only
-  divider transparency in both node and full-screen views
-- zooms large style previews toward the mouse pointer instead of the viewer
-  centre
-- adds **Generate new** inside the large style viewer to regenerate and replace
-  the displayed preview
-- starts OmniLoko hidden when a TTS execution needs its bridge, preventing the
-  app from covering ComfyUI on every run
-- adds a non-serialized **Open OmniLoko** button to the Voice TTS node for
-  explicitly opening or restoring the desktop app
-- preserves manually enlarged Voice TTS and Compare Studio node dimensions
+- updates all nine focused/master wildcard CSV libraries from the installed
+  `_FINAL` source files
+- updates the nine matching YAML libraries with the same revised prompt text
+- keeps canonical release filenames so the package does not ship duplicate
+  `_FINAL` libraries
+- records Seed Lab and Voice TTS width/height whenever either node is resized
+- explicitly writes the manual size into workflow serialization
+- restores the saved size after delayed DOM widgets and voice controls finish
+  configuring
+- scopes the new size persistence to `NovaSeedLab` and
+  `NovaVoiceEngineTTS`, leaving other node layout behavior unchanged
 
 All 34 serialized node IDs, inputs, outputs, socket order and widget order remain
-unchanged. The supplied workflow files contain no personal prompt, media,
-preview, seed-history or Compare Studio runtime state.
+unchanged. No supplied user workflow, preview, favourite, seed history, media or
+other personal runtime data is included in the release.
 
 Close and restart ComfyUI Desktop completely after installing the update so its
-embedded frontend and Python routes load the new NovoLoko files.
+embedded frontend loads the new resize-persistence code.

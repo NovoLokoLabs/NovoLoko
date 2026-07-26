@@ -159,7 +159,17 @@ class UiPolishTests(unittest.TestCase):
         self.assertIn("__novaResizePersistenceInstalled", source)
         self.assertIn("this.graph?.change?.()", source)
         self.assertIn("app.graph?.setDirtyCanvas?.(true, true)", source)
-        self.assertNotIn("setSize", source)
+        self.assertIn('SAVED_SIZE_PROPERTY = "novaSavedManualSize"', source)
+        self.assertIn('"NovaSeedLab"', source)
+        self.assertIn('"NovaVoiceEngineTTS"', source)
+        self.assertIn("configured?.properties?.[SAVED_SIZE_PROPERTY]", source)
+        self.assertIn("configured?.size", source)
+        self.assertIn("rememberSavedSize(this, minWidth, minHeight)", source)
+        self.assertIn("scheduleSavedSizeRestore(this, savedSize)", source)
+        self.assertIn("__novaSizeSerializationInstalled", source)
+        self.assertIn("info.properties[SAVED_SIZE_PROPERTY]", source)
+        self.assertIn("info.size = [...savedSize]", source)
+        self.assertIn("node.setSize?.([...size])", source)
 
     def test_seed_lab_buttons_queue_random_and_fixed_runs_without_forcing_size(self) -> None:
         source = (ROOT / "web/nova_core_nodes.js").read_text(encoding="utf-8")

@@ -198,7 +198,7 @@ function configure(node) {
 }
 
 app.registerExtension({
-    name: "NovoLoko.CompactVoiceEngineTTS.v392",
+    name: "NovoLoko.CompactVoiceEngineTTS.v393",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (String(nodeData?.name || "") !== NODE_NAME) return;
 
