@@ -103,6 +103,28 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
         self.assertEqual("OmniLoko", disabled[4])
         self.assertEqual("silence", off[0])
 
+    def test_offline_saved_preset_passes_validation_before_disabled_or_autostart(self) -> None:
+        node = self.module.NovaVoiceEngineTTS
+        self.assertIs(True, node.VALIDATE_INPUTS(omniloko_voice="Jeremy Irons"))
+        self.assertIsInstance(node.VALIDATE_INPUTS(omniloko_voice=""), str)
+
+        with mock.patch.object(self.module, "_silent_audio", return_value="silence"):
+            disabled = node().speak(
+                text="ignored",
+                engine="OmniLoko",
+                enabled=False,
+                omniloko_voice="Jeremy Irons",
+            )
+            off = node().speak(
+                text="ignored",
+                engine="Off",
+                enabled=True,
+                omniloko_voice="Jeremy Irons",
+            )
+        self.ensure_omniloko.assert_not_called()
+        self.assertEqual("Jeremy Irons", disabled[3])
+        self.assertEqual("Off", off[4])
+
     def test_backend_failure_never_cross_falls_back(self) -> None:
         kokoro = type("KokoroBackend", (_Backend,), {"calls": [], "error": None})
         omni = type("OmniBackend", (_Backend,), {"calls": [], "error": RuntimeError("bridge unavailable")})
@@ -129,10 +151,28 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
         sys.modules[package_name] = package
         spec.loader.exec_module(package)
         self.assertTrue(
-            {"NovaKokoroTTS", "NovaOmniLokoTTS", "NovaVoiceEngineTTS"}.issubset(package.NODE_CLASS_MAPPINGS)
+            {
+                "NovaKokoroTTS",
+                "NovaOmniLokoTTS",
+                "NovaVoiceEngineTTS",
+                "NovaControlPanelSwitch",
+            }.issubset(package.NODE_CLASS_MAPPINGS)
         )
         self.assertEqual("NovoLoko Voice TTS", package.NODE_DISPLAY_NAME_MAPPINGS["NovaVoiceEngineTTS"])
-        self.assertEqual(33, len(package.NODE_CLASS_MAPPINGS))
+        self.assertEqual(34, len(package.NODE_CLASS_MAPPINGS))
+        control = package.NODE_CLASS_MAPPINGS["NovaControlPanelSwitch"]
+        self.assertEqual(
+            ["tts_enabled", "enhancer_enabled"],
+            list(control.INPUT_TYPES()["required"]),
+        )
+        self.assertEqual(
+            ("tts_enabled", "enhancer_enabled", "status"),
+            control.RETURN_NAMES,
+        )
+        self.assertEqual(
+            (True, False, "TTS: On | Enhancer: Off"),
+            control().switch(True, False),
+        )
 
 
 if __name__ == "__main__":

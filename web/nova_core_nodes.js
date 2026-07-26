@@ -1,9 +1,10 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-const EXTENSION_NAME = "NovoLoko.CoreReplacements.v326SeedHistoryMenu";
+const EXTENSION_NAME = "NovoLoko.CoreReplacements.v370WorkflowControls";
 const TIMER_NODE = "NovaGenerationTimer";
 const SEED_NODE = "NovaSeedLab";
+const CONTROL_NODE = "NovaControlPanelSwitch";
 const CONCAT_NODE = "NovaDynamicTextConcatenate";
 const DISPLAY_NODE = "NovaTextDisplay";
 const ENHANCER_NODE = "NovaPromptEnhancer";
@@ -61,6 +62,28 @@ function dirty(node) {
 
 function widget(node, name) {
     return node.widgets?.find((item) => item.name === name);
+}
+
+function installControlPanel(node) {
+    if (node.__novaControlPanelInstalled) return;
+    node.__novaControlPanelInstalled = true;
+    node.color = "#327a3e";
+    node.bgcolor = "#163c20";
+    node.min_size = [235, 92];
+    const labels = {
+        tts_enabled: "TTS On/Off",
+        enhancer_enabled: "Enhancer On/Off",
+    };
+    for (const item of node.widgets || []) {
+        if (!labels[item.name]) continue;
+        item.label = labels[item.name];
+        item.options ||= {};
+        item.options.label = labels[item.name];
+    }
+    if (Array.isArray(node.size) && (node.size[0] > 500 || node.size[1] > 300)) {
+        node.setSize?.([270, 110]);
+    }
+    dirty(node);
 }
 
 function nodeSelected(node) {
@@ -478,12 +501,12 @@ function installSeedLab(node) {
     );
     node.properties.novaSelectedSeed ??=
         node.properties.novaSeedHistory[0] || "";
-    node.min_size = [125, 108];
+    node.min_size = [235, 145];
 
     const root = document.createElement("div");
     root.style.cssText = [
         "display:grid",
-        "grid-template-columns:minmax(0,1fr) auto auto auto",
+        "grid-template-columns:minmax(0,1fr) auto auto",
         "gap:4px",
         "align-items:center",
         "box-sizing:border-box",
@@ -715,7 +738,12 @@ function installSeedLab(node) {
         "Set the selected recent seed and switch mode to Fixed",
     );
     const copy = makeButton("Copy", "Copy the selected recent seed");
-    const fresh = makeButton("New", "Create a new fixed random seed");
+    const fresh = makeButton(
+        "🎲 Manual Random Seed",
+        "Create a new seed, switch to Fixed, and reuse it until you change it",
+    );
+    fresh.style.gridColumn = "1/-1";
+    fresh.style.width = "100%";
 
     root.append(last, recent, reuse, copy, fresh);
 
@@ -730,8 +758,8 @@ function installSeedLab(node) {
     );
     if (dom) {
         dom.computeSize = (width) => [
-            Math.max(125, Math.min(190, width || 170)),
-            54,
+            Math.max(235, Math.min(360, width || 280)),
+            84,
         ];
     }
 
@@ -746,12 +774,12 @@ function installSeedLab(node) {
                 args,
             ) || [170, 150];
             return [
-                Math.max(125, Math.min(180, Number(size[0]) || 170)),
+                Math.max(235, Math.min(380, Number(size[0]) || 280)),
                 Number(size[1]) || 150,
             ];
         };
     }
-    node.getMinSize = () => [125, 108];
+    node.getMinSize = () => [235, 145];
 
     function selectedSeed() {
         return String(
@@ -2520,11 +2548,20 @@ app.registerExtension({
         }
 
         if (name === SEED_NODE) {
-            nodeType.min_size = [125, 108];
+            nodeType.min_size = [235, 145];
             const created = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 created?.apply(this, arguments);
                 safeInstall(this, "Seed Lab", installSeedLab);
+            };
+        }
+
+        if (name === CONTROL_NODE) {
+            nodeType.min_size = [235, 92];
+            const created = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = function () {
+                created?.apply(this, arguments);
+                safeInstall(this, "Control Panel", installControlPanel);
             };
         }
 

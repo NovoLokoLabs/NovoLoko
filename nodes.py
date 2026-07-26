@@ -32,7 +32,7 @@ except ImportError:
         style_key as _preview_style_key,
     )
 
-NOVA_VERSION = "3.5.0"
+NOVA_VERSION = "3.7.0"
 
 try:
     import folder_paths
@@ -2037,7 +2037,7 @@ def _style_browser_payload(
         by_name = {str(item.get("name") or ""): item for item in filtered}
         filtered = [by_name[name] for name in recent_names if name in by_name]
 
-    page_size = max(6, min(int(page_size or 24), 60))
+    page_size = max(4, min(int(page_size or 24), 60))
     total = len(filtered)
     page_count = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(int(page or 1), page_count))
@@ -2083,6 +2083,36 @@ def _style_browser_payload(
     }
 
 
+def _style_library_choices():
+    """List package-owned CSV/YAML libraries without exposing local paths."""
+    node_root = os.path.realpath(_node_dir())
+    choices = []
+    for folder in ("csv", "styles"):
+        search_root = os.path.join(node_root, folder)
+        if not os.path.isdir(search_root):
+            continue
+        for dirpath, dirnames, filenames in os.walk(search_root):
+            dirnames[:] = sorted(
+                name for name in dirnames if not name.startswith((".", "__"))
+            )
+            for filename in sorted(filenames):
+                if not filename.lower().endswith((".csv", ".yaml", ".yml")):
+                    continue
+                full_path = os.path.realpath(os.path.join(dirpath, filename))
+                try:
+                    if os.path.commonpath((node_root, full_path)) != node_root:
+                        continue
+                except ValueError:
+                    continue
+                relative = os.path.relpath(full_path, node_root).replace("\\", "/")
+                choices.append({
+                    "path": relative,
+                    "name": filename,
+                    "group": relative.split("/", 1)[0],
+                })
+    return sorted(choices, key=lambda item: (item["group"], item["path"].lower()))
+
+
 # Optional frontend refresh endpoint. The node still works without this.
 try:
     from server import PromptServer
@@ -2110,6 +2140,14 @@ try:
             ))
         except Exception as e:
             return web.json_response({"ok": False, "error": str(e)}, status=400)
+
+    @PromptServer.instance.routes.get("/nova_styles_csv_pro/libraries")
+    async def nova_styles_csv_pro_libraries(_request):
+        return web.json_response({
+            "ok": True,
+            "libraries": _style_library_choices(),
+            "default": DEFAULT_STANDALONE_LIBRARY,
+        })
 
     @PromptServer.instance.routes.get("/nova_favorites/list")
     async def nova_favorites_list(request):

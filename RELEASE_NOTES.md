@@ -1,24 +1,31 @@
-# NovoLoko v3.6.3
+# NovoLoko v3.7.0
 
-This patch makes the visual style browser faster and easier to control.
+This release adds native workflow controls and completes the visual-library and
+OmniLoko auto-start workflow.
 
-## Improved
+## New
 
-- Adds an explicit **Refresh** button for the current CSV/YAML and preview set.
-- Keeps **Stop generating** available when the browser is closed and reopened,
-  interrupts the active ComfyUI preview job and prevents duplicate batches.
-- Adds mouse 4/5 and arrow-key navigation through styles and saved previews.
-- Adds bounded wheel zoom, zoom buttons, fit/actual-size modes and drag panning.
-- Right-click closes the large viewer by default.
-- Double-click queues the selected style when generation is idle.
-- Keeps favourite stars visible on cards with real captured images.
-- Adds persistent options for generated-image auto-open, wrapped navigation and
-  right-click closing.
+- **NovoLoko Control Panel** provides TTS and Prompt Enhancer On/Off outputs.
+- The standalone **Styles** button includes an installed CSV/YAML library
+  selector and remembers the selected file.
+- Visual style pages can show 4, 9, 24 or 50 cards.
+- Seed Lab exposes a prominent **Manual Random Seed** action alongside its
+  random-every-queue, fixed, after-run and recent-history features.
+
+## Fixed
+
+- Preview images fill square cards; double-click opens the large uncropped
+  viewer instead of generating.
+- Right-click exits the current viewer screen consistently.
+- Closing the style browser stops the preview generation it owns.
+- Saved OmniLoko presets no longer fail ComfyUI validation while OmniLoko is
+  offline. Disabled and Off modes remain silent; enabled OmniLoko speech can
+  auto-start the canonical app and then resolve the saved preset.
 
 ## Compatibility
 
-All 33 node IDs, inputs, outputs, socket order, widget order and v3.5.0 workflow
-links are unchanged.
+All 33 existing node IDs, inputs, outputs, socket order, widget order and v3.5.0
+workflow links are unchanged. One optional node was added, for 34 total.
 
 ## Upgrade
 

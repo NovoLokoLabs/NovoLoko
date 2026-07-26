@@ -796,7 +796,12 @@ class LokoBridgeNodeTests(unittest.TestCase):
     def test_all_existing_mappings_and_new_mapping_load(self):
         package = load_complete_package("novoloko_complete_mapping_test")
         self.assertEqual(
-            EXISTING_NODE_IDS | {"NovaOmniLokoTTS", "NovaVoiceEngineTTS"},
+            EXISTING_NODE_IDS
+            | {
+                "NovaOmniLokoTTS",
+                "NovaVoiceEngineTTS",
+                "NovaControlPanelSwitch",
+            },
             set(package.NODE_CLASS_MAPPINGS),
         )
         self.assertEqual("NovoLoko OmniLoko TTS", package.NODE_DISPLAY_NAME_MAPPINGS["NovaOmniLokoTTS"])
@@ -944,7 +949,7 @@ class LokoBridgeNodeTests(unittest.TestCase):
             post = next(item for item in context.host.requests if item["path"].endswith("/jobs/speech"))
             request = json.loads(post["body"])
             self.assertEqual("NovoLoko", request["clientName"])
-            self.assertEqual("3.5.0", request["clientVersion"])
+            self.assertEqual("3.7.0", request["clientVersion"])
             self.assertEqual({"kind": "profile-current"}, request["voice"])
             self.assertFalse(request["normalizeLoudness"])
             self.assertEqual("hello bridge", spoken)
@@ -1037,6 +1042,10 @@ class LokoBridgeNodeTests(unittest.TestCase):
             self.assertNotIn(context.host.token, visible)
 
     def test_disabled_and_empty_text_return_silence_without_bridge(self):
+        self.assertIs(
+            True,
+            self.module.NovaOmniLokoTTS.VALIDATE_INPUTS(voice="Jeremy Irons"),
+        )
         with BridgeContext() as context:
             disabled = self.module.NovaOmniLokoTTS().speak("ignored", enabled=False)
             empty = self.module.NovaOmniLokoTTS().speak("  ")

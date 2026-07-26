@@ -30,7 +30,7 @@ except Exception:
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
 
-NOVA_CORE_VERSION = "3.5.0"
+NOVA_CORE_VERSION = "3.7.0"
 SEED_MAX = 0xFFFFFFFFFFFFFFFF
 
 
@@ -171,6 +171,39 @@ class NovaSeedLab:
             "ui": {"nova_seed_lab": [{"seed": str(actual), "mode": str(mode), "status": status}]},
             "result": (actual, status),
         }
+
+
+class NovaControlPanelSwitch:
+    """Compact workflow switches for optional voice and prompt stages."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "tts_enabled": (
+                    "BOOLEAN",
+                    {"default": False, "label_on": "On", "label_off": "Off"},
+                ),
+                "enhancer_enabled": (
+                    "BOOLEAN",
+                    {"default": False, "label_on": "On", "label_off": "Off"},
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("BOOLEAN", "BOOLEAN", "STRING")
+    RETURN_NAMES = ("tts_enabled", "enhancer_enabled", "status")
+    FUNCTION = "switch"
+    CATEGORY = "NovoLoko/Values"
+
+    def switch(self, tts_enabled=False, enhancer_enabled=False):
+        tts = bool(tts_enabled)
+        enhancer = bool(enhancer_enabled)
+        return (
+            tts,
+            enhancer,
+            f"TTS: {'On' if tts else 'Off'} | Enhancer: {'On' if enhancer else 'Off'}",
+        )
 
 
 class NovaGenerationTimer:
@@ -1040,6 +1073,7 @@ except Exception as exc:
 NODE_CLASS_MAPPINGS = {
     "NovaDynamicTextConcatenate": NovaDynamicTextConcatenate,
     "NovaSeedLab": NovaSeedLab,
+    "NovaControlPanelSwitch": NovaControlPanelSwitch,
     "NovaGenerationTimer": NovaGenerationTimer,
     "NovaPreviewPassThrough": NovaPreviewPassThrough,
     "NovaMemoryManager": NovaMemoryManager,
@@ -1050,6 +1084,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "NovaDynamicTextConcatenate": "NovoLoko Text Concatenate — Auto Expand",
     "NovaSeedLab": "NovoLoko Seed Lab — Random / Fixed / History",
+    "NovaControlPanelSwitch": "NovoLoko Control Panel",
     "NovaGenerationTimer": "NovoLoko Generation Timer",
     "NovaPreviewPassThrough": "NovoLoko Preview — Pass Through / Optional Save",
     "NovaMemoryManager": "NovoLoko Memory Manager — RAM + VRAM",

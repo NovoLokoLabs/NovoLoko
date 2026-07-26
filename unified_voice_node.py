@@ -63,6 +63,15 @@ class NovaVoiceEngineTTS:
             },
         }
 
+    @classmethod
+    def VALIDATE_INPUTS(cls, omniloko_voice=PROFILE_VOICE):
+        """Accept saved dynamic preset choices while OmniLoko is offline."""
+        if not isinstance(omniloko_voice, str) or not omniloko_voice.strip():
+            return "OmniLoko voice must be a non-empty saved preset choice."
+        if len(omniloko_voice) > 512:
+            return "OmniLoko voice choice is too long."
+        return True
+
     RETURN_TYPES = ("AUDIO", "STRING", "STRING", "STRING", "STRING")
     RETURN_NAMES = ("audio", "spoken_text", "status", "voice_used", "engine_used")
     FUNCTION = "speak"
