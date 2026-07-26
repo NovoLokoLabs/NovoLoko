@@ -84,6 +84,34 @@ class StylePreviewTests(unittest.TestCase):
                         self.assertEqual("WEBP", result.format)
             self.assertEqual([], list(destination.parent.glob(".preview-*")))
 
+    def test_preview_folder_can_be_changed_and_reset_without_tracking_the_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "ComfyUI-NovoLoko"
+            root.mkdir()
+            external = Path(temp) / "My Preview Library"
+
+            self.assertEqual(
+                root / "data/style_previews",
+                self.previews.preview_root(root),
+            )
+            configured = self.previews.configure_preview_root(root, external)
+            self.assertEqual(external.resolve(), configured)
+            self.assertTrue(self.previews.preview_root_is_configured(root))
+            self.assertEqual(external.resolve(), self.previews.preview_root(root))
+            config = self.previews.preview_location_config_path(root)
+            self.assertEqual(
+                str(external.resolve()),
+                json.loads(config.read_text(encoding="utf-8"))["path"],
+            )
+            self.assertEqual([], list(config.parent.glob(".style_preview_location.json.*")))
+
+            reset = self.previews.configure_preview_root(root, "")
+            self.assertEqual(root / "data/style_previews", reset)
+            self.assertFalse(config.exists())
+            self.assertFalse(self.previews.preview_root_is_configured(root))
+            with self.assertRaisesRegex(ValueError, "absolute path"):
+                self.previews.configure_preview_root(root, "relative/previews")
+
     def test_payload_contains_only_opaque_preview_url(self) -> None:
         styles = [{
             "name": "0001 | Anime Style",
@@ -211,19 +239,31 @@ class StylePreviewTests(unittest.TestCase):
             "previewBatchSession",
             "requestPreviewStop",
             "await api.interrupt()",
+            'api.addEventListener("execution_interrupted"',
+            "Stopped from ComfyUI",
             "Open preview after a single generated style",
             "Wrap Previous/Next at the ends",
             "event.button === 3",
             "event.button === 4",
             'stage.addEventListener("wheel"',
-            "Math.min(8, Math.max(0.1",
+            "Math.min(32, Math.max(0.05",
+            "flex:0 0 auto",
             'viewer.addEventListener("contextmenu"',
             "card.ondblclick",
             "openLargePreview(item)",
             "No saved preview yet. Use Generate + save preview or Add image.",
             "z-index:5",
+            "Open previews folder",
+            "Change preview folder…",
+            "/nova_style_previews/open_folder",
+            "/nova_style_previews/location",
         ):
             self.assertIn(marker, browser)
+        close_block = browser[
+            browser.index("const closeBrowser = () => {"):
+            browser.index("overlay.__novaClose = closeBrowser")
+        ]
+        self.assertNotIn("requestPreviewStop", close_block)
 
     def test_generated_preview_state_is_ignored(self) -> None:
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")

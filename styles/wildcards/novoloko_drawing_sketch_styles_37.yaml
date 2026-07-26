@@ -1,0 +1,156 @@
+- name: none
+  category: System
+  negative_prompt: ''
+  prompt: ''
+- name: random
+  category: System
+  negative_prompt: ''
+  prompt: ''
+- name: drawing_sketch | Drawing
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A direct, hand-crafted illustration style built on confident linework capturing form through economical, considered mark-making, restrained tonal shading applied through simple cross-hatching or light shading rather than elaborate rendering, an honest, unembellished clarity that favors observation over stylization, unhurried, deliberate strokes carrying a personal, tactile sensibility, and a timeless, accessible sincerity rooted in foundational drawing tradition. Influenced by: traditional pencil-and-ink drawing tradition, life-drawing practice, classical illustration fundamentals, observational sketching method.'
+- name: drawing_sketch | Caricature
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A playful exaggeration-driven illustration style built on bold distortion of proportion that amplifies distinctive features for comedic and expressive impact, loose, confident linework capturing likeness through economical, energetic mark-making rather than exhaustive detail, light, quick shading applied to suggest form without slowing the gestural energy, an exuberant, larger-than-life comic timing embedded in every exaggerated feature, and a witty, high-energy sketch-illustration charm that celebrates personality over precision. Influenced by: classic caricature-illustration tradition, quick-sketch portraiture technique, satirical editorial illustration, gestural ink-and-wash caricature.'
+- name: drawing_sketch | Charcoal Rendering
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, traditional drawing aesthetics characterized by rich tonal gradation, expressive mark-making, tactile surface texture, atmospheric softness, and powerful value-based form construction, emphasizing depth, mood, and craftsmanship through layered shading, subtle edge control, and a handcrafted visual presence that balances realism with artistic interpretation, reminiscent of Käthe Kollwitz and Robert Longo, inspired by The Weavers and Men in the Cities.'
+- name: drawing_sketch | Hyperrealistic Colored-Pen Sketch
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A meticulously rendered drawing style built on dense, layered pen strokes that build tonal depth and material realism entirely through cross-hatching, stippling, and controlled ink-layering rather than blended shading, painstaking precision in capturing texture and light behavior with a fine-tipped, linear medium, an obsessive patience carried through countless overlapping passes to achieve photographic depth, a technically virtuosic tension between the rigidity of the pen medium and the softness of the rendered subject, and an intensely disciplined, prolonged-focus rendering intensity. Influenced by: hyperrealist pen-and-ink illustration technique, fine-liner cross-hatching method, contemporary colored-pen portrait artists, meticulous layered-ink rendering practice.'
+- name: drawing_sketch | Jarek Kubicki Style
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A darkly whimsical illustration style built on confident, sketch-like linework carrying gothic-adjacent playfulness, a muted, atmospheric tonal palette balanced against bold, graphic character silhouettes, a slightly unsettling yet endearing character-design sensibility blending humor with quiet unease, meticulous textural mark-making giving surfaces a hand-drawn, tactile roughness, and a distinctive, contemporary illustration voice that feels equally macabre and playful. Influenced by: Jarek Kubicki, contemporary character-illustration tradition, gothic-whimsical illustration technique, hand-drawn textural rendering practice.'
+- name: drawing_sketch | Playful Hand-Drawn Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A loose, charming illustration style with visibly hand-inked or hand-painted linework that keeps a warm, imperfect human touch, bouncy exaggerated proportions and expressive gesture-driven poses, bright cheerful color palettes applied in flat or lightly textured washes, whimsical small details and doodle-like embellishments scattered through the composition, and a lighthearted, storybook charm that feels immediate, joyful, and unpolished in the best way. Influenced by: Quentin Blake, children''s picture-book illustration, gouache and watercolor sketching, modern editorial doodle art.'
+- name: drawing_sketch | Chinese Ink Drawing
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A meditative, gestural illustration style built on fluid, calligraphic brushwork that captures form through economical, confident strokes rather than exhaustive detail, deliberate negative space treated as an active compositional element carrying as much weight as rendered form, varying ink density achieved through brush pressure and water dilution rather than layered shading, a contemplative, breath-driven rhythm carried through unhurried, deliberate mark-making, and a timeless, philosophical restraint that values suggestion and empty space over exhaustive representation. Influenced by: traditional Chinese shuǐmò (ink-wash) painting tradition, literati brush-painting practice, Xu Beihong ink technique, classical Chinese calligraphy discipline.'
+- name: drawing_sketch | Sketch
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A raw, immediate illustration style built on loose, gestural linework that captures form through confident, economical mark-making rather than exhaustive rendering, visible construction lines and searching strokes left intentionally unresolved, minimal tonal shading achieved through quick cross-hatching or light smudging rather than smooth gradation, an energetic sense of spontaneity and unfinished momentum carried through every line, and a raw, honest immediacy that values gesture and observation over polish. Influenced by: life-drawing sketch tradition, charcoal and graphite illustration technique, quick-study figure drawing, academic atelier sketching method.'
+- name: drawing_sketch | Children's Book Drawing
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A warm, gentle illustration style built on soft, simplified linework carrying a sincere, approachable charm, delicate flat-to-lightly-shaded color application applied with cheerful, unhurried restraint, rounded, endearing proportions favoring emotional warmth over anatomical precision, generous, uncluttered composition that gives each small detail room to breathe, and a tender, timeless storybook sincerity that feels handmade, comforting, and quietly imaginative. Influenced by: golden-age children''s-book illustration tradition, gouache-and-ink storybook technique, gentle character-design practice, whimsical picture-book method.'
+- name: drawing_sketch | Vintage Children's Book Drawing
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A gentle, nostalgic illustration style built on soft, hand-inked linework carrying old-world sincerity and charm, delicate watercolor-adjacent washes applied with unhurried, muted restraint, rounded, endearing proportions favoring warmth and whimsy over anatomical precision, a hushed, timeworn tenderness carried through generous, uncluttered composition, and a wistful, storybook nostalgia that feels handmade, cherished, and quietly magical. Influenced by: mid-century golden-age children''s-book illustration tradition, gouache-and-watercolor storybook technique, classic picture-book character-design practice, vintage print-illustration method.'
+- name: drawing_sketch | Gris Grimly Style
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A whimsically macabre illustration style built on gnarled, spindly linework that twists proportion into gothic, storybook exaggeration, scratchy, textured crosshatching layered with unsettling nervous energy, elongated, angular form carrying a darkly comedic fragility, a hushed, eerie theatricality pervading every composition, and a darkly whimsical, gothic-fairytale charm that feels equal parts sinister and playful. Influenced by: Gris Grimly, gothic children''s-book illustration tradition, macabre hand-drawn illustration technique, whimsical dark-fantasy character-design practice.'
+- name: drawing_sketch | Tim Burton Style
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A whimsically macabre illustration style built on elongated, spindly proportions and exaggerated angular gauntness, high-contrast graphic shading that carves gothic drama from stark light-and-dark simplicity, swirling, hand-drawn linework carrying a nervous, sketchy energy, wide hollow eyes rendered with melancholic, storybook expressiveness, and a darkly whimsical, gothic-fairytale charm that feels equal parts eerie and endearing. Influenced by: Tim Burton, gothic stop-motion animation design, whimsical macabre illustration, hand-drawn concept-art sketch technique.'
+- name: drawing_sketch | Fashion Sketch
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, An elegant, elongated illustration style built on fluid, confident linework stretching proportion into graceful, statuesque exaggeration, minimal, loose shading applied with quick, economical strokes rather than full rendering, a light, airy sense of movement carried through unhurried, gestural mark-making, deliberate emphasis on flowing silhouette and pose over anatomical exactness, and a chic, effortless sketch-illustration elegance that feels immediate, stylish, and quietly sophisticated. Influenced by: fashion-illustration tradition, croquis sketching technique, editorial fashion-sketch practice, elongated figure-drawing method.'
+- name: drawing_sketch | Loose Crosshatched Character Sketch
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A lively, unfinished-feeling character-illustration style built on confident, visibly searching linework left intentionally raw rather than cleaned up, dense parallel crosshatching used sparingly to suggest volume and shadow without committing to full rendering, expressive, exaggerated facial modeling that prioritizes emotional intensity over anatomical polish, a loose, energetic looseness at the edges that keeps the whole piece feeling immediate and process-driven, and a spirited, illustrative rawness that reads as equal parts concept sketch and finished character study. Influenced by: contemporary character-design sketch practice, marker-and-pencil illustration technique, expressive digital-sketch rendering method, gesture-driven character-study tradition.'
+- name: drawing_sketch | Wojak/Meme-Sketch Style
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A crude, minimal-effort illustration style built on loose, deliberately unrefined ballpoint-pen linework that abandons anatomical precision for rapid expressive shorthand, flat, mostly absent shading beyond the barest suggestion of form, a blunt, economical mark-making approach that prioritizes instant emotional legibility over any technical polish, an intentionally amateur roughness that reads as sincere rather than sloppy, and a deadpan, internet-native rawness that turns crudeness itself into the entire expressive language. Influenced by: internet meme-illustration tradition, minimalist ballpoint-sketch technique, imageboard-culture drawing practice, deliberately crude digital-doodle method.'
+- name: drawing_sketch | Ink Pen Drawing
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A precise, linear illustration style built on confident, controlled strokes that construct every form entirely through line rather than blended tone, dense cross-hatching and stippling layered to achieve tonal depth purely through line density, a crisp, deliberate discipline carried through unhurried, considered mark-making, meticulous attention to line-weight variation suggesting weight and dimensionality, and a timeless, meticulous craftsmanship rooted in centuries of traditional pen-and-ink illustration practice. Influenced by: classical pen-and-ink illustration tradition, fine cross-hatching technique, engraving-adjacent linework practice, traditional academic drawing method.'
+- name: drawing_sketch | Etching
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A meticulous printmaking-inspired illustration style built on dense, fine crosshatched linework that constructs every tone and volume purely through line density rather than flat shading, crisp needle-precise detail rendered with old-world engraving discipline, restrained tonal range achieved through layered hatching passes rather than smooth gradients, a quiet, antique gravitas carried through the deliberate, unhurried linework, and a refined, scholarly print-craft polish that feels historical, meticulous, and timeless. Influenced by: classical etching and engraving technique, Albrecht Dürer, printmaking illustration tradition, Gustave Doré linework.'
+- name: drawing_sketch | Technical Drawing
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A precise, disciplined illustration style built on exacting linework constructed with mechanical accuracy and consistent line-weight logic, minimal or entirely absent shading that relies on line alone to convey form and structure, a rigorous, measured clarity that favors exact proportion and dimensional accuracy over expressive interpretation, meticulous attention to structural detail rendered with drafting-level precision, and a clean, methodical exactness rooted in centuries of engineering and scientific illustration discipline. Influenced by: technical/engineering-drawing tradition, drafting-illustration technique, scientific-diagram illustration practice, orthographic-projection drawing method.'
+- name: drawing_sketch | Conté Pastel
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A rich, tactile drawing style built on dense, velvety pigment applied with confident, blendable pressure, a soft, smudgeable quality allowing form to be built through both layered mark-making and controlled blending, a warm, granular texture distinct from smoother chalk or charcoal media, deliberate tonal transition achieved through pressure variation rather than wet blending, and a timeless, painterly-adjacent intensity rooted in classical academic drawing tradition. Influenced by: Conté crayon drawing tradition, classical academic tonal-drawing practice, life-drawing atelier technique, fine-art pastel-and-chalk method.'
+- name: drawing_sketch | Crayola Colored-Book Style
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A cheerful, deliberately simplified illustration style built on bold, uneven waxy strokes that fill flat shapes with visible, layered texture rather than smooth coverage, thick, confident outline holding basic, uncomplicated forms, minimal shading achieved through pressure variation and layered strokes rather than blending, a charming, imperfect childlike sincerity carried through slightly uneven coloring-within-the-lines application, and a nostalgic, playful simplicity that feels handmade, joyful, and unmistakably crafted by hand. Influenced by: children''s coloring-book tradition, wax-crayon illustration technique, elementary art-class practice, simplified line-and-fill illustration method.'
+- name: drawing_sketch | Bookplate Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, refined decorative illustration aesthetics characterized by meticulous linework, engraved-inspired detailing, ornamental sophistication, literary craftsmanship, balanced composition, and timeless artisanal quality, blending classical printmaking traditions with elegant visual storytelling through intricate textures, disciplined draftsmanship, and exceptionally polished design sensibilities, reminiscent of Arthur Rackham and Aubrey Beardsley, inspired by Golden Age Bookplates and The Fairy Tales of the Brothers Grimm.'
+- name: drawing_sketch | Boulet Graphic Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, contemporary graphic storytelling aesthetics characterized by expressive linework, fluid visual rhythm, intelligent simplification, dynamic composition, and a balance between humor, atmosphere, and observational detail, blending sketchbook spontaneity with polished narrative craftsmanship through confident draftsmanship, readable forms, and highly engaging visual communication, reminiscent of Boulet and Lewis Trondheim, inspired by Notes and Donjon.'
+- name: drawing_sketch | Poe-Inspired Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A haunting gothic-macabre illustration style steeped in melancholy and dread, rendered in desaturated colors, ash-gray, and deep black tones pierced by isolated light, decaying Victorian vibes, symbolic motifs woven through the composition, delicately cross-hatched or ink-washed texture recalling antique engraving, and a brooding, poetic atmosphere of obsession, grief, and quiet horror. Influenced by: Harry Clarke, gothic engraving illustration, Victorian mourning art, Gustave Doré.'
+- name: drawing_sketch | Collector Storybook Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, premium narrative illustration aesthetics characterized by refined draftsmanship, elegant visual storytelling, intricate decorative detail, polished painterly rendering, and a timeless sense of wonder, blending classic storybook craftsmanship with modern production-quality execution through sophisticated composition, atmospheric depth, and meticulously curated visual richness, reminiscent of Arthur Rackham and Kinuko Y. Craft, inspired by The Fairy Tales of the Brothers Grimm and The Chronicles of Narnia.'
+- name: drawing_sketch | Saul Steinbeck Art
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A refined, gently satirical illustration style built on confident, economical linework capturing wit and observation with restrained precision, muted, sophisticated tonal application applied with understated elegance rather than bold contrast, a quiet, literary charm carried through clever, observational composition, meticulous attention to subtle visual storytelling over exhaustive detail, and a timeless, urbane sophistication that feels intelligent, witty, and effortlessly refined. Influenced by: Saul Steinbeck (Saul Steinberg), contemporary New Yorker illustration tradition, gouache-and-ink editorial technique, sophisticated satirical-illustration practice.'
+- name: drawing_sketch | Whimsical Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A lighthearted, charming illustration style built on soft, bouncy proportion that stretches form into playful, exaggerated shapes, gentle, evenly balanced shading applied with cheerful simplicity rather than dramatic contrast, a storybook sincerity carried through rounded, approachable linework, delicate small details scattered throughout the composition to reward closer looking, and a joyful, effortless charm that feels handmade, tender, and universally endearing. Influenced by: contemporary children''s-book illustration tradition, gouache-and-ink whimsical technique, gentle character-design practice, storybook illustration method.'
+- name: drawing_sketch | Doodle
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A loose, casual illustration style built on quick, unplanned linework that meanders with playful spontaneity rather than deliberate structure, minimal to no shading beyond simple scribbled fill, an unselfconscious, low-stakes energy carried through impulsive, exploratory mark-making, small whimsical details scattered organically without formal composition, and a lighthearted, effortless charm that feels immediate, personal, and free of any polish. Influenced by: margin-doodle sketching tradition, casual ballpoint-pen illustration technique, unstructured gesture-drawing practice, personal notebook-sketch method.'
+- name: drawing_sketch | Very Simplistic Doodle
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A radically minimal illustration style built on the barest possible linework needed to suggest form, no shading whatsoever beyond an occasional flat scribble, a childlike, unpracticed economy of gesture that favors instant recognizability over any accuracy, loose, wobbly strokes drawn with no correction or refinement, and a charmingly crude, effortless simplicity that feels spontaneous, playful, and completely unpolished. Influenced by: margin-doodle sketching tradition, casual ballpoint-pen technique, unstructured gesture-drawing practice, minimalist notebook-sketch method.'
+- name: drawing_sketch | Beatrix Potter Style
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A gentle, meticulously observed watercolor illustration style built on delicate, softly blended washes carrying quiet naturalist precision, fine detailed linework reserved for texture and form rather than bold outline, a hushed pastoral tenderness radiating through soft diffused lighting, restrained old-world charm achieved through understated, unhurried brushwork, and a tender, storybook intimacy that feels both scientifically observant and gently whimsical. Influenced by: Beatrix Potter, English watercolor illustration, naturalist botanical illustration, Golden Age children''s book art.'
+- name: drawing_sketch | Lo-Fi Art
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A relaxed, low-fidelity illustration style built on soft, slightly muted rendering that intentionally avoids sharp precision, a gentle, unhurried simplicity in linework and shading applied with casual, low-effort ease, a hazy, slightly grainy or textured quality replacing crisp digital cleanliness, an easygoing, mellow atmosphere that favors comfort over technical ambition, and a nostalgic, chill sincerity that feels handmade, cozy, and effortlessly unpolished. Influenced by: lo-fi aesthetic movement, casual sketch-illustration technique, chillwave visual-culture practice, contemporary relaxed-digital-art method.'
+- name: drawing_sketch | Pastel-Toned Cute Illustration (Western-Korean Hybrid)
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A gentle, softly rounded illustration style built on smooth, evenly diffused shading applied with cheerful, uncomplicated clarity, delicate blush-and-glow accents settling softly across rendered features, a hushed, sweet stillness carried through clean, uncluttered composition, an appealing blend of Western cartoon roundness and Korean kawaii-adjacent daintiness in proportion and expression, and a wholesome, gently affectionate charm that feels bright, sincere, and effortlessly endearing. Influenced by: contemporary Korean kawaii-illustration tradition, Western flat-cartoon character-design technique, cute-culture digital-illustration practice, pastel-focused character-art method.'
+- name: drawing_sketch | Glen Keane Style
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A fluid, expressive hand-drawn animation illustration style built on confident, sweeping linework that carries real weight and momentum through every gesture, richly modeled form built with sculptural, almost three-dimensional volume despite being fundamentally linear, exaggerated yet anatomically grounded proportion emphasizing emotional expressiveness over rigidity, a warm, painterly sense of light suggested through soft graphite-like shading beneath confident contour, and a masterful, deeply emotive hand-drawn intensity that feels alive, weighty, and effortlessly graceful. Influenced by: Glen Keane, golden-age Disney animation tradition, expressive hand-drawn character-animation technique, sculptural gesture-drawing practice.'
+- name: drawing_sketch | Calligraphic Linework
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, refined line-centric aesthetics characterized by fluid strokes, graceful visual rhythm, expressive contour variation, elegant mark-making, and exceptional draftsmanship, emphasizing movement, balance, and artistic confidence through controlled line weight, organic transitions, and a harmonious interplay between precision and spontaneity, reminiscent of Egon Schiele and Katsuya Terada, inspired by The Book of Kells and Ukiyo-e brush drawing traditions.0'
+- name: drawing_sketch | Traditional Marker Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, handcrafted illustration aesthetics characterized by visible marker strokes, layered pigment buildup, rich tonal layering, controlled color blending, and confident sketch-based construction. The style emphasizes spontaneity, design clarity, and tactile artistic process, combining expressive linework with deliberate rendering decisions that preserve the character of traditional media. Rather than pursuing flawless digital smoothness, it celebrates material texture, artist hand presence, and dynamic visual energy through overlapping strokes, selective detail, and efficient visual communication. The resulting imagery feels immediate, vibrant, and authentically crafted, balancing presentation-quality finish with the warmth and personality of traditional illustration techniques, reminiscent of Mike Mignola''s marker studies and Scott Robertson, inspired by The Skillful Huntsman and Design Studio Press marker rendering tutorials.'
+- name: drawing_sketch | Western Cel-Shaded Illustration
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A bright, cheerful cartoon-illustration style built on thick, confident discontinuous outline holding rounded, super-deformed proportion, flat, evenly applied color fill with minimal shading beyond soft contact shadow, sparkling highlight accents for maximum emotional charm, energetic frame, and a joyful, polish that feels playful, festive, and effortlessly appealing. Influenced by: Nintendo Kirby promotional art,Western indie-cartoon design tradition, flat-color illustration technique, celebratory merchandise-illustration practice, contemporary Western adjacent cartoon method.'
+- name: drawing_sketch | Mad Magazine Cover Art
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, satirical caricature composition anchored by a central caricatured subject rendered with exaggerated proportions, grotesque distorted vibes, meticulously crosshatched shading and stippled textures building a grotesque yet highly detailed surface,overly-exaggerated grimacing subject, the linework loose but masterfully controlled with varying pen weights, the atmosphere relentlessly irreverent, mischievous, and subversive, parody. Influenced by: Mort Drucker''s cinematic caricature mastery, Jack Davis''s frantic crosshatched scene, Don Martin''s rubbery distortions, classic EC Comics, propaganda-poster parody of early Mad magazine,'
+- name: drawing_sketch | Stick-Figure Child Drawing
+  category: Drawing / Sketch
+  negative_prompt: ''
+  prompt: '{prompt}, A radically minimal illustration style built on the barest possible linework needed to suggest form, simple circular head and straight-line limbs replacing any anatomical detail entirely, a wobbly, unpracticed economy of gesture , and a charmingly crude, innocent simplicity that feels spontaneous, playful, and completely unpolished. Influenced by: child-art tradition, crayon drawing technique, kindergarten art, naive-art,'

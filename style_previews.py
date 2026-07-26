@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import tempfile
@@ -11,6 +12,7 @@ PREVIEW_SIZES = (512, 1024)
 PREVIEW_EXTENSION = ".webp"
 PREVIEW_MAX_UPLOAD_BYTES = 32 * 1024 * 1024
 _SAFE_KEY = re.compile(r"^[0-9a-f]{16,64}$")
+_LOCATION_CONFIG_NAME = "style_preview_location.json"
 
 
 def _portable_library_name(resolved_library: str | os.PathLike[str], package_root: str | os.PathLike[str]) -> str:
@@ -35,8 +37,93 @@ def style_key(style_name: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32]
 
 
-def preview_root(package_root: str | os.PathLike[str]) -> Path:
+def _default_preview_root(package_root: str | os.PathLike[str]) -> Path:
     return Path(package_root).resolve() / "data" / "style_previews"
+
+
+def preview_location_config_path(package_root: str | os.PathLike[str]) -> Path:
+    return Path(package_root).resolve() / "data" / _LOCATION_CONFIG_NAME
+
+
+def _configured_preview_root(package_root: str | os.PathLike[str]) -> Path | None:
+    config_path = preview_location_config_path(package_root)
+    try:
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        configured = Path(str(payload.get("path") or "")).expanduser()
+        if configured.is_absolute():
+            return configured.resolve()
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    return None
+
+
+def preview_root_is_configured(package_root: str | os.PathLike[str]) -> bool:
+    return _configured_preview_root(package_root) is not None
+
+
+def preview_root(package_root: str | os.PathLike[str]) -> Path:
+    configured = _configured_preview_root(package_root)
+    if configured is not None:
+        return configured
+    return _default_preview_root(package_root)
+
+
+def configure_preview_root(
+    package_root: str | os.PathLike[str],
+    requested_path: str | os.PathLike[str] | None,
+) -> Path:
+    """Set or reset the runtime preview folder without tracking a private path."""
+    config_path = preview_location_config_path(package_root)
+    text = str(requested_path or "").strip()
+    if not text:
+        try:
+            config_path.unlink()
+        except FileNotFoundError:
+            pass
+        return _default_preview_root(package_root)
+    if "\0" in text:
+        raise ValueError("Preview folder contains an invalid character.")
+
+    target = Path(text).expanduser()
+    if not target.is_absolute():
+        raise ValueError("Preview folder must be an absolute path.")
+    target = target.resolve()
+    target.mkdir(parents=True, exist_ok=True)
+
+    probe_name = None
+    try:
+        handle, probe_name = tempfile.mkstemp(prefix=".novoloko-write-test-", dir=str(target))
+        os.close(handle)
+    finally:
+        if probe_name and os.path.exists(probe_name):
+            os.unlink(probe_name)
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_name = None
+    try:
+        handle, temp_name = tempfile.mkstemp(
+            prefix=f".{_LOCATION_CONFIG_NAME}.",
+            suffix=".tmp",
+            dir=str(config_path.parent),
+        )
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as output:
+            json.dump({"path": str(target)}, output, ensure_ascii=False, indent=2)
+            output.write("\n")
+        os.replace(temp_name, config_path)
+        temp_name = None
+    finally:
+        if temp_name and os.path.exists(temp_name):
+            os.unlink(temp_name)
+    return target
+
+
+def open_preview_root(package_root: str | os.PathLike[str]) -> Path:
+    root = preview_root(package_root)
+    root.mkdir(parents=True, exist_ok=True)
+    if os.name != "nt" or not hasattr(os, "startfile"):
+        raise RuntimeError("Opening the preview folder is available on Windows.")
+    os.startfile(str(root))
+    return root
 
 
 def preview_path(

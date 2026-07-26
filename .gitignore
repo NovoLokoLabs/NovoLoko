@@ -13,6 +13,7 @@ venv/
 data/history.json
 data/favorites_*.json
 data/style_previews/
+data/style_preview_location.json
 output/
 input/
 temp/
