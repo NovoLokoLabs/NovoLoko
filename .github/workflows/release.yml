@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - RELEASE_VERSION
+      - updater/approved-stack.json
 
 permissions:
   contents: write
