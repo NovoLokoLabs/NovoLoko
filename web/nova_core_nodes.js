@@ -1415,8 +1415,8 @@ function showTimerSettings(node) {
         const available = [...sound.options].some((option) => option.value === selected);
         sound.value = available ? selected : "Off";
         soundStatus.textContent = custom.length
-            ? `${custom.length} custom sound${custom.length === 1 ? "" : "s"} found recursively in ComfyUI/input/NovoLokoTimerSounds.`
-            : "Add WAV, MP3, OGG, M4A, AAC, FLAC or OPUS sounds. Subfolders such as NovoLokoTimerSounds/memes are scanned automatically.";
+            ? `${custom.length} sound${custom.length === 1 ? "" : "s"} found recursively in ComfyUI-NovoLoko/data/NovoLokoTimerSounds.`
+            : "Add WAV, MP3, OGG, M4A, AAC, FLAC or OPUS sounds under ComfyUI-NovoLoko/data/NovoLokoTimerSounds. Subfolders are scanned automatically.";
     }
 
     const volume = document.createElement("input");

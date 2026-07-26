@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.7.1
+# ComfyUI-NovoLoko v3.8.0
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI and press `Ctrl+F5` in the browser.
-5. Load `workflows/NovoLoko AIO v3.5.0 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v3.8.0 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,10 +22,11 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.5.0 - Latest Workflow.json` — full seven-slot prompt stack, refreshable unified voice selector, enhancer instructions and status displays, two-pass generation, edge-to-edge compare, metadata save, Media Studio delete/revoice tools, timer and memory manager.
-- `NovoLoko Compare Studio v3.5.0.json` — minimal image comparison example with theme-neutral node chrome.
+- `NovoLoko AIO v3.8.0 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
+- `NovoLoko Compare Studio v3.8.0.json` — minimal image comparison example with theme-aware node chrome.
 
-The v3.7.1 release keeps the existing v3.5.0 workflow files because no existing serialized sockets, widgets or links changed. It adds the optional `NovaControlPanelSwitch` node without altering existing workflows.
+The v3.8.0 workflow repairs corrupted punctuation in visible node and group
+titles while preserving serialized node IDs, sockets, widgets and links.
 
 ## Main nodes
 
@@ -42,22 +43,29 @@ Prompt Stack or Style Loader, queue the current workflow and automatically save
 its final generated image onto that card. Real previews fill their square cards
 edge-to-edge. **View larger** or a double-click opens the stored image uncropped in a full-screen viewer with
 fit-to-window and actual-size modes. The floating **Styles** launcher can be
-dragged anywhere, remembers its position and can switch among installed NovoLoko CSV/YAML libraries.
+dragged anywhere, remembers its position and can switch among installed NovoLoko CSV/YAML libraries. Standalone mode now exposes an explicit workflow-target selector, so a different library can be assigned and generated without reopening the browser from a node.
 
 `NovoLoko Control Panel` provides compact TTS and Prompt Enhancer On/Off outputs
 for workflow-wide controls. `NovoLoko Seed Lab` includes a prominent manual
 random-seed button, Fixed/Random Every Queue modes, After-run behavior and its
 last 20 seeds without requiring a separate seed extension.
 
+Browser pages offer 24, 50, 100 or All entries. Cards retain a readable square
+size and the result area scrolls instead of shrinking large pages.
+
 **Generate all missing** runs the current workflow sequentially for every style
 in the selected CSV/YAML that does not have a preview. NovoLoko shows the exact
 run count and a large-library warning first, preserves existing images, and
 keeps **Stop generating** available after the browser is closed and reopened.
 The browser also provides explicit refresh, persistent convenience options,
-double-click generation, mouse 4/5 style navigation and a large viewer with
+double-click large viewing, mouse 4/5 style navigation and a large viewer with
 wheel zoom, drag panning, Previous/Next and right-click close.
 
 Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger.
+
+Generation Timer includes 498 organized WAV/MP3 completion sounds under
+`data/NovoLokoTimerSounds/`. The timer scans every packaged subfolder and also
+accepts user-added supported sounds there.
 
 Optional media tools include Voice Prompt, the compact NovoLoko Voice TTS selector, individual Kokoro and OmniLoko TTS compatibility nodes, Autoplay Trigger, Media Studio and Kokoro Text Bridge.
 

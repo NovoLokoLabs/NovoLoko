@@ -1,5 +1,24 @@
 # NovoLoko Changelog
 
+## v3.8.0 — Workflow text, scalable browsing and packaged timer sounds
+
+- Keeps visual cards at a readable square size while 24, 50, 100 or All results
+  scroll vertically; removes the cramped 4/9 page choices.
+- Adds an explicit standalone workflow-target selector so a chosen CSV/YAML
+  library can be applied and generated through the intended Prompt Stack or
+  Style Loader.
+- Makes every NovoLoko node manually resizable to a substantially smaller
+  minimum without overwriting saved workflow dimensions.
+- Makes Compare Studio paint its selected frontend theme while removing stale
+  serialized Compare-only blue colours from migrated official workflows.
+- Repairs repeated UTF-8 mojibake in visible workflow text without changing
+  normal prompt wording, node IDs, sockets, widgets or links.
+- Packages 498 organized timer sounds under
+  `data/NovoLokoTimerSounds/` and makes Generation Timer use that release-owned
+  library recursively.
+- Updates the cleaned current workflows and release metadata to v3.8.0 while
+  retaining all 34 registered node contracts.
+
 ## v3.7.1 — Standalone visual-library hotfix
 
 - Fixes the standalone **Styles** library selector endpoint failing during a

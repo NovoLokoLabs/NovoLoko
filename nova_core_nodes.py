@@ -30,7 +30,7 @@ except Exception:
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
 
-NOVA_CORE_VERSION = "3.7.1"
+NOVA_CORE_VERSION = "3.8.0"
 SEED_MAX = 0xFFFFFFFFFFFFFFFF
 
 
@@ -789,11 +789,10 @@ _TIMER_SOUND_MAX_BYTES = 25 * 1024 * 1024
 
 
 def _nova_timer_sound_dir() -> str:
-    if folder_paths is not None:
-        base = folder_paths.get_input_directory()
-    else:
-        base = os.path.join(os.path.dirname(os.path.realpath(__file__)), "user_sounds")
-    directory = os.path.realpath(os.path.join(base, "NovoLokoTimerSounds"))
+    package_root = os.path.dirname(os.path.realpath(__file__))
+    directory = os.path.realpath(
+        os.path.join(package_root, "data", "NovoLokoTimerSounds")
+    )
     os.makedirs(directory, exist_ok=True)
     return directory
 

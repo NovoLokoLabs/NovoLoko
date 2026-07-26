@@ -54,7 +54,7 @@ class UiPolishTests(unittest.TestCase):
         self.assertEqual(0, empty["filtered_count"])
         self.assertEqual(["No Style", "0000 | No Style"], empty["styles"])
 
-    def test_four_item_pages_and_safe_library_inventory(self) -> None:
+    def test_large_and_all_pages_and_safe_library_inventory(self) -> None:
         styles = [
             {
                 "name": f"{index:04d} | Style {index}",
@@ -63,16 +63,21 @@ class UiPolishTests(unittest.TestCase):
                 "category": "Art",
                 "favorite": False,
             }
-            for index in range(9)
+            for index in range(125)
         ]
         with (
             mock.patch.object(self.nodes, "_read_styles", return_value=styles),
             mock.patch.object(self.nodes, "_load_favorites", return_value=[]),
             mock.patch.object(self.nodes, "_resolve_csv_path", return_value="/private/styles.csv"),
         ):
-            page = self.nodes._style_browser_payload("styles.csv", page=1, page_size=4)
-        self.assertEqual(4, len(page["items"]))
-        self.assertEqual(3, page["page_count"])
+            page = self.nodes._style_browser_payload("styles.csv", page=1, page_size=100)
+            whole_library = self.nodes._style_browser_payload(
+                "styles.csv", page=1, page_size="all"
+            )
+        self.assertEqual(100, len(page["items"]))
+        self.assertEqual(2, page["page_count"])
+        self.assertEqual(125, len(whole_library["items"]))
+        self.assertEqual(1, whole_library["page_count"])
 
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -134,12 +139,31 @@ class UiPolishTests(unittest.TestCase):
             "Search style names and prompt text",
             "Browse styles visually",
             "/nova_styles_csv_pro/libraries",
-            "for (const amount of [4, 9, 24, 50])",
+            'for (const amount of [24, 50, 100, "all"])',
             "storedStandaloneLibrary()",
+            "Choose which Prompt Stack or Style Loader receives standalone selections",
+            "compatibleStyleTargets",
+            "grid-auto-rows:max-content",
+            "overflow-y:auto",
             'dialog.addEventListener("contextmenu"',
         ):
             self.assertIn(marker, source)
         self.assertNotIn("resolved_path", source)
+
+    def test_all_novoloko_nodes_receive_compact_resizable_widths(self) -> None:
+        source = (ROOT / "web/nova_compact_nodes.js").read_text(encoding="utf-8")
+        self.assertIn('nodeTypeName.startsWith("Nova")', source)
+        self.assertIn("DEFAULT_MIN_WIDTH = 150", source)
+        self.assertIn("DOM_MIN_WIDTH = 210", source)
+        self.assertIn("Math.min(RESET_WIDTH", source)
+        self.assertNotIn("setSize", source)
+
+    def test_compare_node_surface_uses_selected_theme_without_serializing_colours(self) -> None:
+        source = (ROOT / "web/nova_image_compare.js").read_text(encoding="utf-8")
+        self.assertIn("nodeType.prototype.onDrawBackground", source)
+        self.assertIn("ctx.fillStyle = theme.panel", source)
+        for assignment in ("node.color =", "node.bgcolor =", "node.boxcolor ="):
+            self.assertNotIn(assignment, source)
 
 
 if __name__ == "__main__":
