@@ -169,6 +169,7 @@ class StylePreviewTests(unittest.TestCase):
             "for (const size of [512, 1024])",
             "preview_url",
             "object-fit:contain",
+            "object-fit:cover",
             "Generate + save preview",
             "queueCurrentWorkflow",
             "api.queuePrompt(0, prompt)",
@@ -192,7 +193,7 @@ class StylePreviewTests(unittest.TestCase):
             "node?.widgets?.find",
         ):
             self.assertIn(marker, browser)
-        self.assertNotIn("object-fit:cover", browser)
+        self.assertIn("aspect-ratio:1/1", browser)
         for marker in (
             "Browse Medium styles visually",
             "window.NovoLokoStyleBrowser",
@@ -212,14 +213,14 @@ class StylePreviewTests(unittest.TestCase):
             "await api.interrupt()",
             "Open preview after a single generated style",
             "Wrap Previous/Next at the ends",
-            "Right-click closes the large viewer",
             "event.button === 3",
             "event.button === 4",
             'stage.addEventListener("wheel"',
             "Math.min(8, Math.max(0.1",
             'viewer.addEventListener("contextmenu"',
             "card.ondblclick",
-            "void applyAndGenerate(item)",
+            "openLargePreview(item)",
+            "No saved preview yet. Use Generate + save preview or Add image.",
             "z-index:5",
         ):
             self.assertIn(marker, browser)

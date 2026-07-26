@@ -1,5 +1,23 @@
 # NovoLoko Changelog
 
+## v3.7.0 — Workflow controls, visual-library browsing and offline voice safety
+
+- Adds a compact `NovoLoko Control Panel` with independent TTS and Prompt
+  Enhancer switches while preserving every existing node contract.
+- Lets the standalone **Styles** browser choose any packaged CSV/YAML library
+  without exposing absolute paths.
+- Adds 4, 9, 24 and 50-card page sizes and remembers the selected amount.
+- Fills square cards edge-to-edge; double-click opens the uncropped large
+  viewer instead of starting generation.
+- Makes right-click consistently leave the current browser or large-viewer
+  screen, while mouse 4/5 remains Previous/Next navigation.
+- Stops owned preview generation when its browser closes.
+- Makes the Seed Lab manual random action prominent while retaining Fixed,
+  Random Every Queue, After-run control and 20-seed history.
+- Allows saved OmniLoko preset identities to pass ComfyUI validation while
+  offline, so disabled/Off mode stays silent and enabled mode can auto-start
+  OmniLoko before resolving the preset.
+
 ## v3.6.3 — Visual-browser interaction controls
 
 - Adds an explicit **Refresh** action for reloading CSV/YAML entries and saved previews without reopening the browser.

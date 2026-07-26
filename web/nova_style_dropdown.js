@@ -6,6 +6,7 @@ const MAX_GENERATED_PREVIEW_BYTES = 32 * 1024 * 1024;
 const GENERATED_PREVIEW_TIMEOUT_MS = 30 * 60 * 1000;
 const LAUNCHER_POSITION_KEY = "novoloko.styleBrowserLauncher.v1";
 const BROWSER_SETTINGS_KEY = "novoloko.styleBrowserSettings.v1";
+const STANDALONE_LIBRARY_KEY = "novoloko.styleBrowserLibrary.v1";
 let standaloneBrowser = null;
 const previewBatchSession = {
     running: false,
@@ -23,7 +24,7 @@ function readBrowserSettings() {
     const defaults = {
         autoOpenGenerated: true,
         wrapViewerNavigation: true,
-        rightClickClosesViewer: true,
+        itemsPerPage: 24,
     };
     try {
         return { ...defaults, ...JSON.parse(localStorage.getItem(BROWSER_SETTINGS_KEY) || "{}") };
@@ -101,6 +102,33 @@ async function fetchStyles(node, nodeData, overrides = {}) {
         throw new Error(`Style library returned HTTP ${response.status}`);
     }
     if (!response.ok || !data?.ok) throw new Error(data?.error || `Style library returned HTTP ${response.status}`);
+    return data;
+}
+
+function storedStandaloneLibrary() {
+    try {
+        return String(localStorage.getItem(STANDALONE_LIBRARY_KEY) || DEFAULT_STANDALONE_LIBRARY);
+    } catch {
+        return DEFAULT_STANDALONE_LIBRARY;
+    }
+}
+
+function saveStandaloneLibrary(value) {
+    try {
+        localStorage.setItem(STANDALONE_LIBRARY_KEY, String(value || DEFAULT_STANDALONE_LIBRARY));
+    } catch {
+        // The selected library remains active for this page.
+    }
+}
+
+async function fetchStyleLibraries() {
+    const response = await api.fetchApi("/nova_styles_csv_pro/libraries", {
+        cache: "no-store",
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || `Library list returned HTTP ${response.status}`);
+    }
     return data;
 }
 
@@ -193,14 +221,14 @@ function ensureBrowserStyles() {
         .nova-style-controls input,.nova-style-controls select,.nova-style-browser button{border:1px solid #3b4251;border-radius:9px;background:#252a34;color:#f5f7ff;padding:9px 11px;font:inherit}
         .nova-style-browser button{cursor:pointer;font-weight:700}.nova-style-browser button:hover{border-color:#7b9cff;background:#30394b}.nova-style-browser button.active{background:#315fcf;border-color:#73a0ff}
         .nova-style-content{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;min-height:0;flex:1}
-        .nova-style-grid{padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));grid-auto-rows:190px;gap:12px;overflow:auto;align-content:start;background:#11141a}
+        .nova-style-grid{padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));grid-auto-rows:auto;gap:12px;overflow:auto;align-content:start;background:#11141a}
         .nova-style-grid.list{grid-template-columns:1fr;grid-auto-rows:92px}
         .nova-style-card{position:relative;display:flex;flex-direction:column;padding:0;overflow:hidden;text-align:left;border:1px solid #3b4251;border-radius:12px;background:#242934;color:#f5f7ff;cursor:pointer}
         .nova-style-card:hover,.nova-style-card:focus{outline:none;border-color:#7b9cff;background:#30394b}
         .nova-style-card.selected{border:2px solid #6ca1ff!important;box-shadow:0 0 0 3px #2865d755}
-        .nova-style-swatch{height:112px;position:relative;flex:none}.nova-style-grid.list .nova-style-card{display:grid;grid-template-columns:144px 1fr}.nova-style-grid.list .nova-style-swatch{height:100%}
+        .nova-style-swatch{width:100%;height:auto;aspect-ratio:1/1;position:relative;flex:none}.nova-style-grid.list .nova-style-card{display:grid;grid-template-columns:144px 1fr}.nova-style-grid.list .nova-style-swatch{width:auto;height:100%;aspect-ratio:auto}
         .nova-style-swatch:after{content:"";position:absolute;inset:12%;border:1px solid #ffffff38;border-radius:50% 22% 50% 28%;transform:rotate(-14deg);box-shadow:inset 0 0 24px #fff2}
-        .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0b0d12;z-index:1}
+        .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b0d12;z-index:1}
         .nova-style-card-copy{padding:9px 10px;min-width:0}.nova-style-card-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-style-card-category{color:#9fabbd;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .nova-style-star{position:absolute;right:7px;top:7px;z-index:5;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111e!important;font-size:17px!important;box-shadow:0 2px 10px #000b}.nova-style-star.on{color:#ffd45a}
         .nova-style-detail{border-left:1px solid #303541;background:#1b1f27;padding:18px;overflow:auto}.nova-style-detail h3{font-size:18px;margin:0 0 5px}.nova-style-detail .category{color:#8baeff;margin-bottom:16px}.nova-style-detail .label{color:#8f9bb0;text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.8px;margin-top:15px}.nova-style-detail .text{white-space:pre-wrap;color:#d5dbea;margin-top:5px}
@@ -442,9 +470,12 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         standaloneBrowser?.remove();
     }
 
+    const browserSettings = readBrowserSettings();
     const state = {
         page: 1,
-        pageSize: 24,
+        pageSize: [4, 9, 24, 50].includes(Number(browserSettings?.itemsPerPage))
+            ? Number(browserSettings.itemsPerPage)
+            : 24,
         search: String(options.search ?? widget(node, "search")?.value ?? ""),
         category: String(options.category ?? widget(node, "category")?.value ?? "All"),
         favoritesOnly: false,
@@ -453,12 +484,15 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         selected: null,
         data: null,
         browserOnly: true,
-        csv: String(options.csv ?? widget(node, "csv_file_path")?.value ?? DEFAULT_STANDALONE_LIBRARY),
+        csv: String(
+            options.csv
+            ?? widget(node, "csv_file_path")?.value
+            ?? (options.standalone ? storedStandaloneLibrary() : DEFAULT_STANDALONE_LIBRARY)
+        ),
         kind: String(options.kind || (isCharacterLoader(nodeData) ? "characters" : "styles")),
         previewSize: Number(options.previewSize || 512) === 1024 ? 1024 : 512,
         generating: false,
     };
-    const browserSettings = readBrowserSettings();
     const favoriteKind = state.kind;
 
     const overlay = document.createElement("div");
@@ -485,6 +519,13 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     search.placeholder = "Search style names and prompt text…";
     search.value = state.search;
     const category = document.createElement("select");
+    const library = document.createElement("select");
+    library.title = "Choose an installed NovoLoko CSV/YAML library";
+    library.hidden = !options.standalone;
+    const loadingLibrary = document.createElement("option");
+    loadingLibrary.value = state.csv;
+    loadingLibrary.textContent = "Library file: loading…";
+    library.append(loadingLibrary);
     const refresh = document.createElement("button");
     refresh.textContent = "↻ Refresh";
     refresh.title = "Reload this CSV/YAML and its saved preview images";
@@ -505,12 +546,34 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         previewSize.append(option);
     }
     previewSize.value = String(state.previewSize);
+    const pageSize = document.createElement("select");
+    pageSize.title = "Styles shown per page";
+    for (const amount of [4, 9, 24, 50]) {
+        const option = document.createElement("option");
+        option.value = String(amount);
+        option.textContent = `${amount} per page`;
+        pageSize.append(option);
+    }
+    pageSize.value = String(state.pageSize);
     const generateAll = document.createElement("button");
     generateAll.textContent = "Generate all missing";
     generateAll.title = "Run the current workflow once for every style in this CSV/YAML that does not yet have a preview";
     const settingsButton = document.createElement("button");
     settingsButton.textContent = "⚙ Options";
-    controls.append(search, category, refresh, favorites, history, random, view, previewSize, generateAll, settingsButton);
+    controls.append(
+        library,
+        search,
+        category,
+        refresh,
+        favorites,
+        history,
+        random,
+        view,
+        pageSize,
+        previewSize,
+        generateAll,
+        settingsButton,
+    );
 
     const content = document.createElement("div");
     content.className = "nova-style-content";
@@ -518,7 +581,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     grid.className = "nova-style-grid";
     const detail = document.createElement("aside");
     detail.className = "nova-style-detail";
-    detail.innerHTML = "<h3>Select a style</h3><div class='text'>Click a card to select it. Double-click to run that style when no preview is already generating.</div>";
+    detail.innerHTML = "<h3>Select a style</h3><div class='text'>Click a card to select it. Double-click a saved image to open the large viewer. Use Generate + save preview when an image is missing.</div>";
     content.append(grid, detail);
 
     const foot = document.createElement("footer");
@@ -548,7 +611,6 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     }
     addSetting("Open preview after a single generated style", "autoOpenGenerated");
     addSetting("Wrap Previous/Next at the ends", "wrapViewerNavigation");
-    addSetting("Right-click closes the large viewer", "rightClickClosesViewer");
     dialog.append(settingsPanel);
     overlay.append(dialog);
     document.body.append(overlay);
@@ -567,6 +629,12 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     syncBatchControls(previewBatchSession);
 
     const closeBrowser = () => {
+        if (
+            previewBatchSession.running
+            && previewBatchSession.library === state.csv
+        ) {
+            void requestPreviewStop();
+        }
         previewBatchSession.listeners.delete(syncBatchControls);
         if (node?.__novaStyleBrowser === overlay) node.__novaStyleBrowser = null;
         if (standaloneBrowser === overlay) standaloneBrowser = null;
@@ -579,6 +647,11 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     });
     overlay.addEventListener("keydown", (event) => {
         if (event.key === "Escape") closeBrowser();
+    });
+    dialog.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeBrowser();
     });
     dialog.addEventListener("pointerdown", (event) => {
         if (event.button === 3 || event.button === 4) event.preventDefault();
@@ -1000,7 +1073,6 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             }
         });
         viewer.addEventListener("contextmenu", (event) => {
-            if (!browserSettings.rightClickClosesViewer) return;
             event.preventDefault();
             event.stopPropagation();
             closeLargePreview();
@@ -1193,11 +1265,12 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             };
             card.ondblclick = (event) => {
                 event.preventDefault();
-                if (previewBatchSession.running || state.generating) {
-                    status.textContent = "A preview is already generating. Stop it or wait before running another style.";
-                    return;
+                event.stopPropagation();
+                if (item.preview_url) {
+                    openLargePreview(item);
+                } else {
+                    status.textContent = "No saved preview yet. Use Generate + save preview or Add image.";
                 }
-                void applyAndGenerate(item);
             };
             card.onkeydown = (event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -1339,12 +1412,65 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     previewSize.onchange = () => {
         state.previewSize = Number(previewSize.value) === 1024 ? 1024 : 512;
     };
+    pageSize.onchange = () => {
+        state.pageSize = [4, 9, 24, 50].includes(Number(pageSize.value))
+            ? Number(pageSize.value)
+            : 24;
+        state.page = 1;
+        browserSettings.itemsPerPage = state.pageSize;
+        saveBrowserSettings(browserSettings);
+        void load();
+    };
+    library.onchange = () => {
+        state.csv = library.value || DEFAULT_STANDALONE_LIBRARY;
+        state.page = 1;
+        state.search = "";
+        state.category = "All";
+        state.favoritesOnly = false;
+        state.historyOnly = false;
+        state.selected = null;
+        search.value = "";
+        favorites.classList.remove("active");
+        history.classList.remove("active");
+        saveStandaloneLibrary(state.csv);
+        void load();
+    };
     generateAll.onclick = () => {
         if (previewBatchSession.running) void requestPreviewStop();
         else void generateWholeLibrary();
     };
 
+    async function populateLibraryChoices() {
+        if (!options.standalone) return;
+        try {
+            const data = await fetchStyleLibraries();
+            const choices = Array.isArray(data.libraries) ? data.libraries : [];
+            library.replaceChildren();
+            for (const item of choices) {
+                const option = document.createElement("option");
+                option.value = String(item.path || "");
+                option.textContent = `${item.group || "library"} · ${item.name || item.path}`;
+                library.append(option);
+            }
+            const paths = choices.map((item) => String(item.path || ""));
+            if (!paths.includes(state.csv)) {
+                state.csv = paths.includes(String(data.default || ""))
+                    ? String(data.default)
+                    : (paths[0] || DEFAULT_STANDALONE_LIBRARY);
+            }
+            library.value = state.csv;
+            saveStandaloneLibrary(state.csv);
+            state.page = 1;
+            await load();
+        } catch (error) {
+            library.replaceChildren(loadingLibrary);
+            loadingLibrary.textContent = "Library file list unavailable";
+            status.textContent = String(error?.message || "Library file list unavailable");
+        }
+    }
+
     overlay.focus();
+    if (options.standalone) void populateLibraryChoices();
     void load();
 }
 
@@ -1446,7 +1572,7 @@ function installStandaloneLauncher() {
         }
         openStyleBrowser(null, {}, {
             standalone: true,
-            csv: DEFAULT_STANDALONE_LIBRARY,
+            csv: storedStandaloneLibrary(),
             kind: "styles",
             title: "NovoLoko Standalone Style Browser",
         });
@@ -1460,7 +1586,7 @@ function installStandaloneLauncher() {
 }
 
 app.registerExtension({
-    name: "NovoLoko.CSVStyleVisualLibrary.v363",
+    name: "NovoLoko.CSVStyleVisualLibrary.v370",
     setup() {
         installStandaloneLauncher();
     },
