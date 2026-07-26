@@ -1,5 +1,18 @@
 # NovoLoko Changelog
 
+## v3.9.2 — Compare, style viewer, and OmniLoko launch polish
+
+- Matches Media Studio's split controls: **Guide** shows or hides only the
+  draggable handle, while **Line** independently controls divider transparency
+  in both the node preview and full-screen Compare Studio.
+- Keeps the source point under the mouse while zooming a large style preview.
+- Adds **Generate new** inside the large style viewer to run and replace the
+  currently displayed preview.
+- Starts execution-triggered OmniLoko instances hidden and adds a non-serialized
+  **Open OmniLoko** button to the Voice TTS node.
+- Preserves manually enlarged Voice TTS node dimensions while accommodating the
+  new button.
+
 ## v3.9.1 — Style workflow and comparison controls
 
 - Remembers the last 512 or 1024 style-preview size across browser sessions and

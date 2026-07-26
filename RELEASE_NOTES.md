@@ -1,26 +1,25 @@
-# NovoLoko v3.9.1
+# NovoLoko v3.9.2
 
-This patch release improves the NovoLoko style, seed and image-comparison
-workflow in ComfyUI Desktop:
+This patch release completes the requested Compare Studio, style-viewer and
+OmniLoko launch behavior in ComfyUI Desktop:
 
-- remembers the last 512 or 1024 style-preview generation size after the visual
-  library closes and reopens
-- displays each saved preview's actual pixel size in the lower-right corner of
-  its card
-- opens the visual CSV/YAML style library directly from Manual Prompt and lets
-  that node apply styles from either file type
-- makes **Manual Random Seed** generate a new fixed seed and immediately queue
-  the workflow
-- adds **Fixed Seed Run** to queue the workflow with the currently displayed
-  seed
-- fixes Compare Studio's Guide toggle and line-transparency control in both the
-  node preview and full-screen composition
-- preserves saved and manually resized node dimensions, including removal of a
-  legacy Seed Lab auto-shrink rule
+- makes Compare Studio match Media Studio by keeping the split divider and
+  draggable guide handle independent
+- makes **Guide On/Off** control only the handle and **Line** control only
+  divider transparency in both node and full-screen views
+- zooms large style previews toward the mouse pointer instead of the viewer
+  centre
+- adds **Generate new** inside the large style viewer to regenerate and replace
+  the displayed preview
+- starts OmniLoko hidden when a TTS execution needs its bridge, preventing the
+  app from covering ComfyUI on every run
+- adds a non-serialized **Open OmniLoko** button to the Voice TTS node for
+  explicitly opening or restoring the desktop app
+- preserves manually enlarged Voice TTS and Compare Studio node dimensions
 
 All 34 serialized node IDs, inputs, outputs, socket order and widget order remain
 unchanged. The supplied workflow files contain no personal prompt, media,
 preview, seed-history or Compare Studio runtime state.
 
 Close and restart ComfyUI Desktop completely after installing the update so its
-embedded frontend loads the new NovoLoko scripts.
+embedded frontend and Python routes load the new NovoLoko files.

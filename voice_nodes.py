@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
-NOVA_VOICE_VERSION = "3.9.1"
+NOVA_VOICE_VERSION = "3.9.2"
 
 _MODEL_CACHE: Dict[Tuple[str, str, str], Any] = {}
 _MODEL_LOCK = threading.Lock()
@@ -1541,6 +1541,19 @@ try:
             "omniloko": _voice_options(force_refresh=True),
             "kokoro": list(KOKORO_VOICES),
         })
+
+    @PromptServer.instance.routes.post("/nova_voice/open_omniloko")
+    async def nova_voice_open_omniloko(request):
+        try:
+            from .omniloko_autostart import open_visible
+
+            path = await asyncio.to_thread(open_visible)
+            return web.json_response({"ok": True, "path": path})
+        except Exception as exc:
+            return web.json_response(
+                {"ok": False, "error": str(exc) or "OmniLoko could not be opened."},
+                status=500,
+            )
 
     @PromptServer.instance.routes.post("/nova_voice/audio/delete")
     async def nova_voice_audio_delete(request):

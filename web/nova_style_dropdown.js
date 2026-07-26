@@ -813,7 +813,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         }
     }
 
-    async function applyAndGenerate(item, batchPosition = "", isBatch = false) {
+    async function applyAndGenerate(item, batchPosition = "", isBatch = false, suppressAutoOpen = false) {
         const ownsSession = !isBatch;
         if (state.generating || (ownsSession && previewBatchSession.running)) {
             const message = "A style preview is already generating. Stop it or wait for it to finish.";
@@ -858,7 +858,9 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             updateVisiblePreview(item);
             renderCards();
             setGenerationStatus(`${batchPosition}Generated and saved ${result.size}×${result.size} preview`);
-            if (!isBatch && browserSettings.autoOpenGenerated) openLargePreview(item);
+            if (!isBatch && !suppressAutoOpen && browserSettings.autoOpenGenerated) {
+                openLargePreview(item);
+            }
             return { ok: true };
         } catch (error) {
             const message = String(error?.message || "Preview generation failed");
@@ -1000,6 +1002,9 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         previous.textContent = "← Previous";
         const next = document.createElement("button");
         next.textContent = "Next →";
+        const generateNew = document.createElement("button");
+        generateNew.textContent = "Generate new";
+        generateNew.title = "Run the current workflow and replace this saved style preview";
         const zoomOut = document.createElement("button");
         zoomOut.textContent = "Zoom −";
         const zoomLabel = document.createElement("span");
@@ -1042,15 +1047,32 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 sizeToggle.textContent = "Fit to window";
             }
         }
-        function setZoom(multiplier) {
+        function setZoom(multiplier, clientX = null, clientY = null) {
             if (!image.naturalWidth) return;
+            const stageRect = stage.getBoundingClientRect();
+            const before = image.getBoundingClientRect();
+            const anchorX = Number.isFinite(clientX)
+                ? Math.max(stageRect.left, Math.min(stageRect.right, clientX))
+                : stageRect.left + stageRect.width / 2;
+            const anchorY = Number.isFinite(clientY)
+                ? Math.max(stageRect.top, Math.min(stageRect.bottom, clientY))
+                : stageRect.top + stageRect.height / 2;
+            const sourceX = before.width > 0
+                ? Math.max(0, Math.min(1, (anchorX - before.left) / before.width))
+                : 0.5;
+            const sourceY = before.height > 0
+                ? Math.max(0, Math.min(1, (anchorY - before.top) / before.height))
+                : 0.5;
             if (fitMode) {
-                const fittedWidth = Math.max(1, image.getBoundingClientRect().width);
+                const fittedWidth = Math.max(1, before.width);
                 zoom = fittedWidth / image.naturalWidth;
             }
             fitMode = false;
             zoom = Math.min(32, Math.max(0.05, zoom * multiplier));
             applyView();
+            const after = image.getBoundingClientRect();
+            stage.scrollLeft += after.left + sourceX * after.width - anchorX;
+            stage.scrollTop += after.top + sourceY * after.height - anchorY;
         }
         function loadViewerItem(nextItem) {
             currentItem = nextItem;
@@ -1083,10 +1105,27 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         };
         zoomOut.onclick = () => setZoom(1 / 1.15);
         zoomIn.onclick = () => setZoom(1.15);
+        generateNew.onclick = async () => {
+            if (state.generating) return;
+            const original = generateNew.textContent;
+            generateNew.disabled = true;
+            generateNew.textContent = "Generating…";
+            try {
+                const result = await applyAndGenerate(currentItem, "", false, true);
+                if (result?.ok && viewer.isConnected) loadViewerItem(currentItem);
+            } finally {
+                generateNew.textContent = original;
+                generateNew.disabled = false;
+            }
+        };
         stage.addEventListener("wheel", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            setZoom(event.deltaY < 0 ? 1.15 : 1 / 1.15);
+            setZoom(
+                event.deltaY < 0 ? 1.15 : 1 / 1.15,
+                event.clientX,
+                event.clientY,
+            );
         }, { passive: false });
         stage.addEventListener("pointerdown", (event) => {
             if (fitMode || (event.button !== 0 && event.button !== 1)) return;
@@ -1205,7 +1244,17 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         for (const eventName of ["pointerdown", "pointermove", "pointerup"]) {
             panel.addEventListener(eventName, (event) => event.stopPropagation());
         }
-        viewerHead.append(viewerTitle, previous, next, zoomOut, zoomLabel, zoomIn, sizeToggle, closeViewer);
+        viewerHead.append(
+            viewerTitle,
+            previous,
+            next,
+            generateNew,
+            zoomOut,
+            zoomLabel,
+            zoomIn,
+            sizeToggle,
+            closeViewer,
+        );
         stage.append(image);
         panel.append(viewerHead, stage);
         viewer.append(panel);

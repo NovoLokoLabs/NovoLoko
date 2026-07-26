@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.9.1
+# ComfyUI-NovoLoko v3.9.2
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI Desktop completely.
-5. Load `workflows/NovoLoko AIO v3.9.1 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v3.9.2 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,10 +22,10 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.9.1 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
-- `NovoLoko Compare Studio v3.9.1.json` — minimal image comparison example with theme-aware node chrome.
+- `NovoLoko AIO v3.9.2 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
+- `NovoLoko Compare Studio v3.9.2.json` — minimal image comparison example with theme-aware node chrome.
 
-The v3.9.1 frontend repairs corrupted punctuation in visible node and group
+The v3.9.2 frontend repairs corrupted punctuation in visible node and group
 titles whenever older workflows load while preserving serialized node IDs,
 sockets, widgets, links and prompt text.
 
@@ -64,7 +64,8 @@ keeps running after the browser is closed. Reopen the browser to see the same
 progress and **Stop generating** control, or use ComfyUI's normal Cancel action.
 The browser also provides explicit refresh, persistent convenience options,
 double-click large viewing, mouse 4/5 style navigation and a large viewer with
-wheel zoom up to 32×, drag panning, Previous/Next and right-click close.
+mouse-pointer-centred wheel zoom up to 32×, drag panning, Previous/Next,
+**Generate new**, and right-click close.
 
 Use **Open previews folder** to open managed preview storage in Windows Explorer.
 **Change preview folder…** accepts another absolute folder or restores the
@@ -113,7 +114,13 @@ ComfyUI Manager and normal runtime dependency installation install `lokobridge-c
 python -m pip install lokobridge-client==1.0.0
 ```
 
-Run that command with ComfyUI's own Python executable, not an unrelated system Python. When an actual OmniLoko TTS job is queued, NovoLoko opens the installed OmniLoko application automatically if its private bridge is not already running. After the final active request, NovoLoko closes only the OmniLoko process it started; an already-open user instance is left alone. Kokoro and Off mode never start OmniLoko; voice-list and schema refreshes remain passive.
+Run that command with ComfyUI's own Python executable, not an unrelated system
+Python. When an actual OmniLoko TTS job is queued, NovoLoko starts the installed
+OmniLoko application hidden if its private bridge is not already running. After
+the final active request, NovoLoko closes only the OmniLoko process it started;
+an already-open user instance is left alone. Use **Open OmniLoko** on the node
+when you want the app visible. Kokoro and Off mode never start OmniLoko;
+voice-list and schema refreshes remain passive.
 
 `NovoLoko Voice TTS` selects OmniLoko, Kokoro or Off without running the inactive backend and without cross-backend fallback. Advanced controls are hidden only in the frontend; all saved values remain serialized and the Python node works when frontend hiding is unavailable. **Refresh Voices** updates saved OmniLoko presets and packaged Kokoro voices in place without starting another worker. A removed preset stays visibly selected with a stale warning until you choose a replacement.
 
