@@ -32,7 +32,7 @@ except ImportError:
         style_key as _preview_style_key,
     )
 
-NOVA_VERSION = "3.7.0"
+NOVA_VERSION = "3.7.1"
 
 try:
     import folder_paths
@@ -41,6 +41,7 @@ except Exception:
 
 DEFAULT_CSV = "csv/styles/novoloko_krea2_styles_1455.csv"
 DEFAULT_CHARACTER_CSV = "csv/characters/novoloko_characters_master_1098.csv"
+DEFAULT_STANDALONE_LIBRARY = "styles/novoloko_all_yaml_styles.yaml"
 WEB_DIRECTORY = "./web"
 
 DEFAULT_NEGATIVE = (
@@ -2113,6 +2114,14 @@ def _style_library_choices():
     return sorted(choices, key=lambda item: (item["group"], item["path"].lower()))
 
 
+def _style_library_payload():
+    return {
+        "ok": True,
+        "libraries": _style_library_choices(),
+        "default": DEFAULT_STANDALONE_LIBRARY,
+    }
+
+
 # Optional frontend refresh endpoint. The node still works without this.
 try:
     from server import PromptServer
@@ -2143,11 +2152,7 @@ try:
 
     @PromptServer.instance.routes.get("/nova_styles_csv_pro/libraries")
     async def nova_styles_csv_pro_libraries(_request):
-        return web.json_response({
-            "ok": True,
-            "libraries": _style_library_choices(),
-            "default": DEFAULT_STANDALONE_LIBRARY,
-        })
+        return web.json_response(_style_library_payload())
 
     @PromptServer.instance.routes.get("/nova_favorites/list")
     async def nova_favorites_list(request):

@@ -1,5 +1,14 @@
 # NovoLoko Changelog
 
+## v3.7.1 — Standalone visual-library hotfix
+
+- Fixes the standalone **Styles** library selector endpoint failing during a
+  real ComfyUI session because its server-side default was not defined.
+- Adds an endpoint-payload regression test that confirms the default library is
+  package-relative, listed and resolvable without exposing a local path.
+- Keeps all 34 node IDs and every existing input, output, socket, widget and
+  workflow link unchanged.
+
 ## v3.7.0 — Workflow controls, visual-library browsing and offline voice safety
 
 - Adds a compact `NovoLoko Control Panel` with independent TTS and Prompt

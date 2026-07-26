@@ -89,6 +89,24 @@ class UiPolishTests(unittest.TestCase):
         )
         self.assertTrue(all(not Path(item["path"]).is_absolute() for item in choices))
 
+    def test_standalone_library_endpoint_payload_has_a_resolvable_safe_default(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            default = root / "styles/novoloko_all_yaml_styles.yaml"
+            default.parent.mkdir(parents=True)
+            default.write_text("styles: []\n", encoding="utf-8")
+            with (
+                mock.patch.object(self.nodes, "_node_dir", return_value=str(root)),
+                mock.patch.object(self.nodes, "_comfy_root", return_value=str(root / "comfy")),
+            ):
+                payload = self.nodes._style_library_payload()
+                resolved = Path(self.nodes._resolve_csv_path(payload["default"]))
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual("styles/novoloko_all_yaml_styles.yaml", payload["default"])
+        self.assertIn(payload["default"], [item["path"] for item in payload["libraries"]])
+        self.assertEqual(default, resolved)
+
     def test_prompt_stack_restores_saved_manual_size(self) -> None:
         source = (ROOT / "web/nova_prompt_stack_aio.js").read_text(encoding="utf-8")
 
