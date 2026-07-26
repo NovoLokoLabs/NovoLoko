@@ -32,7 +32,7 @@ except ImportError:
         style_key as _preview_style_key,
     )
 
-NOVA_VERSION = "3.7.1"
+NOVA_VERSION = "3.8.0"
 
 try:
     import folder_paths
@@ -2038,8 +2038,12 @@ def _style_browser_payload(
         by_name = {str(item.get("name") or ""): item for item in filtered}
         filtered = [by_name[name] for name in recent_names if name in by_name]
 
-    page_size = max(4, min(int(page_size or 24), 60))
     total = len(filtered)
+    requested_page_size = str(page_size or 24).strip().lower()
+    if requested_page_size in {"all", "0"}:
+        page_size = max(1, total)
+    else:
+        page_size = max(1, min(int(requested_page_size), 100))
     page_count = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(int(page or 1), page_count))
     start = (page - 1) * page_size

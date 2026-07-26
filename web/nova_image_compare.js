@@ -2676,6 +2676,16 @@ app.registerExtension({
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (String(nodeData?.name || "") !== "NovaImageComparePro") return;
 
+        const originalDrawBackground = nodeType.prototype.onDrawBackground;
+        nodeType.prototype.onDrawBackground = function (ctx) {
+            const theme = themeFor(nodeState(this));
+            ctx.save();
+            ctx.fillStyle = theme.panel;
+            ctx.fillRect(0, 0, Number(this.size?.[0] || 0), Number(this.size?.[1] || 0));
+            ctx.restore();
+            return originalDrawBackground?.apply(this, arguments);
+        };
+
         const originalCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const result = originalCreated?.apply(this, arguments);

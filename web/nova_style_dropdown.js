@@ -86,7 +86,7 @@ function browserParams(node, nodeData, overrides = {}) {
         favorites_only: String(Boolean(overrides.favoritesOnly)),
         history_only: String(Boolean(overrides.historyOnly)),
         page: String(overrides.page || 1),
-        page_size: String(overrides.pageSize || 24),
+        page_size: String(overrides.pageSize ?? 24),
         compact: String(Boolean(overrides.browserOnly)),
     });
 }
@@ -220,13 +220,13 @@ function ensureBrowserStyles() {
         .nova-style-controls{display:flex;flex-wrap:wrap;gap:9px;padding:13px 20px;border-bottom:1px solid #2c313c;background:#1d2129}.nova-style-controls input{flex:1 1 230px}.nova-style-controls select{flex:0 1 240px}
         .nova-style-controls input,.nova-style-controls select,.nova-style-browser button{border:1px solid #3b4251;border-radius:9px;background:#252a34;color:#f5f7ff;padding:9px 11px;font:inherit}
         .nova-style-browser button{cursor:pointer;font-weight:700}.nova-style-browser button:hover{border-color:#7b9cff;background:#30394b}.nova-style-browser button.active{background:#315fcf;border-color:#73a0ff}
-        .nova-style-content{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;min-height:0;flex:1}
-        .nova-style-grid{padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));grid-auto-rows:auto;gap:12px;overflow:auto;align-content:start;background:#11141a}
+        .nova-style-content{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;min-height:0;flex:1;overflow:hidden}
+        .nova-style-grid{padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));grid-auto-rows:max-content;gap:12px;overflow-x:hidden;overflow-y:auto;align-content:start;background:#11141a;scrollbar-gutter:stable}
         .nova-style-grid.list{grid-template-columns:1fr;grid-auto-rows:92px}
-        .nova-style-card{position:relative;display:flex;flex-direction:column;padding:0;overflow:hidden;text-align:left;border:1px solid #3b4251;border-radius:12px;background:#242934;color:#f5f7ff;cursor:pointer}
+        .nova-style-card{position:relative;display:flex;flex-direction:column;min-height:252px;padding:0;overflow:hidden;text-align:left;border:1px solid #3b4251;border-radius:12px;background:#242934;color:#f5f7ff;cursor:pointer}
         .nova-style-card:hover,.nova-style-card:focus{outline:none;border-color:#7b9cff;background:#30394b}
         .nova-style-card.selected{border:2px solid #6ca1ff!important;box-shadow:0 0 0 3px #2865d755}
-        .nova-style-swatch{width:100%;height:auto;aspect-ratio:1/1;position:relative;flex:none}.nova-style-grid.list .nova-style-card{display:grid;grid-template-columns:144px 1fr}.nova-style-grid.list .nova-style-swatch{width:auto;height:100%;aspect-ratio:auto}
+        .nova-style-swatch{width:100%;height:auto;aspect-ratio:1/1;position:relative;flex:none}.nova-style-grid.list .nova-style-card{display:grid;grid-template-columns:144px 1fr;min-height:92px}.nova-style-grid.list .nova-style-swatch{width:auto;height:100%;aspect-ratio:auto}
         .nova-style-swatch:after{content:"";position:absolute;inset:12%;border:1px solid #ffffff38;border-radius:50% 22% 50% 28%;transform:rotate(-14deg);box-shadow:inset 0 0 24px #fff2}
         .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b0d12;z-index:1}
         .nova-style-card-copy{padding:9px 10px;min-width:0}.nova-style-card-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-style-card-category{color:#9fabbd;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -406,14 +406,25 @@ async function downloadGeneratedImage(image) {
     });
 }
 
-function applyStandaloneStyle(item, csv) {
-    const compatible = graphNodes().filter((candidate) =>
+function compatibleStyleTargets() {
+    return graphNodes().filter((candidate) =>
         widget(candidate, "medium_selection") || widget(candidate, "style")
     );
+}
+
+function styleTargetLabel(target) {
+    const title = String(target?.title || target?.type || "NovoLoko style node").trim();
+    return `${title} · node ${target?.id ?? "?"}`;
+}
+
+function applyStandaloneStyle(item, csv, requestedTargetId = null) {
+    const compatible = compatibleStyleTargets();
     const selected = app.canvas?.current_node;
-    const target = compatible.includes(selected)
+    const requested = compatible.find((candidate) => String(candidate.id) === String(requestedTargetId));
+    const target = requested
+        || (compatible.includes(selected)
         ? selected
-        : (compatible.length === 1 ? compatible[0] : null);
+        : (compatible.length === 1 ? compatible[0] : null));
     if (!target) {
         throw new Error(
             "Open this browser from Prompt Stack or a Style Loader, or select the one target node before generating."
@@ -473,8 +484,8 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     const browserSettings = readBrowserSettings();
     const state = {
         page: 1,
-        pageSize: [4, 9, 24, 50].includes(Number(browserSettings?.itemsPerPage))
-            ? Number(browserSettings.itemsPerPage)
+        pageSize: [24, 50, 100, "all"].includes(browserSettings?.itemsPerPage)
+            ? browserSettings.itemsPerPage
             : 24,
         search: String(options.search ?? widget(node, "search")?.value ?? ""),
         category: String(options.category ?? widget(node, "category")?.value ?? "All"),
@@ -526,6 +537,9 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     loadingLibrary.value = state.csv;
     loadingLibrary.textContent = "Library file: loading…";
     library.append(loadingLibrary);
+    const targetNode = document.createElement("select");
+    targetNode.title = "Choose which Prompt Stack or Style Loader receives standalone selections";
+    targetNode.hidden = !options.standalone;
     const refresh = document.createElement("button");
     refresh.textContent = "↻ Refresh";
     refresh.title = "Reload this CSV/YAML and its saved preview images";
@@ -548,10 +562,10 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     previewSize.value = String(state.previewSize);
     const pageSize = document.createElement("select");
     pageSize.title = "Styles shown per page";
-    for (const amount of [4, 9, 24, 50]) {
+    for (const amount of [24, 50, 100, "all"]) {
         const option = document.createElement("option");
         option.value = String(amount);
-        option.textContent = `${amount} per page`;
+        option.textContent = amount === "all" ? "All styles" : `${amount} per page`;
         pageSize.append(option);
     }
     pageSize.value = String(state.pageSize);
@@ -562,6 +576,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     settingsButton.textContent = "⚙ Options";
     controls.append(
         library,
+        targetNode,
         search,
         category,
         refresh,
@@ -720,7 +735,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             if (previewBatchSession.running) publishBatchStatus(message);
         };
         try {
-            if (options.standalone) applyStandaloneStyle(item, state.csv);
+            if (options.standalone) applyStandaloneStyle(item, state.csv, targetNode.value);
             else applySelection(item);
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             setGenerationStatus(`${batchPosition}Queueing ${item.clean_name || item.name} with the current workflow…`);
@@ -774,7 +789,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             favoritesOnly: false,
             historyOnly: false,
             page: 1,
-            pageSize: 60,
+            pageSize: 100,
         };
         const first = await fetchStyles(node, nodeData, overrides);
         const items = [...(first.items || [])];
@@ -1413,9 +1428,9 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         state.previewSize = Number(previewSize.value) === 1024 ? 1024 : 512;
     };
     pageSize.onchange = () => {
-        state.pageSize = [4, 9, 24, 50].includes(Number(pageSize.value))
-            ? Number(pageSize.value)
-            : 24;
+        state.pageSize = pageSize.value === "all"
+            ? "all"
+            : ([24, 50, 100].includes(Number(pageSize.value)) ? Number(pageSize.value) : 24);
         state.page = 1;
         browserSettings.itemsPerPage = state.pageSize;
         saveBrowserSettings(browserSettings);
@@ -1434,6 +1449,22 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         history.classList.remove("active");
         saveStandaloneLibrary(state.csv);
         void load();
+    };
+    targetNode.onchange = () => {
+        const target = compatibleStyleTargets().find(
+            (candidate) => String(candidate.id) === String(targetNode.value)
+        );
+        if (!target) {
+            status.textContent = "Select a Prompt Stack or Style Loader before generating.";
+            return;
+        }
+        const file = widget(target, widget(target, "medium_selection") ? "medium_file_path" : "csv_file_path");
+        if (file) {
+            file.value = state.csv;
+            file.callback?.(state.csv);
+            markDirty(target);
+        }
+        status.textContent = `${state.data?.file_name || "Library"} assigned to ${styleTargetLabel(target)}`;
     };
     generateAll.onclick = () => {
         if (previewBatchSession.running) void requestPreviewStop();
@@ -1469,8 +1500,32 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         }
     }
 
+    function populateTargetChoices() {
+        if (!options.standalone) return;
+        const choices = compatibleStyleTargets();
+        const current = app.canvas?.current_node;
+        targetNode.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = choices.length
+            ? "Choose workflow target…"
+            : "No Prompt Stack or Style Loader found";
+        targetNode.append(placeholder);
+        for (const target of choices) {
+            const option = document.createElement("option");
+            option.value = String(target.id);
+            option.textContent = styleTargetLabel(target);
+            targetNode.append(option);
+        }
+        if (choices.includes(current)) targetNode.value = String(current.id);
+        else if (choices.length === 1) targetNode.value = String(choices[0].id);
+    }
+
     overlay.focus();
-    if (options.standalone) void populateLibraryChoices();
+    if (options.standalone) {
+        populateTargetChoices();
+        void populateLibraryChoices();
+    }
     void load();
 }
 

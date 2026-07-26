@@ -71,6 +71,105 @@ class HighConfidenceFixTests(unittest.TestCase):
             "NovaPromptStyleSwitch",
         )
 
+    def test_migration_repairs_repeated_utf8_mojibake_without_rewriting_normal_text(self) -> None:
+        migration = load_script(
+            "novoloko_migration_mojibake_test",
+            "tools/migrate_workflow_to_novoloko.py",
+        )
+        damaged = "PASS 2 Ã¢â‚¬â€ UPSCALE Ã¢â‚¬Â¢ READY"
+        self.assertEqual(
+            "PASS 2 — UPSCALE • READY",
+            migration.repair_mojibake_text(damaged),
+        )
+        self.assertEqual(
+            "Nova Scotia — unchanged",
+            migration.repair_mojibake_text("Nova Scotia — unchanged"),
+        )
+
+    def test_migration_removes_compare_only_serialized_theme_colours(self) -> None:
+        migration = load_script(
+            "novoloko_migration_compare_theme_test",
+            "tools/migrate_workflow_to_novoloko.py",
+        )
+        workflow = {
+            "nodes": [
+                {
+                    "type": "NovaImageComparePro",
+                    "color": "#24415f",
+                    "bgcolor": "#315f8f",
+                    "boxcolor": "#123456",
+                },
+                {
+                    "type": "NovaSeedLab",
+                    "color": "#00ff00",
+                    "bgcolor": "#003300",
+                },
+            ]
+        }
+        migrated = migration.update(workflow)
+        compare, seed = migrated["nodes"]
+        self.assertNotIn("color", compare)
+        self.assertNotIn("bgcolor", compare)
+        self.assertNotIn("boxcolor", compare)
+        self.assertEqual("#00ff00", seed["color"])
+        self.assertEqual("#003300", seed["bgcolor"])
+
+    def test_release_cleanup_removes_only_personal_runtime_state(self) -> None:
+        migration = load_script(
+            "novoloko_release_runtime_cleanup_test",
+            "tools/migrate_workflow_to_novoloko.py",
+        )
+        workflow = {
+            "nodes": [
+                {
+                    "type": "NovaImageComparePro",
+                    "properties": {
+                        "novaCompareTheme": "Charcoal",
+                        "novaCompareImageRefs": [{"filename": "temp.png"}],
+                        "novaCompareInfo": {"label_a": "private"},
+                    },
+                },
+                {
+                    "type": "NovaGenerationTimer",
+                    "properties": {
+                        "novaTimerHistory": [1000, 2000],
+                        "novaTimerLastMs": 2000,
+                        "novaTimerOutcome": "DONE",
+                        "novaTimer_sound": "Custom: 01 Timer/done.mp3",
+                    },
+                },
+                {
+                    "type": "NovaSeedLab",
+                    "properties": {
+                        "novaLastSeed": "123",
+                        "novaSeedHistory": ["123"],
+                        "novaSelectedSeed": "123",
+                        "novaSeedHistoryMenu": "floating dark menu v3.2.6",
+                    },
+                },
+                {
+                    "type": "NovaVoiceEngineTTS",
+                    "properties": {"engine": "OmniLoko"},
+                    "widgets_values": ["text", "OmniLoko", True, "Private preset"],
+                },
+            ]
+        }
+        cleaned = migration.clean_release_runtime_state(workflow)
+        compare, timer, seed, voice = cleaned["nodes"]
+        compare = compare["properties"]
+        timer = timer["properties"]
+        seed = seed["properties"]
+        self.assertEqual({"novaCompareTheme": "Charcoal"}, compare)
+        self.assertEqual({"novaTimer_sound": "Custom: 01 Timer/done.mp3"}, timer)
+        self.assertEqual(
+            {"novaSeedHistoryMenu": "floating dark menu v3.2.6"},
+            seed,
+        )
+        self.assertEqual(
+            "Current OmniLoko Profile",
+            voice["widgets_values"][3],
+        )
+
     def test_javascript_validator_uses_es_module_mode(self) -> None:
         validator = load_script(
             "novoloko_validator_test",

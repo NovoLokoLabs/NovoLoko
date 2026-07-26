@@ -9,11 +9,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RepositoryTests(unittest.TestCase):
     def test_manifest_brand_and_package(self) -> None:
-        manifest = json.loads((ROOT / "NovoLoko_v3.7.1_manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "NovoLoko_v3.8.0_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["brand"], "NovoLoko")
         self.assertEqual(manifest["package"], "ComfyUI-NovoLoko")
         self.assertEqual(manifest["registered_node_count"], len(manifest["registered_nodes"]))
         self.assertEqual(len(manifest["registered_nodes"]), len(set(manifest["registered_nodes"])))
+        self.assertEqual(498, manifest["timer_sounds"]["playable_file_count"])
+        self.assertEqual("data/NovoLokoTimerSounds", manifest["timer_sounds"]["path"])
 
     def test_required_project_files_exist(self) -> None:
         required = [
@@ -69,6 +71,46 @@ class RepositoryTests(unittest.TestCase):
             with self.subTest(workflow=workflow.name):
                 self.assertIn("NovoLoko", workflow.name)
                 json.loads(workflow.read_text(encoding="utf-8"))
+
+    def test_timer_sound_pack_is_release_owned_and_playable(self) -> None:
+        sounds = ROOT / "data/NovoLokoTimerSounds"
+        self.assertTrue(sounds.is_dir())
+        audio = [
+            path for path in sounds.rglob("*")
+            if path.is_file() and path.suffix.lower() in {".wav", ".mp3"}
+        ]
+        self.assertEqual(498, len(audio))
+        self.assertTrue((sounds / "README - Install and Folder Map.txt").is_file())
+        source = (ROOT / "nova_core_nodes.py").read_text(encoding="utf-8")
+        self.assertIn('"data", "NovoLokoTimerSounds"', source)
+        self.assertNotIn("get_input_directory()", source[source.index("def _nova_timer_sound_dir"):source.index("def _safe_timer_sound_filename")])
+
+    def test_v380_workflow_has_clean_visible_text_and_no_personal_runtime_state(self) -> None:
+        path = ROOT / "workflows/NovoLoko AIO v3.8.0 - Latest Workflow.json"
+        text = path.read_text(encoding="utf-8")
+        workflow = json.loads(text)
+        self.assertEqual(39, len(workflow["nodes"]))
+        self.assertEqual(71, len(workflow["links"]))
+        for marker in ("Ã", "Â", "â€", "â‚", "ðŸ"):
+            with self.subTest(marker=marker):
+                self.assertNotIn(marker, text)
+        compare = next(
+            node for node in workflow["nodes"]
+            if node["type"] == "NovaImageComparePro"
+        )
+        timer = next(
+            node for node in workflow["nodes"]
+            if node["type"] == "NovaGenerationTimer"
+        )
+        seed = next(
+            node for node in workflow["nodes"]
+            if node["type"] == "NovaSeedLab"
+        )
+        for colour in ("color", "bgcolor", "boxcolor"):
+            self.assertNotIn(colour, compare)
+        self.assertNotIn("novaCompareImageRefs", compare["properties"])
+        self.assertNotIn("novaTimerHistory", timer["properties"])
+        self.assertNotIn("novaSeedHistory", seed["properties"])
 
 
 if __name__ == "__main__":

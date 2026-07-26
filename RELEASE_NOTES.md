@@ -1,21 +1,21 @@
-# NovoLoko v3.7.1
+# NovoLoko v3.8.0
 
-This hotfix repairs the installed-library selector in the standalone
-**🎨 Styles** browser. The server now exposes its package-relative default
-library correctly during a real ComfyUI session.
+This release focuses on readable workflows and consistent UI sizing:
 
-It retains all v3.7.0 improvements:
+- style cards keep a useful square size and scroll on 24, 50, 100 or All pages
+- standalone Styles browsing can target the intended Prompt Stack or Style
+  Loader when switching CSV/YAML libraries
+- every NovoLoko node can be manually resized to a smaller minimum without
+  overwriting saved dimensions
+- Compare Studio uses its selected frontend theme instead of stale blue
+  workflow colours
+- visible node and group-title mojibake is repaired in the current workflow
+- 498 organized completion sounds are bundled for Generation Timer under
+  `data/NovoLokoTimerSounds`
+- AIO and Compare Studio workflows are refreshed for v3.8.0
 
-- square, edge-to-edge style previews and an uncropped large viewer
-- double-click to view larger, consistent right-click exit and mouse 4/5
-  navigation
-- selectable 4, 9, 24 or 50-card pages
-- installed CSV/YAML selection in the movable standalone Styles browser
-- the compact NovoLoko TTS/Enhancer Control Panel
-- Seed Lab manual random, fixed, after-run and recent-seed conveniences
-- silent disabled/Off TTS and OmniLoko auto-start for enabled speech
+All 34 serialized node IDs, inputs, outputs, socket order and widget order are
+unchanged. The cleaned AIO workflow preserves its existing links.
 
-All 34 node IDs, inputs, outputs, socket order, widget order and existing
-workflow links remain unchanged.
-
-Run the NovoLokoLabs updater, restart ComfyUI completely, then press `Ctrl+F5`.
+Close ComfyUI, run the NovoLokoLabs updater, restart ComfyUI completely and
+press `Ctrl+F5`.
