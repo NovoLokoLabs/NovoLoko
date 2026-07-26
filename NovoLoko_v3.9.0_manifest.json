@@ -1,5 +1,5 @@
 {
-  "version": "3.8.0",
+  "version": "3.9.0",
   "brand": "NovoLoko",
   "package": "ComfyUI-NovoLoko",
   "registered_node_count": 34,
@@ -40,9 +40,14 @@
     "NovaTextDisplay"
   ],
   "workflows": [
-    "workflows/NovoLoko AIO v3.8.0 - Latest Workflow.json",
-    "workflows/NovoLoko Compare Studio v3.8.0.json"
+    "workflows/NovoLoko AIO v3.9.0 - Latest Workflow.json",
+    "workflows/NovoLoko Compare Studio v3.9.0.json"
   ],
+  "style_libraries": {
+    "csv_yaml_file_count": 76,
+    "uploaded_medium_style_count": 397,
+    "categorized_wildcard_collections": 9
+  },
   "timer_sounds": {
     "path": "data/NovoLokoTimerSounds",
     "playable_file_count": 498,

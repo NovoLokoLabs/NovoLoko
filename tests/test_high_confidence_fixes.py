@@ -86,6 +86,31 @@ class HighConfidenceFixTests(unittest.TestCase):
             migration.repair_mojibake_text("Nova Scotia — unchanged"),
         )
 
+    def test_migration_maps_replaced_medium_library_without_touching_prompts(self) -> None:
+        migration = load_script(
+            "novoloko_migration_medium_library_test",
+            "tools/migrate_workflow_to_novoloko.py",
+        )
+        workflow = {
+            "nodes": [{
+                "type": "NovaPromptStackAIO",
+                "title": "Prompt Stack",
+                "widgets_values": [
+                    "styles/more examples/Pixaroma.yaml",
+                    "Paint a Pixaroma theatre sign",
+                ],
+            }],
+        }
+        migrated = migration.update(workflow)
+        self.assertEqual(
+            "styles/more examples/Mediums.yaml",
+            migrated["nodes"][0]["widgets_values"][0],
+        )
+        self.assertEqual(
+            "Paint a Pixaroma theatre sign",
+            migrated["nodes"][0]["widgets_values"][1],
+        )
+
     def test_migration_removes_compare_only_serialized_theme_colours(self) -> None:
         migration = load_script(
             "novoloko_migration_compare_theme_test",

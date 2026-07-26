@@ -1,0 +1,344 @@
+- name: none
+  category: System
+  negative_prompt: ''
+  prompt: ''
+- name: random
+  category: System
+  negative_prompt: ''
+  prompt: ''
+- name: design_3d_graphic | Design
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A clean, purposeful graphic-illustration style built on confident, simplified shape construction that prioritizes function and clarity over decorative detail, flat or minimally gradated color application applied with intentional restraint, a balanced, structured compositional logic guided by clear visual hierarchy, deliberate, uncluttered spacing that lets each element read instantly, and a versatile, contemporary graphic-design clarity rooted in modern commercial and digital design convention. Influenced by: modern graphic-design tradition, minimalist design practice, contemporary commercial-design technique, digital-design composition method.'
+- name: design_3d_graphic | Butcher Billy Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, graphic retro-pop illustration style built on flat, punchy color-block construction separated by crisp confident outline, a deliberate mash-up sensibility blending mid-century advertising polish with pop-culture iconography, sharp geometric simplification replacing painterly nuance entirely, confident, graphic silhouette design calibrated for instant recognizability, and a witty, nostalgic commercial-art punch that feels both retro and unmistakably contemporary. Influenced by: Butcher Billy, retro-pop graphic-design tradition, mid-century advertising illustration technique, pop-culture mash-up illustration practice.'
+- name: design_3d_graphic | Corporate Memphis
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A flat, rounded illustration style built on simplified, tube-like limbs and gently curved geometric shapes replacing naturalistic anatomy entirely, uniform flat-color fill with minimal to no shading beyond soft contact shadow, a deliberately generic, approachable proportion language designed for broad, inoffensive relatability, clean, uncluttered composition prioritizing instant digital-platform legibility, and a friendly, corporate-tech sincerity that feels streamlined, accessible, and unmistakably contemporary. Influenced by: contemporary flat-illustration movement, tech-industry design-system practice, geometric character-illustration technique, digital-platform brand-illustration method.'
+- name: design_3d_graphic | 8-Bit Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A blocky, pixel-constrained illustration style built on hard, discrete square units standing in for all line and shading, an extremely limited tonal palette-logic forcing every gradient into stepped, visible bands, deliberate geometric simplification that reduces anatomy to its most essential recognizable silhouette, a rigid, grid-locked precision replacing any curved or organic mark-making, and a nostalgic, technically constrained charm that celebrates the aesthetic discipline of early digital-display limitation. Influenced by: early video-game sprite-art tradition, Nintendo Entertainment System graphics technique, pixel-art illustration practice, retro arcade visual-design method.'
+- name: design_3d_graphic | Kintsugi-Inspired Digital Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A contemplative repair-as-beauty illustration style built on deliberate fracture lines traced with luminous, precious-metal seams that transform breakage into ornamental focal points, a quiet philosophical tension between damage and restoration rendered with meticulous, reverent craftsmanship, smooth surrounding surfaces contrasted against the raised, textural presence of the mended seams, a hushed, contemplative stillness that treats imperfection as the compositional centerpiece rather than something hidden, and a refined, wabi-sabi sincerity that finds quiet grandeur in visible history. Influenced by: traditional kintsugi ceramic-repair technique, wabi-sabi aesthetic philosophy, Japanese lacquer-craft tradition, contemporary repair-art practice.'
+- name: design_3d_graphic | Soviet Propaganda Poster
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, graphic illustration style built on stark, high-contrast flat color fields separated by confident heavy outline, a monumental, low-angle compositional heroism that dramatically elevates the central figure, dynamic diagonal energy conveying collective momentum and forward-driving purpose, simplified, sculptural anatomy rendered with poster-ready graphic clarity over naturalistic nuance, and a bold, rousing propagandistic grandeur built for instant ideological impact at a distance. Influenced by: Constructivist poster-design tradition, Alexander Rodchenko, socialist-realist illustration technique, agitprop graphic-design practice.'
+- name: design_3d_graphic | Minecraft Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A blocky, voxel-constrained illustration style built on hard-edged cubic geometry standing in for all organic and structural form, a deliberately low-resolution texture logic that reduces surface detail to flat, pixelated approximation, rigid right-angle construction replacing curved or naturalistic silhouette entirely, a charmingly crude, procedurally consistent simplicity carried through uniform block-unit scale, and a nostalgic, technically constrained charm rooted in early sandbox-game visual limitation. Influenced by: voxel-based game-design tradition, Markus Persson procedural-generation practice, low-poly/blocky 3D-rendering technique, sandbox-game visual-design method.'
+- name: design_3d_graphic | Funko Pop Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A stylized, toy-figure illustration style built on an oversized, dominant head-to-body proportion ratio replacing naturalistic anatomy entirely, a glossy, uniformly smooth vinyl-like finish applied across every plane with no visible textural variation, minimal facial detail reduced to simplified dot-eyes and near-featureless expression, a rigid, static posing logic that mimics fixed collectible-figure stance, and a charmingly reductive, mass-collectible commercial polish that feels instantly recognizable and endearingly toy-like. Influenced by: Funko Pop! product-design tradition, vinyl-collectible figure aesthetic, stylized toy-proportion design practice, mass-market collectible-merchandise rendering method.'
+- name: design_3d_graphic | Hyper-Stylized Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A boldly exaggerated illustration style built on confident distortion of proportion that pushes form far beyond naturalistic reference, sharp, graphic linework holding dramatically simplified or elongated silhouette with total confidence, flat-to-gradient shading applied with deliberate, controlled boldness rather than subtlety, an assertive, larger-than-life visual rhythm carried through exaggerated posing and composition, and a striking, unapologetically stylized intensity that treats distortion itself as the core creative statement. Influenced by: contemporary stylized character-design tradition, exaggerated-proportion illustration technique, bold graphic-design-adjacent rendering practice, confident stylization-driven concept-art method.'
+- name: design_3d_graphic | Graphic Flat-Vector Travel Poster Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, hand-cut illustration style built on faceted, angular shape construction that reduces form into confident planar segments rather than smooth gradation, sharp textural crosshatching and scratchy directional mark-making overlaid across otherwise flat color-block regions, a poster-ready graphic clarity balanced against loose, painterly energy at the edges, dramatic sunlit contrast carving crisp separation between illuminated and shadowed planes, and a stylish, contemporary travel-illustration polish that feels equally editorial and hand-crafted. Influenced by: contemporary vector-travel-poster illustration, faceted geometric-painting technique, mid-century advertising illustration tradition, editorial flat-color rendering practice.'
+- name: design_3d_graphic | Ornamental Patterns Hyperrealism Portrait
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A meticulously rendered portrait-illustration style built on dense, intricately repeating decorative motifs woven directly into the rendering of the figure itself, each interlocking element executed with obsessive photographic precision and convincing dimensional depth, dramatic raking light that catches every raised contour and recessed groove against otherwise softly modeled skin, a hushed, exacting patience carried through the sheer density of repeated detail contrasted with quiet portrait stillness, and a technically virtuosic intensity that treats ornamental complexity and human presence as equally devotional subjects. Influenced by: hyperrealist digital-painting technique, decorative-arts portrait-illustration tradition, meticulous pattern-rendering practice, ornamental craft-illustration method.'
+- name: design_3d_graphic | Flat Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A clean, graphic illustration style built on evenly bounded shapes filled with uniform color rather than blended tone, minimal to no shading beyond deliberate, flat contact shadow, confident, simplified linework that reduces form to its most essential silhouette, a crisp, uncluttered compositional clarity favoring instant legibility over dimensional depth, and a contemporary, streamlined graphic sensibility that feels bold, tidy, and effortlessly modern. Influenced by: contemporary flat-design illustration tradition, vector-based graphic technique, minimalist digital-illustration practice, modern editorial flat-color method.'
+- name: design_3d_graphic | Vector Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A crisp, scalable illustration style built on clean, mathematically precise linework and evenly bounded color regions, smooth gradient or flat-fill logic replacing any textural or painterly noise entirely, confident geometric simplification of form favoring graphic clarity over naturalistic nuance, razor-sharp edges that hold their precision at any size, and a polished, contemporary graphic-design sleekness rooted in digital illustration practice. Influenced by: contemporary vector-illustration tradition, Adobe Illustrator technique, flat-design graphic practice, digital scalable-artwork method.'
+- name: design_3d_graphic | Bauhaus
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A functionalist geometric illustration style built on stark, primary geometric forms — circles, squares, triangles — arranged with rigorous compositional logic, flat, uniform color regions applied with deliberate, unornamented restraint, a rational, grid-driven structure replacing any decorative or naturalistic impulse, confident economy of form where every element serves clear structural purpose, and a disciplined, timeless modernist clarity rooted in functionalist design philosophy. Influenced by: Wassily Kandinsky, Bauhaus design-movement tradition, functionalist geometric-design technique, modernist constructivist practice.'
+- name: design_3d_graphic | Poster Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, graphic illustration style built on confident, simplified composition designed to communicate instantly at a distance, flat or minimally gradated color application applied with deliberate visual punch, strong compositional hierarchy that guides the eye directly to a single focal statement, meticulous economy of detail favoring immediate readability over exhaustive rendering, and a striking, commercial-grade graphic impact rooted in traditional advertising and print-design practice. Influenced by: mid-century poster-design tradition, commercial advertising-illustration technique, graphic-design composition practice, print-poster illustration method.'
+- name: design_3d_graphic | Minimalist Line Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A pared-down illustration style built on a single confident, continuous line tracing form with extreme economy, near-total absence of shading or fill beyond the line itself, deliberate restraint that suggests rather than fully describes structure, meticulous control over line weight as the sole carrier of expression and rhythm, and a quiet, contemplative elegance that treats empty space as equally important as the mark itself. Influenced by: Pablo Picasso''s single-line drawings, contemporary minimalist illustration tradition, continuous-line drawing technique, modern editorial line-art practice.'
+- name: design_3d_graphic | Minimalism
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A pared-back illustration style built on radical simplification of form into its most essential shapes, sparse, uncluttered composition that treats empty space as an active compositional element, minimal to no shading beyond deliberate, restrained contrast, confident economy of mark-making that resists any decorative excess, and a quiet, contemplative clarity that finds impact through restraint rather than density. Influenced by: minimalist art-movement tradition, contemporary reductive-illustration technique, geometric-abstraction practice, modernist economy-of-form method.'
+- name: design_3d_graphic | Gradients
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A smooth, continuous-tone illustration style built on gradual color transition replacing any hard-edged shading or flat fill, seamless blending across every plane that eliminates visible mark-making entirely, a soft, technically controlled precision governing exactly how one tone dissolves into the next, minimal linework that lets the transition itself define form and depth, and a polished, contemporary digital sleekness that feels smooth, atmospheric, and effortlessly refined.'
+- name: design_3d_graphic | Origami
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A geometric, faceted illustration style built on crisp, angular folds constructing form entirely through flat planar segments rather than curved or blended transition, sharp crease lines defining every structural boundary with mathematical precision, minimal shading reduced to simple contrast between adjoining folded segments, a confident, economical construction logic where each fold serves clear structural purpose, and a quietly elegant, meditative craftsmanship rooted in the discipline of paper-folding tradition. Influenced by: traditional Japanese origami tradition, geometric paper-folding technique, low-poly faceted-illustration practice, minimalist structural-design method.'
+- name: design_3d_graphic | 3D Render
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A dimensionally precise digital-illustration style built on smooth, volumetric modeling that reads as fully three-dimensional through simulated geometry and light rather than drawn line, meticulously calculated illumination with soft ambient occlusion settling naturally into every contour, polished specular response giving forms convincing physical depth and weight, confident sculptural construction replacing traditional linework entirely, and a technically precise, computer-generated intensity built on simulated physical light behavior. Influenced by: real-time 3D-rendering technique, CGI modeling practice, physically based rendering (PBR) method, contemporary animated-render pipeline.'
+- name: design_3d_graphic | Pixar  Animation
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A richly rendered 3D-illustration style built on soft, warm subsurface-scattered lighting that gives skin a believable inner glow, meticulously smooth volumetric modeling balancing appealing, rounded proportion with convincing dimensional weight, gentle, cinematic three-point lighting establishing wholesome, inviting mood within every frame, confident ambient occlusion and soft shadow settling naturally into every contour, and a polished, heartwarming studio-grade animation intensity built for broad, emotionally resonant appeal. Influenced by: Pixar, contemporary 3D-animation rendering technique, subsurface-scattering character-design practice, cinematic three-point lighting method, mainstream feature-animation studio pipeline.'
+- name: design_3d_graphic | Cinematic Final Fantasy 3D Render
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A richly cinematic 3D-illustration style built on meticulously detailed volumetric modeling rendered with near-photographic dimensional conviction, dramatic film-grade lighting establishing epic, emotionally charged mood within every frame, soft subsurface-scattered rendering giving skin a convincing, luminous depth, confident ambient occlusion and reflective response settling naturally into every contour, and a polished, blockbuster-grade rendering intensity built for sweeping, story-driven visual spectacle. Influenced by: Square Enix cinematic-rendering direction, real-time 3D-animation technique, subsurface-scattering character-design practice, cinematic three-point lighting method.'
+- name: design_3d_graphic | Marble Sculpture
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A dimensionally commanding sculptural form built on convincing volumetric mass shaped through confident tonal modeling rather than linear description, dramatic raking light that reveals every carved contour and recessed hollow with sculptural clarity, a translucent depth beneath the outermost extent that softens and catches illumination with quiet luminosity, a monumental stillness carried through deliberate, unhurried mass and proportion, and a timeless, classical gravitas that treats carved form itself as the entire subject. Influenced by: Michelangelo, Antonio Canova, classical figurative-sculpture tradition, academic tonal-modeling technique.'
+- name: design_3d_graphic | Playful Retro Pop
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, cheerful graphic illustration style built on flat, confidently bounded color-block construction separated by crisp, uniform outline, a bright, punchy simplicity that favors instant graphic charm over painterly nuance, exaggerated, bouncy proportion carrying lighthearted, nostalgic energy, a mid-century advertising-adjacent cheerfulness applied with contemporary graphic polish, and a fun, unmistakably retro-pop vibrancy that feels playful, confident, and effortlessly charming. Influenced by: mid-century advertising-illustration tradition, retro-pop graphic-design technique, flat-color commercial-illustration practice, contemporary retro-revival illustration method.'
+- name: design_3d_graphic | Low Poly
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A geometrically reductive illustration style built on flat-shaded polygonal facets that construct form through angular simplification rather than smooth curvature, crisp hard-edged transitions between adjoining segments standing in for gradual shading, a deliberate faceted minimalism that abstracts detail into confident geometric approximation, a clean, mathematically precise rhythm carried through the visible triangulated structure, and a stylized, modern-craft elegance that celebrates simplified form as its own aesthetic statement. Influenced by: low-poly 3D-modeling technique, geometric abstraction tradition, procedural digital-art practice, minimalist polygonal design method.'
+- name: design_3d_graphic | LEGO Minifigure
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A blocky, modular figure style built on cylindrical joint construction and simplified, interlocking geometric limbs standing in for naturalistic anatomy, a glossy, uniformly smooth plastic-like finish applied consistently across every segment, a distinctive rounded cylindrical head with minimal, printed-style facial simplification, confident, clean separation between individually distinguishable component pieces, and a cheerful, systematized toy-design precision rooted in decades of modular construction-set tradition. Influenced by: LEGO Group product-design tradition, modular construction-toy aesthetic, plastic-injection product-visualization practice, procedural toy-figure rendering method.'
+- name: design_3d_graphic | LEGO Set Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A blocky, modular illustration style built on cylindrical stud-and-brick construction logic standing in for all organic and structural form, glossy, uniformly smooth plastic-like surface finish applied consistently across every element, a deliberately simplified, interlocking geometric silhouette replacing naturalistic anatomy or structure, clean, confident graphic separation between individually distinguishable component pieces, and a cheerful, systematized toy-design precision rooted in decades of modular construction-set tradition. Influenced by: LEGO Group product-design tradition, modular construction-toy aesthetic, plastic-injection product-visualization practice, procedural brick-based 3D-rendering method.'
+- name: design_3d_graphic | Paper Cutout
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A layered, tactile illustration style built on flat, distinctly bounded shapes stacked with slight offset to suggest physical depth, crisp, clean-edged silhouette construction replacing any drawn linework, subtle drop-shadow separation between overlapping layers giving the composition a handcrafted dimensionality, a confident, graphic simplicity that favors bold shape over rendered detail, and a charming, tangible craft-quality that feels playful, dimensional, and unmistakably paper-built. Influenced by: paper-cutout collage tradition, stop-motion cutout-animation technique, layered-paper illustration practice, handcrafted collage-art method.'
+- name: design_3d_graphic | Collage
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A layered, tactile illustration style built on the deliberate assembly of disparate fragments arranged into a single unified composition, torn or cleanly cut edges coexisting to create unpredictable, overlapping juxtaposition, a confident compositional looseness that embraces visible seams and assembly rather than hiding them, mixed tonal registers colliding across each fragment for expressive, unexpected contrast, and a raw, handcrafted intensity that treats the act of piecing together itself as the compositional statement. Influenced by: Hannah Höch, Kurt Schwitters, collage-art tradition, mixed-media assemblage practice.'
+- name: design_3d_graphic | Claymation
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A charmingly tactile stop-motion illustration style built on soft, rounded forms carrying visible handcrafted imperfection, gentle fingerprint-like dents and subtle irregularity standing in for smooth digital finish, warm, even lighting that gives every contour a cozy, dimensional roundness, a slightly rigid, hand-manipulated quality to posing that carries endearing physical charm, and a nostalgic, cheerfully handmade warmth rooted in decades of stop-motion animation craft. Influenced by: Aardman Animations, stop-motion claymation technique, handcrafted figure-animation practice, British character-animation tradition.'
+- name: design_3d_graphic | Mixed Media
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A layered, tactile illustration style built on the deliberate collision of disparate techniques — loose ink linework, painterly washes, and collaged textural fragments — coexisting within a single composition, unpredictable textural bleed and torn-edge layering that keeps the whole feeling handmade and accumulated rather than uniform, confident compositional looseness that embraces visible process over polished finish, a rich tactile depth built through overlapping transparency and material contrast, and an expressive, collage-driven intensity that feels spontaneous, layered, and richly textured. Influenced by: mixed-media collage art, Carne Griffiths, ink-and-collage illustration technique, contemporary fine-art assemblage.'
+- name: design_3d_graphic | Wallace and Gromit Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A charmingly tactile stop-motion illustration style built on soft, rounded forms carrying visible handcrafted imperfection, gentle fingerprint-like dents and subtle irregularity standing in for smooth digital finish, warm, even lighting that gives every contour a cozy, dimensional roundness, exaggerated expressive proportions carrying subtle asymmetry and warm British whimsy, a hand-built, slightly wobbly charm that celebrates its own physical process, and a nostalgic, cheerfully eccentric handmade warmth. Influenced by: Aardman Animations, Nick Park, stop-motion claymation technique, British character-animation tradition.'
+- name: design_3d_graphic | Muppets Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A charming, handcrafted puppet-illustration style built on soft, felted texture standing in for skin and fur alike, exaggerated, rounded proportions with oversized expressive features driving comedic readability, gentle, even stage-adjacent lighting that keeps the whole scene warmly lit and theatrical, a slightly rigid, hand-operated quality to posing that carries endearing physical charm, and a wholesome, joyfully theatrical warmth rooted in decades of beloved puppet-variety tradition. Influenced by: Jim Henson, Muppet Workshop puppet-fabrication tradition, television-variety-show staging practice, hand-puppet character-design method.'
+- name: design_3d_graphic | Zelda Wind Waker Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A vibrant, toon-shaded illustration style built on crisp, hard-edged cel shading with minimal tonal gradation, confident, thick outline holding clean, geometric silhouette design, warm painterly sky and terrain rendered with soft matte-painted texture, expressive, rounded character proportions carrying whimsical charm, and a bright, adventurous storybook vibrancy that feels playful, timeless, and quietly heroic.Influenced by: Nintendo character-art direction, cel-shaded toon-rendering technique, painterly matte-background practice, whimsical adventure-game illustration method.'
+- name: design_3d_graphic | PS1 Graphics
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A low-poly, texture-warped 3D-illustration style built on blocky, vertex-snapped geometry that jitters slightly with characteristic early-3D imprecision, low-resolution textures stretched and distorted across simplified polygonal surfaces, harsh, unfiltered pixelated edges replacing any smooth anti-aliasing, a flat, limited lighting model with minimal gradation or dynamic shadow, and a nostalgic, technically constrained charm rooted in early console-era 3D rendering limitation. Influenced by: mid-1990s PlayStation 3D-rendering technique, early polygonal-game aesthetic, retro survival-horror visual tradition, low-fidelity vertex-jitter rendering method.'
+- name: design_3d_graphic | Woodcut
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, high-contrast printmaking style built on confident, gouged linework that constructs form through carved negative space rather than drawn detail, stark black-and-white division with minimal transitional tone, rough, deliberate edge-texture inherent to the carving process, a rhythmic, hand-pressed graphic clarity favoring bold shape over subtle nuance, and a rustic, timeworn print-craft gravitas rooted in centuries of relief-printing tradition. Influenced by: Albrecht Dürer, Käthe Kollwitz, woodblock relief-printing technique, expressionist print tradition.'
+- name: design_3d_graphic | Contemporary Lithography
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A refined printmaking-inspired illustration style built on flat, confidently limited color layers reminiscent of hand-pulled stone-plate printing, subtle grain and texture mimicking the imperfect registration of traditional lithographic process, clean bold linework holding each color plane with graphic precision, restrained tonal shading achieved through crosshatched or stippled print texture rather than smooth gradients, and a nostalgic yet contemporary print-craft polish that feels tactile, considered, and editorial. Influenced by: Toulouse-Lautrec, modern lithographic-printmaking technique, screenprint illustration practice, editorial print-design method.'
+- name: design_3d_graphic | Variable-Size Ben-Day Dots Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold pop-art printing style built on dot patterning that varies deliberately in scale across the composition, larger dots concentrated where tone deepens and smaller dots thinning out toward lighter passages, constructing gradation entirely through dot-size modulation rather than blended shading, crisp confident outline holding each region with graphic precision, a mechanical, offset-print authenticity carried through deliberate registration texture, and a bold, retro commercial-print energy that feels instantly graphic and unmistakably mid-century. Influenced by: Roy Lichtenstein, variable Ben-Day dot printing technique, silver-age comic printing process, pop-art illustration tradition.'
+- name: design_3d_graphic | Contemporary Ukiyo-E
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A contemporary reinterpretation of traditional woodblock-print illustration built on flat, confidently bounded shape divisions layered with a cleaner, more graphic digital precision, fluid calligraphic linework retaining the rhythmic economy of the original medium while shedding its period-specific motifs, restrained tonal layering achieved through overlapping flat planes rather than gradation, a poised, contemplative stillness carried through balanced asymmetrical composition, and a refined print-craft elegance updated with a crisp, present-day graphic sensibility. Influenced by: Katsushika Hokusai, contemporary woodblock-inspired digital illustration, modern Japanese graphic design, Edo-period print technique reimagined.'
+- name: design_3d_graphic | Mosaic Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A tessellated illustration style built on countless discrete fragments assembled into a unified composition, each individual piece holding a single flat tone while collectively constructing gradual tonal transition through density and arrangement, confident geometric or organic fragment shapes fitted with deliberate, patient precision, a rhythmic, granular texture replacing any smooth or blended rendering entirely, and a timeless, meticulous craft intensity rooted in centuries of tessellated decorative tradition. Influenced by: Byzantine mosaic tradition, tessellation-based decorative technique, Antoni Gaudí trencadís practice, classical tile-assembly craft method.'
+- name: design_3d_graphic | Stained Glass Flat Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, decorative graphic aesthetics characterized by bold enclosed shapes, segmented composition, strong contour structures, ornamental patterning, and luminous mosaic-inspired design principles. The style builds imagery through interconnected flat regions separated by deliberate leading-like divisions, emphasizing symbolic clarity, visual rhythm, and harmonious decorative balance rather than volumetric realism. Rather than relying on shading or painterly texture, it communicates form through shape relationships, stylized silhouettes, and carefully arranged visual geometry, creating imagery that feels iconic, radiant, and timeless. The resulting aesthetic blends medieval craftsmanship, sacred decorative traditions, and modern graphic simplification into richly symbolic compositions with striking visual presence, reminiscent of Louis Comfort Tiffany and Alphonse Mucha, inspired by Chartres Cathedral stained glass and Tiffany Studios glass panels.'
+- name: design_3d_graphic | Isometric 3D Graphic
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A compact, dimensionally clever illustration style built on a fixed isometric projection that renders three-dimensional form without true perspective convergence, clean, confidently simplified geometry reduced to its most essential recognizable shapes, flat-to-subtly-gradated shading applied consistently across matching angular faces to reinforce dimensional clarity, a tidy, modular compositional logic designed for small-scale, instantly legible readability, and a polished, contemporary UI-adjacent graphic precision built for consistent iconographic systems. Influenced by: isometric game-art tradition, modern UI/UX iconography practice, flat-design illustration technique, procedural icon-set design method.'
+- name: design_3d_graphic | Quilling
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A delicately dimensional illustration style built on tightly coiled and shaped strips assembled into intricate, raised compositions, confident looping and scrolling forms constructing pattern through repeated coiled units rather than drawn line, a rhythmic, handcrafted precision carried through the deliberate arrangement of each individual coil, subtle raised depth and shadow where coiled edges catch light against the recessed ground, and a delicate, meticulous craft intensity rooted in centuries of paper-coiling tradition. Influenced by: traditional paper-quilling craft, filigree decorative-art technique, handcrafted coil-assembly practice, ornamental paper-art method.'
+- name: design_3d_graphic | Lowbrow Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A darkly whimsical illustration style built on cartoonish exaggeration mixed with unsettling, surreal juxtaposition, confident smooth rendering that gives every form a glossy, pop-adjacent polish, bold caricatured proportion pushed toward grotesque or absurd extremes, a rebellious, subversive humor woven through otherwise technically polished composition, and a bold, countercultural intensity that feels irreverent, playful, and quietly unsettling. Influenced by: Robert Williams, Mark Ryden, lowbrow-art movement tradition, pop-surrealist illustration practice.'
+- name: design_3d_graphic | Fortnite Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A glossy, saturated 3D-cartoon illustration style built on smooth, stylized proportion with exaggerated, action-figure-adjacent silhouette, bright, evenly saturated cel-adjacent shading that keeps every contour crisp and readable, confident volumetric rendering balancing cartoon simplicity with dimensional polish, dynamic, energetic posing charged with playful competitive flair, and a vibrant, high-production game-art vibrancy built for instant character appeal and broad accessibility. Influenced by: Epic Games character-art direction, stylized 3D-rendering technique, competitive-game key-art practice, cel-adjacent cartoon-render method.'
+- name: design_3d_graphic | Coraline Stop-Motion Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A meticulously crafted stop-motion illustration style built on precise, doll-like proportion carrying an uncanny, porcelain-smooth finish, subtle handcrafted imperfection visible in gentle asymmetry rather than digital uniformity, moody, controlled lighting establishing a quietly unsettling, dreamlike atmosphere, meticulous attention to fine detail rendered with obsessive miniature-scale patience, and a whimsical yet faintly eerie handcrafted intensity that feels intimate, meticulous, and gently uncanny. Influenced by: Henry Selick, LAIKA Studios stop-motion tradition, meticulous puppet-fabrication technique, gothic-whimsical animation practice.'
+- name: design_3d_graphic | Kurzgesagt Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A clean, flat vector-illustration style built on confident geometric simplification of every form into smooth, rounded shapes, minimal shading limited to subtle gradient or soft contact shadow, a friendly, approachable clarity that favors instant conceptual readability over naturalistic rendering, meticulous compositional organization guiding the eye through dense informational content with playful ease, and a bright, whimsical educational charm that feels scientific, cheerful, and effortlessly digestible. Influenced by: Kurzgesagt studio house style, flat-vector explainer-illustration tradition, minimalist infographic-design technique, contemporary educational-animation practice.'
+- name: design_3d_graphic | Modern Super Mario (Nintendo) Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A vibrant, polished 3D-cartoon illustration style built on smooth, rounded proportion carrying confident, appealing simplicity, glossy, evenly saturated shading with soft, controlled specular highlight rather than gritty realism, bright, clean cinematic lighting establishing cheerful, family-friendly warmth within every frame, meticulous attention to bouncy, exaggerated posing charged with playful energy, and a polished, high-production platformer vibrancy that feels bright, joyful, and unmistakably iconic. Influenced by: Nintendo character-art direction, contemporary 3D-platformer rendering technique, stylized cartoon-render practice, family-adventure animation method.'
+- name: 'design_3d_graphic | Star Wars: The Clone Wars Style'
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, angular animation-illustration style built on stylized, geometric character proportion with sharply defined, faceted silhouette construction, confident cel-shaded rendering with graphic, high-contrast shadow blocking rather than smooth gradation, dramatic cinematic lighting establishing epic, sweeping mood within stylized composition, meticulous attention to dynamic, action-driven posing balanced against clean graphic clarity, and a bold, blockbuster-grade stylized-animation intensity that feels both angular and cinematically grand. Influenced by: Dave Filoni, stylized 3D-animation technique, geometric character-design practice, cinematic sci-fi animation method.'
+- name: design_3d_graphic | M.C. Escher Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A meticulously precise illustration style built on impossible, self-referential perspective that folds space back onto itself with mathematical rigor, confident, exacting linework rendering interlocking, tessellated form with obsessive geometric discipline, restrained tonal shading achieved through fine hatching that reinforces structural logic rather than atmosphere, a hypnotic, paradoxical rhythm carried through recursive, endlessly repeating pattern, and a meditative, intellectually rigorous precision that treats visual paradox itself as the compositional subject. Influenced by: M.C. Escher, tessellation-based printmaking technique, mathematical-illustration tradition, engraving-adjacent linework practice.'
+- name: design_3d_graphic | Vignette-Framed Central Composition
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A tightly unified illustration style built on a distinct central cluster containing figure and surrounding elements together as one cohesive silhouette, generous negative space extending outward on every side rather than a continuous filled composition, the enclosing elements arranged deliberately to form an implied frame-like boundary rather than a naturalistic full scene, meticulous compositional discipline keeping every detail confined within that central shape while the periphery stays quiet and empty, and a poised, deliberate graphic clarity that treats negative space itself as an essential compositional partner. Influenced by: contemporary editorial-illustration composition technique, vignette-portrait framing practice, negative-space compositional design, decorative-border illustration tradition.'
+- name: design_3d_graphic | 1960s Psychedelic Poster Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A vibrant, maximalist illustration style built on radiating, sunburst-like linework fanning outward from a central focal point with hypnotic, rhythmic repetition, dense, swirling ornamental pattern-work filling every available extent with restless organic motion, bold, confidently bounded flat shapes separated by crisp, unmodulated outline, an ecstatic, kaleidoscopic energy that treats pattern density itself as the compositional subject, and a joyfully exuberant, retro commercial-art intensity that feels immersive, celebratory, and unmistakably era-defining. Influenced by: Peter Max, 1960s concert-poster illustration tradition, psychedelic advertising-art technique, Art Nouveau ornamental linework reimagined.'
+- name: design_3d_graphic | Frutiger Aero
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A glossy, optimistic digital-aesthetic style built on smooth, dewy translucence layered over every surface like a soft protective sheen, bright, evenly diffused lighting that keeps the whole composition feeling clean and airy, gentle lens-flare bloom radiating with cheerful, tech-utopian positivity, crisp, rounded rendering logic that softens every edge into approachable, friendly polish, and a buoyant, forward-looking digital sincerity rooted in mid-2000s techno-optimism. Influenced by: mid-2000s tech-interface design tradition, Frutiger Aero aesthetic movement, glossy UI-rendering practice, early Web 2.0 digital-design technique.'
+- name: design_3d_graphic | Alex Grey Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A visionary, anatomically luminous illustration style built on translucent layered rendering that reveals internal structure and energetic form simultaneously within a single figure, meticulous symmetrical composition radiating outward with mandala-like precision, an intense, glowing internal luminosity that seems to emanate from beneath the outermost extent, dense, interwoven detail merging scientific anatomical accuracy with spiritual, mystical iconography, and a mesmerizing, transcendent intensity that treats the body as both physical structure and radiant energy field. Influenced by: Alex Grey, visionary-art movement tradition, anatomical illustration technique, sacred-geometry digital-painting practice.'
+- name: design_3d_graphic | Vignette Tattoo Design (Flat Print Format)
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, graphic linework style built on confident unbroken contour lines contained within a distinct central cluster, generous negative space surrounding that cluster rather than a full-frame composition, deliberate simplification of form into clean readable shapes with minimal fine detail, restrained shading achieved through controlled linework density rather than gradation, a strong emphasis on symmetrical, balanced compositional flow suited for clean printable reproduction, and a bold, timeless graphic durability that reads clearly at both close range and a distance. Influenced by: traditional American tattoo flash-art tradition, Japanese irezumi technique, blackwork tattoo-design practice, negative-space compositional design.'
+- name: design_3d_graphic | Vignette Sticker
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A bold, self-contained graphic illustration style built on a crisp, clean bold white outline that isolates the subject from a plain white background, as a single cohesive shape contained within a distinct central cluster, generous white negative space surrounding that cluster with a thick, uniform contour holding the entire boundary, confidently simplified color fields with minimal internal shading, a slightly raised, glossy die-cut quality suggested through a subtle contour highlight tracing the outer extent, and a cheerful, punchy graphic charm built for immediate, repeatable visual impact. Influenced by: vinyl sticker/decal design tradition, detailed vector illustration technique, die-cut print production method, negative-space compositional design.'
+- name: design_3d_graphic | Icon/Emoticon Vignette
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A compact, simplified illustration style built on a distinct central cluster containing the subject reduced to its most essential recognizable shapes, generous negative space surrounding that cluster rather than a full-frame scene, bold, confidently bounded flat color fields separated by clean, uniform outline, minimal internal detail favoring instant small-scale readability over rendering complexity, and a cheerful, graphic economy that treats the whole composition as a single, immediately legible symbol. Influenced by: emoji/icon-design tradition, flat-vector illustration technique, minimalist symbol-design practice, negative-space compositional design.'
+- name: design_3d_graphic | Blueprint
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A precise, technical illustration style built on crisp white linework laid over a deep, uniform blue field, exacting mechanical accuracy in every construction line and dimensional marker, minimal to no shading beyond the line itself carrying all structural information, a rigorous, drafting-level clarity that favors exact proportion over expressive interpretation, and a clean, methodical exactness rooted in centuries of engineering and architectural drafting discipline. Influenced by: technical/engineering-drawing tradition, architectural-blueprint drafting technique, cyanotype printing process, orthographic-projection drawing method.'
+- name: design_3d_graphic | Bold Painterly Impasto
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A richly textured painting style built on thick, confident circular brushstrokes that curl and swirl across every extent, dense impasto ridges catching directional light with sculptural, tactile weight, sweeping curved strokes carrying dynamic, windswept motion throughout the composition, a warm, glowing luminosity built through layered circular dabs rather than smooth blending, and a lush, expressive painterly grandeur that feels alive with rhythmic, swirling energy. Influenced by: J.C. Leyendecker, Vincent van Gogh, impasto oil-painting technique, contemporary digital-painting practice.'
+- name: design_3d_graphic | The Mitchells vs. The Machines animation Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A vibrant, hybrid animation-illustration style built on smooth 3D-rendered character forms overlaid with wet fluid brushstrokes and painterly-like accents layered as texture directly into the frame, exaggerated, elastic proportion balancing 3D dimensionality with 2D cartoon energy, bold, expressive shading that mixes painterly gradient with graphic flat-color punch, meticulous attention to chaotic, personality-driven posing charged with comedic warmth, and a distinctive, boundary-breaking animation intensity that feels handmade, playful, and unmistakably contemporary. Influenced by: Sony Pictures Animation, mixed 2D/3D hybrid-animation technique, paint-overlay practice, contemporary indie-animation character-design method.'
+- name: design_3d_graphic | Spider-Verse Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A kinetic mixed-media animation-illustration style built on visible halftone dot patterning and offset-print texture layered directly into character rendering, deliberate chromatic-fringe misregistration echoing vintage comic-printing imperfection, bold graphic linework, animation intensity that feels handmade, glitchy, and alive. Influenced by: Sony Pictures Animation, Kris Anka, halftone comic-printing technique, mixed-media collage-animation practice.'
+- name: design_3d_graphic | Steampunk
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A richly ornamental Victorian-industrial illustration style built on intricate mechanical detail rendered with meticulous, gear-and-cog precision, dramatic directional lighting catching every riveted contour and polished brass-adjacent gleam, confident linework blending vintage engraving discipline with fantastical technical invention, a hushed, adventurous grandeur carried through richly layered ornamental complexity, and a nostalgic, retro-futurist intensity that feels handcrafted, inventive, and unmistakably era-blending. Influenced by: Jules Verne illustration tradition, Victorian engraving technique, retro-futurist mechanical-design practice, steampunk concept-art method.,'
+- name: design_3d_graphic | Unreal Engine
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A dimensionally precise real-time rendering style built on smooth, volumetric modeling calculated through simulated physical light and geometry, meticulously computed illumination with soft ambient occlusion settling naturally into every contour, polished specular response giving forms convincing physical depth and weight, confident dynamic reflection and atmospheric scattering rendered in real time, and a technically precise, computer-generated intensity built for cinematic, game-ready visual fidelity. Influenced by: Unreal Engine 5 real-time rendering technique, physically based rendering (PBR) method, contemporary game-cinematic rendering practice, real-time ray-tracing technology.'
+- name: design_3d_graphic | Jean-Gabriel Domergue Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, An elegant Art Deco portrait-illustration style built on smooth, confident linework tracing idealized, statuesque proportion with graceful economy, refined tonal shading applied with restrained, sophisticated subtlety rather than dramatic contrast, a poised, glamorous stillness carried through deliberate, composed posing, meticulous attention to graceful line quality over exhaustive detail, and a chic, timeless sophistication that feels effortlessly elegant and quietly luxurious. Influenced by: Jean-Gabriel Domergue, Art Deco portraiture but modern, French illustration contemporary technique , glamour-digital illustration,'
+- name: design_3d_graphic | Modern Lithography
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A refined printmaking-inspired contemporary illustration style built on flat, confidently limited color layers reminiscent of hand-pulled stone-plate printing, subtle grain and texture mimicking the imperfect registration of lithographic process, clean bold linework holding each color plane with graphic precision, restrained tonal shading achieved through crosshatched or stippled print texture rather than smooth gradients, and a contemporary print-craft polish that feels tactile, considered, and editorial. Influenced by: modern lithographic printmaking, poster art, screenprint illustration technique, editorial print design.'
+- name: design_3d_graphic | Neon-Based Drawing
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A vivid, glow-driven illustration style built on intensely saturated linework that appears to emit light rather than simply mark the surface, deep, engulfing darkness surrounding luminous, radiant contour, sharp electric bloom softening the edges of every glowing line, a hypnotic, nocturnal energy carried through dramatic tonal extremes, and a striking, electric vibrancy that feels charged, contemporary, and unmistakably illuminated from within. Influenced by: neon-sign illustration tradition, glow-line digital-rendering technique, contemporary vector-glow illustration practice, luminous linework design method.'
+- name: design_3d_graphic | Op-Art Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A minimalist line-based hypnotic optical-abstract-illustration style built on precise repeating geometric stylized and angular patterning that tricks the eye into perceived movement and depth, rhythmic curvy and angular bold linework or shape progressions that pulse and vibrate, a rigorous mathematical geometry replacing any painterly looseness, figure and pattern merging so the body itself becomes part of the rhythm, and a crisp, disorienting, almost hypnotic graphic intensity that rewards sustained looking.subject abstracted into shapes within shapes, Influenced by: Bridget Riley, Victor Vasarely, minimalist bold-fixed-width-lines geometric abstraction, kinetic op-art technique.'
+- name: design_3d_graphic | Overwatch Concept Art
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A polished, vibrant game-illustration style built on clean, confident linework blended with smooth painterly rendering, bright, saturated lighting logic establishing bold, heroic clarity within a single dynamic composition, clean, readable silhouette design, dynamic, energetic posing charged with confident personality and readable character archetype, and a polished, blockbuster-grade game-art vibrancy built for instant character appeal and franchise recognition. Influenced by: Overwatch video-game, Blizzard Entertainment concept-art direction, stylized hero-shooter character-design tradition, painterly game-illustration technique, vibrant franchise key-art practice.'
+- name: design_3d_graphic | Psychedelia Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A hallucinatory, maximalist illustration style built on swirling, undulating linework that warps form into rhythmic, organic distortion, dense repeating pattern-work that pulses and radiates outward from every surface, a deliberate flattening of depth that lets ornamental motif and figure merge into a single continuous visual field, hypnotic radial or wave-based compositional energy charged with sensory overload, and an ecstatic, mind-bending intensity that feels perpetually in motion even in stillness. Influenced by: Peter Max, concert-poster illustration tradition, psychedelic rock album-art technique,drug induced art, Art Nouveau ornamental linework reimagined.'
+- name: design_3d_graphic | Playmobil
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A blocky, modular figure style built on simplified, cylindrical limbs and clip-jointed construction standing in for naturalistic anatomy, a glossy, uniformly smooth plastic-like finish applied consistently across every segment, a distinctive rounded head with minimal, painted-style facial simplification, confident, clean separation between individually distinguishable component pieces, and a cheerful, systematized toy-design precision rooted in decades of modular construction-set tradition. Influenced by: Playmobil product-design tradition, modular construction-toy aesthetic, plastic-injection product-visualization practice, procedural toy-figure rendering method.'
+- name: design_3d_graphic | Camille Walala Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A vibrant, maximalist illustration style built on bold, confidently bounded geometric shapes arranged in dense, rhythmic repetition, thick, uniform outline holding every flat-color region with graphic precision, an energetic, kaleidoscopic pattern-work covering nearly every extent of the composition, a playful, optical-pop confidence replacing any naturalistic rendering entirely, and a joyful, high-energy graphic-design intensity that feels bold, celebratory, and unmistakably contemporary. Influenced by: Camille Walala, geometric pattern-illustration technique, contemporary mural-art practice.'
+- name: design_3d_graphic | C.F.A. Voysey illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, An elegant decorative illustration built on flowing, stylized organic patterning arranged with disciplined, rhythmic repetition, flat, confidently bounded shape divisions replacing naturalistic shading entirely, meticulous linear precision tracing every motif with restrained, handcrafted care, a calm, orderly compositional harmony favoring balance over ornamental excess, and a quietly refined, timeless craft sincerity rooted in early-20th-century decorative-design reform. Influenced by: C.F.A. Voysey, Arts and Crafts movement tradition, William Morris decorative-pattern technique, English textile-and-wallpaper-design practice.'
+- name: design_3d_graphic | Neon Halftone Retro-Thriller Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A striking screenprint-inspired illustration style built on bold, high-contrast graphic shapes rendered through dense horizontal line-scan patterning that mimics offset-print texture, dramatic dual-toned lighting where sharp electric accents cross the subject against deep, silhouetted shadow, confident vector-clean contour holding every form with poster-ready precision, atmospheric radiating arcs suggesting motion and depth behind the central figure, and a bold, cinematic screenprint intensity that feels stylish, tense, and unmistakably retro-thriller. Influenced by: Jonathan Burton, contemporary screenprint movie-poster tradition, halftone scan-line illustration technique, synthwave-adjacent poster-design practice.'
+- name: design_3d_graphic | Topographic Linework Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, intricate graphic aesthetics characterized by flowing contour networks, layered elevation-inspired line structures, organic spatial mapping, rhythmic density variation, and a strong emphasis on visual terrain-like construction. The style builds form through successive line accumulations rather than traditional shading, creating depth, volume, and movement through contour logic, directional patterning, and carefully orchestrated line repetition. Rather than relying on solid masses or painterly rendering, it celebrates structure, flow, and information-rich design, producing imagery that feels both analytical and artistic. The resulting aesthetic combines cartographic sophistication, decorative complexity, and contemporary illustration sensibilities into highly distinctive visual compositions, reminiscent of Matthew Cusick and Paula Scher, inspired by USGS Topographic Maps and The Atlas of Design.'
+- name: design_3d_graphic | Negative Space Focused Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A deliberately restrained illustration style built on a single confident focal cluster surrounded by vast, empty extent, minimal linework rendering only what''s essential to read the subject clearly, a confident economy where the unmarked space carries as much compositional weight as the mark itself, silhouette and shape doing the primary storytelling work rather than internal detail, and a quiet, contemplative elegance that treats emptiness as an active, deliberate compositional partner. Influenced by: minimalist negative-space illustration tradition, Japanese ma compositional philosophy, contemporary editorial silhouette technique, reductive graphic-design practice.'
+- name: design_3d_graphic | Collectible Figure
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A meticulously sculpted 1:12 scale action subject cast in rigid injection-molded ABS plastic with a glossy top coat, photographed under diffused lighting with a deep focus shot capturing every sculpted detail. Influenced by: the classic action figure toy, Hasbro product, 1980s action-toy.'
+- name: design_3d_graphic | Tessellation-Based Illustration
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A geometrically disciplined illustration style built on repeating interlocking shapes that fit together with mathematical precision leaving no gap between forms, flat, confidently bounded regions replacing any curved or blended transition, a rhythmic, meditative pattern-logic that treats the repeated unit itself as the compositional subject, confident symmetry and rotational repetition guiding the eye across the entire extent, and a hypnotic, meticulous graphic intensity rooted in centuries of geometric-pattern discipline. Influenced by: M.C. Escher, Islamic geometric-pattern tradition, tessellation-based printmaking technique, mathematical-illustration practice.'
+- name: design_3d_graphic | Neon Sign Design
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A luminous graphic illustration style built on crisp, continuous linework that appears to glow rather than sit flat, an electric brightness concentrated along every contour with soft radiating bloom bleeding into the surrounding darkness, confident single-stroke construction mimicking the unbroken tubing of illuminated signage, minimal internal detail letting the glowing outline carry the entire composition, and a vibrant, nightlife-adjacent intensity that feels electric, retro-commercial, and unmistakably illuminated. Influenced by: neon-sign fabrication tradition, glow-line digital-rendering technique, mid-century commercial-signage design, contemporary vector-glow illustration practice.'
+- name: design_3d_graphic | Plastic Arts Sculpture
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A synthetic figure built from glossy injection-molded vinyl and matte PVC, seam lines running subtly like a high-end designer art, the surface catching light with sharp specular falloff and glassy resin shine, translucent plastic edges glowing with internal light diffusion, microscopic surface scratches visible across the clear coat, soft gradient cyclorama lighting, soft shadows fall, the entire form reading as a physical collectible object rendered with ray-traced precision and shallow depth of field. Influenced by: Michael Lau''s vinyl sculptures, Coarse''s minimalism, KAWS'' glossy sculpture, Parra''s clean graphics, the rotocast vinyl tradition, the soft vinyl kaiju manufacturing aesthetic, and high-end product visualization photography.'
+- name: design_3d_graphic | PS1 Screenshot
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A low-polygon 3D scene rendered with the distinct technical limitations of playstation 1996, the subject built from sharp, unblended triangular facets with visibly segmented joint connections and blocky geometric anatomy, texture maps stretched and warped across flat polygon surfaces with visible pixelation and bilinear filtering artifacts, the environment constructed from repeating tiled textures with harsh seams and obvious draw-distance fog creeping in at mid-range, jagged stair-step edges along every diagonal line and object silhouette, the lighting flat and vertex-shaded with abrupt transitions between lit and shadowed faces, 320x240 resolution, muted 16-bit color depth, dithering patterns visible in shadow gradients and transparency effects achieved through stippled pixel alternation, Influenced by: Tomb Raider 1995 screenshot, Tekken 1996 screenshot, PS1 rendering pipeline, the tile-based environment construction of early 1990s 3D games, 32-bit console hardware, low-poly modeling,'
+- name: design_3d_graphic | Low Relief Sculpture
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A dimensionally subtle sculptural style built on shallow, raised form projecting only slightly beyond its background rather than standing fully in the round, confident tonal modeling constructed entirely through carved depth and directional light rather than drawn line, dramatic raking illumination that reveals every subtle contour and recessed groove with graphic clarity, a restrained, disciplined economy of projection where even minimal relief conveys convincing volume, and a timeless, classical gravitas rooted in centuries of relief-carving tradition. Influenced by: classical bas-relief sculpture tradition, Lorenzo Ghiberti, architectural relief-carving technique, academic sculptural-modeling method.'
+- name: design_3d_graphic | The Sims Game Screenshot
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A polished, gently stylized 3D-simulation illustration style built on smooth, rounded character proportion balancing cartoonish charm with grounded believability, bright, even lighting that keeps every scene warmly lit and legible, glossy specular response giving texture, sim-adjacent sheen, a confident, catalog-ready UI-clean rendering finish, and a cheerful, simulation intensity that feels bright, approachable, and unmistakably game-like. Influenced by: Maxis simulation-game rendering direction, The Sims Game, stylized 3D technique, cheerful lighting practice, simulation game-art,'
+- name: design_3d_graphic | Animal Crossing Style
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A soft, rounded 3D-simulation illustration style built on gentle, oversized proportion favoring charm, smooth subsurface-scattered shading giving forms a warm, inviting glow, bright, cheerful lighting logic that keeps every scene feeling wholesome and inviting, meticulous attention to whimsical, cozy detail rendered with cheerful simplicity rather than technical grit, and a wholesome, gentle life-simulation intensity that feels playful, comforting, and effortlessly charming. Influenced by: Animal Crossing Nintendo art, stylized 3D-simulation, cozy life-simulation game-art, whimsical cartoon-render,.'
+- name: design_3d_graphic | Partial Wireframe 3D
+  category: Design / 3D / Graphic
+  negative_prompt: ''
+  prompt: '{prompt}, A dimensionally precise digital-illustration style built on smooth, volumetric modeling that transitions abruptly into exposed geometric mesh across a portion of the extent, meticulously calculated illumination and specular response covering the fully rendered sections while the mesh-revealed areas stay flat and diagrammatic, confident sculptural construction contrasted against clean, technical grid-lines, a deliberate tension between finished dimensional realism and raw underlying structure, and a technically precise, computer-generated intensity that treats construction itself as part of the compositional subject. Influenced by: real-time 3D-rendering technique, wireframe-mesh visualization practice, physically based rendering (PBR) method, CGI production-pipeline aesthetic.'

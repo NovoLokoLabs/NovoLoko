@@ -46,6 +46,29 @@ function publishBatchStatus(message = previewBatchSession.message) {
     for (const listener of [...previewBatchSession.listeners]) listener(previewBatchSession);
 }
 
+let previewBatchEventsBound = false;
+function bindPreviewBatchExecutionEvents() {
+    if (previewBatchEventsBound) return;
+    previewBatchEventsBound = true;
+    const stopFromComfyUI = (event) => {
+        if (!previewBatchSession.running) return;
+        const eventPromptId = event?.detail?.prompt_id == null
+            ? ""
+            : String(event.detail.prompt_id);
+        if (
+            eventPromptId
+            && previewBatchSession.currentPromptId
+            && eventPromptId !== previewBatchSession.currentPromptId
+        ) {
+            return;
+        }
+        previewBatchSession.cancelRequested = true;
+        publishBatchStatus("Stopped from ComfyUI. Finishing preview cleanup…");
+    };
+    api.addEventListener("execution_interrupted", stopFromComfyUI);
+    api.addEventListener("execution_error", stopFromComfyUI);
+}
+
 function widget(node, name) {
     return node?.widgets?.find((item) => item.name === name);
 }
@@ -128,6 +151,33 @@ async function fetchStyleLibraries() {
     const data = await response.json();
     if (!response.ok || !data?.ok) {
         throw new Error(data?.error || `Library list returned HTTP ${response.status}`);
+    }
+    return data;
+}
+
+async function previewFolderRequest(path = undefined) {
+    const options = path === undefined
+        ? { cache: "no-store" }
+        : {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path }),
+        };
+    const response = await api.fetchApi("/nova_style_previews/location", options);
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || `Preview-folder request returned HTTP ${response.status}`);
+    }
+    return data;
+}
+
+async function openPreviewFolder() {
+    const response = await api.fetchApi("/nova_style_previews/open_folder", {
+        method: "POST",
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || `Opening the preview folder returned HTTP ${response.status}`);
     }
     return data;
 }
@@ -238,7 +288,7 @@ function ensureBrowserStyles() {
         .nova-style-preview-viewer-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #303541}.nova-style-preview-viewer-title{flex:1;min-width:240px;font-size:15px;font-weight:800}.nova-style-preview-zoom{min-width:52px;text-align:center;color:#b9c5da;font-weight:700}
         .nova-style-preview-viewer-stage{min-height:0;flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:#080a0e}.nova-style-preview-viewer-stage.overflow-x{justify-content:flex-start}.nova-style-preview-viewer-stage.overflow-y{align-items:flex-start}
         .nova-style-preview-viewer-stage.zoomed{cursor:grab}.nova-style-preview-viewer-stage.panning{cursor:grabbing;user-select:none}
-        .nova-style-preview-viewer-image{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.nova-style-preview-viewer-image.actual{max-width:none;max-height:none}
+        .nova-style-preview-viewer-image{display:block;flex:0 0 auto;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.nova-style-preview-viewer-image.actual{max-width:none;max-height:none}
         .nova-style-empty{grid-column:1/-1;align-self:center;justify-self:center;color:#98a3b7;font-size:16px;text-align:center}
         .nova-style-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #303541;background:#1d2129}.nova-style-pages{display:flex;gap:6px;flex:1;justify-content:center}.nova-style-page{min-width:38px}
         .nova-style-settings{position:absolute;right:18px;top:116px;z-index:8;min-width:290px;padding:12px;border:1px solid #424b5d;border-radius:12px;background:#20252f;box-shadow:0 18px 45px #000b}.nova-style-settings.hidden{display:none}.nova-style-setting{display:flex;align-items:center;gap:9px;padding:7px 4px}.nova-style-setting input{width:17px;height:17px}
@@ -572,6 +622,12 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     const generateAll = document.createElement("button");
     generateAll.textContent = "Generate all missing";
     generateAll.title = "Run the current workflow once for every style in this CSV/YAML that does not yet have a preview";
+    const openFolder = document.createElement("button");
+    openFolder.textContent = "Open previews folder";
+    openFolder.title = "Open the folder where generated and imported style previews are saved";
+    const changeFolder = document.createElement("button");
+    changeFolder.textContent = "Change preview folder…";
+    changeFolder.title = "Choose a different absolute folder for generated and imported style previews";
     const settingsButton = document.createElement("button");
     settingsButton.textContent = "⚙ Options";
     controls.append(
@@ -587,6 +643,8 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         pageSize,
         previewSize,
         generateAll,
+        openFolder,
+        changeFolder,
         settingsButton,
     );
 
@@ -644,12 +702,6 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     syncBatchControls(previewBatchSession);
 
     const closeBrowser = () => {
-        if (
-            previewBatchSession.running
-            && previewBatchSession.library === state.csv
-        ) {
-            void requestPreviewStop();
-        }
         previewBatchSession.listeners.delete(syncBatchControls);
         if (node?.__novaStyleBrowser === overlay) node.__novaStyleBrowser = null;
         if (standaloneBrowser === overlay) standaloneBrowser = null;
@@ -947,7 +999,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
                 zoom = fittedWidth / image.naturalWidth;
             }
             fitMode = false;
-            zoom = Math.min(8, Math.max(0.1, zoom * multiplier));
+            zoom = Math.min(32, Math.max(0.05, zoom * multiplier));
             applyView();
         }
         function loadViewerItem(nextItem) {
@@ -1470,6 +1522,35 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         if (previewBatchSession.running) void requestPreviewStop();
         else void generateWholeLibrary();
     };
+    openFolder.onclick = async () => {
+        try {
+            const data = await openPreviewFolder();
+            status.textContent = `Opened preview folder: ${data.path}`;
+        } catch (error) {
+            status.textContent = String(error?.message || "Could not open the preview folder");
+        }
+    };
+    changeFolder.onclick = async () => {
+        try {
+            const current = await previewFolderRequest();
+            const requested = window.prompt(
+                [
+                    "Enter an absolute folder for NovoLoko style previews.",
+                    "Leave it empty to restore the package data/style_previews folder.",
+                    "Existing previews are not moved automatically.",
+                ].join("\n"),
+                current.path || "",
+            );
+            if (requested === null) return;
+            const changed = await previewFolderRequest(requested.trim());
+            status.textContent = changed.configured
+                ? `Preview folder changed to ${changed.path}`
+                : `Preview folder restored to ${changed.path}`;
+            await load();
+        } catch (error) {
+            status.textContent = String(error?.message || "Could not change the preview folder");
+        }
+    };
 
     async function populateLibraryChoices() {
         if (!options.standalone) return;
@@ -1641,8 +1722,9 @@ function installStandaloneLauncher() {
 }
 
 app.registerExtension({
-    name: "NovoLoko.CSVStyleVisualLibrary.v370",
+    name: "NovoLoko.CSVStyleVisualLibrary.v390",
     setup() {
+        bindPreviewBatchExecutionEvents();
         installStandaloneLauncher();
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {

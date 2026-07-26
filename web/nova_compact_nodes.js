@@ -39,6 +39,24 @@ function installCompactSizing(node, nodeTypeName) {
     }
     node.__novaCompactSizingInstalled = true;
 
+    if (!node.__novaResizePersistenceInstalled) {
+        const previousResize = node.onResize;
+        node.onResize = function (...args) {
+            const result = previousResize?.apply(this, args);
+            this.setDirtyCanvas?.(true, true);
+            app.graph?.setDirtyCanvas?.(true, true);
+            if (!this.__novaResizeChangeQueued) {
+                this.__novaResizeChangeQueued = true;
+                queueMicrotask(() => {
+                    this.__novaResizeChangeQueued = false;
+                    this.graph?.change?.();
+                });
+            }
+            return result;
+        };
+        node.__novaResizePersistenceInstalled = true;
+    }
+
     for (const item of node.widgets || []) {
         const element = item?.element || item?.inputEl;
         if (!element?.style) continue;
@@ -49,7 +67,7 @@ function installCompactSizing(node, nodeTypeName) {
 }
 
 app.registerExtension({
-    name: "NovoLoko.CompactResizableNodes.v380",
+    name: "NovoLoko.CompactResizableNodes.v390",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const nodeTypeName = String(nodeData?.name || "");
         if (!nodeTypeName.startsWith("Nova")) return;

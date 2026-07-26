@@ -15,8 +15,12 @@ try:
     from .style_previews import (
         PREVIEW_MAX_UPLOAD_BYTES,
         PREVIEW_SIZES,
+        configure_preview_root as _configure_preview_root,
         library_key as _preview_library_key,
+        open_preview_root as _open_preview_root,
         preview_path as _preview_path,
+        preview_root as _preview_root,
+        preview_root_is_configured as _preview_root_is_configured,
         resize_and_store_preview as _resize_and_store_preview,
         safe_preview_path as _safe_preview_path,
         style_key as _preview_style_key,
@@ -25,14 +29,18 @@ except ImportError:
     from style_previews import (
         PREVIEW_MAX_UPLOAD_BYTES,
         PREVIEW_SIZES,
+        configure_preview_root as _configure_preview_root,
         library_key as _preview_library_key,
+        open_preview_root as _open_preview_root,
         preview_path as _preview_path,
+        preview_root as _preview_root,
+        preview_root_is_configured as _preview_root_is_configured,
         resize_and_store_preview as _resize_and_store_preview,
         safe_preview_path as _safe_preview_path,
         style_key as _preview_style_key,
     )
 
-NOVA_VERSION = "3.8.0"
+NOVA_VERSION = "3.9.0"
 
 try:
     import folder_paths
@@ -2207,6 +2215,43 @@ try:
             raise
         except Exception:
             raise web.HTTPNotFound()
+
+    @PromptServer.instance.routes.get("/nova_style_previews/location")
+    async def nova_style_preview_location(_request):
+        root = _preview_root(_node_dir())
+        return web.json_response({
+            "ok": True,
+            "path": str(root),
+            "configured": _preview_root_is_configured(_node_dir()),
+        })
+
+    @PromptServer.instance.routes.post("/nova_style_previews/location")
+    async def nova_style_preview_set_location(request):
+        try:
+            data = await request.json()
+            requested_path = str(data.get("path") or "")[:4096]
+            root = _configure_preview_root(_node_dir(), requested_path)
+            return web.json_response({
+                "ok": True,
+                "path": str(root),
+                "configured": bool(requested_path.strip()),
+            })
+        except Exception as error:
+            return web.json_response(
+                {"ok": False, "error": str(error)[:300]},
+                status=400,
+            )
+
+    @PromptServer.instance.routes.post("/nova_style_previews/open_folder")
+    async def nova_style_preview_open_folder(_request):
+        try:
+            root = _open_preview_root(_node_dir())
+            return web.json_response({"ok": True, "path": str(root)})
+        except Exception as error:
+            return web.json_response(
+                {"ok": False, "error": str(error)[:300]},
+                status=400,
+            )
 
     @PromptServer.instance.routes.post("/nova_style_previews/upload")
     async def nova_style_preview_upload(request):

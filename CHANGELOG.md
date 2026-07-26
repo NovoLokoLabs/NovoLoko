@@ -1,5 +1,25 @@
 # NovoLoko Changelog
 
+## v3.9.0 — Expanded libraries and persistent Desktop style tools
+
+- Imports the updated installed CSV/YAML libraries, including 397 uploaded
+  medium styles and focused anime, cartoon, comics, 3D/design, digital painting,
+  drawing, fine-art and photography collections.
+- Keeps whole-library preview generation alive when its browser closes and
+  restores the same progress/Stop control when reopened.
+- Treats ComfyUI's normal Cancel action as a cancellation of the active preview
+  batch.
+- Allows the large preview viewer to zoom beyond the window up to 32× with
+  two-axis panning.
+- Adds controls to open or change the managed preview-output folder. The chosen
+  absolute path remains ignored local runtime state and is never committed.
+- Marks NovoLoko node resize actions as workflow changes so manually saved
+  dimensions persist.
+- Repairs corrupted punctuation in node and group titles as older workflows load
+  while leaving prompt widgets untouched.
+- Updates current workflow and release metadata to v3.9.0 with all 34 serialized
+  node contracts unchanged.
+
 ## v3.8.0 — Workflow text, scalable browsing and packaged timer sounds
 
 - Keeps visual cards at a readable square size while 24, 50, 100 or All results

@@ -9,10 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RepositoryTests(unittest.TestCase):
     def test_manifest_brand_and_package(self) -> None:
-        manifest = json.loads((ROOT / "NovoLoko_v3.8.0_manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "NovoLoko_v3.9.0_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["brand"], "NovoLoko")
         self.assertEqual(manifest["package"], "ComfyUI-NovoLoko")
         self.assertEqual(manifest["registered_node_count"], len(manifest["registered_nodes"]))
+        self.assertEqual(
+            manifest["style_libraries"]["csv_yaml_file_count"],
+            sum(1 for folder in ("csv", "styles") for path in (ROOT / folder).rglob("*")
+                if path.is_file() and path.suffix.lower() in {".csv", ".yaml", ".yml"}),
+        )
         self.assertEqual(len(manifest["registered_nodes"]), len(set(manifest["registered_nodes"])))
         self.assertEqual(498, manifest["timer_sounds"]["playable_file_count"])
         self.assertEqual("data/NovoLokoTimerSounds", manifest["timer_sounds"]["path"])
@@ -85,8 +90,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('"data", "NovoLokoTimerSounds"', source)
         self.assertNotIn("get_input_directory()", source[source.index("def _nova_timer_sound_dir"):source.index("def _safe_timer_sound_filename")])
 
-    def test_v380_workflow_has_clean_visible_text_and_no_personal_runtime_state(self) -> None:
-        path = ROOT / "workflows/NovoLoko AIO v3.8.0 - Latest Workflow.json"
+    def test_v390_workflow_has_clean_visible_text_and_no_personal_runtime_state(self) -> None:
+        path = ROOT / "workflows/NovoLoko AIO v3.9.0 - Latest Workflow.json"
         text = path.read_text(encoding="utf-8")
         workflow = json.loads(text)
         self.assertEqual(39, len(workflow["nodes"]))

@@ -156,7 +156,26 @@ class UiPolishTests(unittest.TestCase):
         self.assertIn("DEFAULT_MIN_WIDTH = 150", source)
         self.assertIn("DOM_MIN_WIDTH = 210", source)
         self.assertIn("Math.min(RESET_WIDTH", source)
+        self.assertIn("__novaResizePersistenceInstalled", source)
+        self.assertIn("this.graph?.change?.()", source)
+        self.assertIn("app.graph?.setDirtyCanvas?.(true, true)", source)
         self.assertNotIn("setSize", source)
+
+    def test_old_workflow_titles_are_repaired_without_touching_prompt_widgets(self) -> None:
+        source = (ROOT / "web/nova_workflow_text_repair.js").read_text(encoding="utf-8")
+        for marker in (
+            "repairVisibleTitle",
+            "repairNodeTitle",
+            "repairGraphTitles",
+            "graph._groups",
+            "node.title = repaired",
+            "group.title = repaired",
+            "loadedGraphNode(node)",
+            "afterConfigureGraph()",
+        ):
+            self.assertIn(marker, source)
+        self.assertNotIn("widgets_values", source)
+        self.assertNotIn("widget.value", source)
 
     def test_compare_node_surface_uses_selected_theme_without_serializing_colours(self) -> None:
         source = (ROOT / "web/nova_image_compare.js").read_text(encoding="utf-8")
