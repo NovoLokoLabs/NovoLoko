@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-26T07:35:00Z",
+  "updated_at": "2026-07-26T07:45:00Z",
   "products": {
     "NovoLoko": {
       "repository": "NovoLokoLabs/NovoLoko",
       "version": "3.8.0",
       "tag": "v3.8.0",
-      "commit": "11257f01d3976cd176163f12b9ae9deda39a2d09",
+      "commit": "fda6adc338cb538c0c6be7c2bac60a379c5d7d66",
       "previous_commits": [
         "6e4b0a2d057cb68ed64e82cf9729237c65505b0b",
         "e04e874bab87b28cb8e3fdb5adad957bd2a535a9",
