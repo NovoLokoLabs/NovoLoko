@@ -953,7 +953,7 @@ function drawComposition(ctx, state, x, y, width, height, options = {}) {
         drawEffectPanel(ctx, state, a, b, x, y, width, height);
         ctx.restore();
 
-        if (includeGuide && state.guide) {
+        if (includeGuide) {
             const theme = themeFor(state);
             ctx.globalAlpha = clamp(state.lineOpacity, 0, 100) / 100;
             ctx.strokeStyle = "#ffffff";
@@ -2305,7 +2305,7 @@ function addCompareWidget(node) {
         const position = clamp(state.position, 0, 100);
         const vertical = state.orientation === "Vertical";
         const opacity = clamp(state.lineOpacity, 0, 100) / 100;
-        guideLine.style.display = state.guide && opacity > 0 ? "block" : "none";
+        guideLine.style.display = opacity > 0 ? "block" : "none";
         guideLine.style.opacity = String(opacity);
         guideHandle.style.display = state.guide ? "flex" : "none";
         guideHandle.style.background = themeFor(state).accent;

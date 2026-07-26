@@ -97,6 +97,58 @@ def _bridge_is_ready(module: Any) -> bool:
         return False
 
 
+def _launch_process(executable: Path, hidden: bool) -> subprocess.Popen:
+    kwargs: dict[str, Any] = {
+        "cwd": str(executable.parent),
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if hidden and os.name == "nt":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        kwargs["startupinfo"] = startupinfo
+    return subprocess.Popen([str(executable)], **kwargs)
+
+
+def _set_process_windows(pid: int, show_command: int, foreground: bool = False) -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        changed = False
+        enum_proc_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+        def visit(hwnd, _lparam):
+            nonlocal changed
+            window_pid = wintypes.DWORD()
+            ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+            if window_pid.value == int(pid):
+                ctypes.windll.user32.ShowWindow(hwnd, int(show_command))
+                if foreground:
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+                changed = True
+            return True
+
+        callback = enum_proc_type(visit)
+        ctypes.windll.user32.EnumWindows(callback, 0)
+        return changed
+    except Exception:
+        return False
+
+
+def _hide_process_windows(pid: int) -> bool:
+    return _set_process_windows(pid, 0)
+
+
+def _show_process_windows(pid: int) -> bool:
+    return _set_process_windows(pid, 9, foreground=True)
+
+
 def _start_bridge(module: Any, deadline: float | None) -> None:
     global _OWNED_PROCESS
     with _AUTO_START_LOCK:
@@ -111,14 +163,7 @@ def _start_bridge(module: Any, deadline: float | None) -> None:
             )
 
         try:
-            process = subprocess.Popen(
-                [str(executable)],
-                cwd=str(executable.parent),
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-            )
+            process = _launch_process(executable, hidden=True)
         except Exception as exc:
             raise RuntimeError(f"OmniLoko could not be auto-started: {exc}") from exc
 
@@ -126,8 +171,10 @@ def _start_bridge(module: Any, deadline: float | None) -> None:
         if deadline is not None:
             stop_at = min(stop_at, deadline)
         while time.monotonic() < stop_at:
+            _hide_process_windows(int(process.pid))
             if _bridge_is_ready(module):
                 if process.poll() is None:
+                    _hide_process_windows(int(process.pid))
                     _OWNED_PROCESS = process
                 return
             # Exit code 17 means another process already owns the bridge. Keep
@@ -140,6 +187,35 @@ def _start_bridge(module: Any, deadline: float | None) -> None:
         raise RuntimeError(
             "OmniLoko was opened automatically, but its private local bridge did not become ready in time."
         )
+
+
+def open_visible() -> str:
+    """Open OmniLoko visibly, or restore and disown an auto-started instance."""
+
+    global _OWNED_PROCESS
+    with _AUTO_START_LOCK:
+        process = _OWNED_PROCESS
+        if process is not None and process.poll() is None:
+            _OWNED_PROCESS = None
+        else:
+            process = None
+
+    executable = _find_executable()
+    if executable is None:
+        raise RuntimeError(
+            "OmniLoko.exe was not found. Install OmniLoko with the NovoLokoLabs updater "
+            "or set OMNILOKO_EXE to its full path."
+        )
+
+    if process is not None:
+        stop_at = time.monotonic() + 5.0
+        while process.poll() is None and time.monotonic() < stop_at:
+            if _show_process_windows(int(process.pid)):
+                return str(executable)
+            time.sleep(0.1)
+
+    _launch_process(executable, hidden=False)
+    return str(executable)
 
 
 def _post_close_to_windows(pid: int) -> bool:

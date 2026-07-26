@@ -154,10 +154,16 @@ class V350MediaVoiceCompareTests(unittest.TestCase):
 
     def test_voice_frontend_uses_serializable_supported_hiding_and_refresh(self) -> None:
         source = (ROOT / "web/nova_voice_engine.js").read_text(encoding="utf-8")
+        backend = (ROOT / "voice_nodes.py").read_text(encoding="utf-8")
         self.assertNotIn("item.hidden =", source)
         self.assertIn('item.type = visible ? item.__novaVoiceEngineOriginalType : "hidden"', source)
         self.assertIn("Refresh Voices", source)
         self.assertIn("/nova_voice/voices", source)
+        self.assertIn("Open OmniLoko", source)
+        self.assertIn("/nova_voice/open_omniloko", source)
+        self.assertIn('@PromptServer.instance.routes.post("/nova_voice/open_omniloko")', backend)
+        self.assertIn("await asyncio.to_thread(open_visible)", backend)
+        self.assertIn("Number(node.size?.[1])", source)
         self.assertIn("novaVoiceStalePreset", source)
         for name in ("omniloko_voice", "kokoro_voice", "prefix", "max_characters", "speed", "device", "normalize_loudness", "timeout_seconds"):
             with self.subTest(widget=name):

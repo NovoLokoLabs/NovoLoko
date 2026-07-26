@@ -50,7 +50,7 @@ function resizeNode(node) {
         if (!Array.isArray(measured)) return;
         node.setSize?.([
             Math.max(360, Number(node.size?.[0]) || measured[0]),
-            Math.max(160, Number(measured[1]) || 160),
+            Math.max(160, Number(node.size?.[1]) || 0, Number(measured[1]) || 0),
         ]);
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
@@ -144,7 +144,50 @@ function ensureRefreshButton(node) {
     node.__novaVoiceRefreshWidget = button;
 }
 
+function updateOpenStatus(node, message) {
+    const button = node.__novaOpenOmniLokoWidget;
+    if (!button) return;
+    button.name = message;
+    button.label = message;
+    node.setDirtyCanvas?.(true, true);
+}
+
+async function openOmniLoko(node) {
+    const button = node.__novaOpenOmniLokoWidget;
+    if (!button || button.__novaOpening) return;
+    button.__novaOpening = true;
+    updateOpenStatus(node, "Opening OmniLoko…");
+    try {
+        const response = await api.fetchApi("/nova_voice/open_omniloko", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+        });
+        const data = await response.json();
+        if (!response.ok || !data?.ok) {
+            throw new Error(data?.error || "OmniLoko could not be opened.");
+        }
+        updateOpenStatus(node, "OmniLoko opened ✓");
+        setTimeout(() => updateOpenStatus(node, "Open OmniLoko"), 1200);
+    } catch (error) {
+        updateOpenStatus(node, "Open OmniLoko • unavailable");
+        console.warn("[NovoLoko Voice TTS] OmniLoko could not be opened:", error?.message || String(error));
+    } finally {
+        button.__novaOpening = false;
+    }
+}
+
+function ensureOpenOmniLokoButton(node) {
+    if (node.__novaOpenOmniLokoWidget || typeof node.addWidget !== "function") return;
+    const button = node.addWidget("button", "Open OmniLoko", null, () => openOmniLoko(node));
+    button.serialize = false;
+    button.options = button.options || {};
+    button.options.serialize = false;
+    node.__novaOpenOmniLokoWidget = button;
+}
+
 function configure(node) {
+    ensureOpenOmniLokoButton(node);
     ensureRefreshButton(node);
     if (!node.__novaVoiceEngineConfigured) {
         node.__novaVoiceEngineConfigured = true;
@@ -155,7 +198,7 @@ function configure(node) {
 }
 
 app.registerExtension({
-    name: "NovoLoko.CompactVoiceEngineTTS.v350",
+    name: "NovoLoko.CompactVoiceEngineTTS.v392",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (String(nodeData?.name || "") !== NODE_NAME) return;
 
