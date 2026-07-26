@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-const EXTENSION_NAME = "NovoLoko.CoreReplacements.v370WorkflowControls";
+const EXTENSION_NAME = "NovoLoko.CoreReplacements.v391WorkflowControls";
 const TIMER_NODE = "NovaGenerationTimer";
 const SEED_NODE = "NovaSeedLab";
 const CONTROL_NODE = "NovaControlPanelSwitch";
@@ -479,6 +479,40 @@ function randomSeed(digits = 16) {
     return Math.floor(Math.random() * limit);
 }
 
+function seedGraphNodes(graph = app.graph, visited = new Set()) {
+    if (!graph || visited.has(graph)) return [];
+    visited.add(graph);
+    const result = [];
+    for (const item of graph._nodes || []) {
+        result.push(item);
+        if (item.subgraph) result.push(...seedGraphNodes(item.subgraph, visited));
+    }
+    return result;
+}
+
+async function runSeedQueueHooks(name) {
+    const pending = [];
+    for (const item of seedGraphNodes()) {
+        for (const target of item.widgets || []) {
+            const callback = target?.[name];
+            if (typeof callback !== "function") continue;
+            const result = callback.call(target, { isPartialExecution: false });
+            if (result && typeof result.then === "function") pending.push(result);
+        }
+    }
+    await Promise.all(pending);
+}
+
+async function queueSeedWorkflow() {
+    if (typeof app.graphToPrompt !== "function" || typeof api.queuePrompt !== "function") {
+        throw new Error("This ComfyUI version cannot queue the workflow from Seed Lab.");
+    }
+    await runSeedQueueHooks("beforeQueued");
+    const prompt = await app.graphToPrompt();
+    await api.queuePrompt(0, prompt);
+    await runSeedQueueHooks("afterQueued");
+}
+
 function normaliseSeedHistory(value) {
     const source = Array.isArray(value) ? value : [];
     const output = [];
@@ -740,12 +774,18 @@ function installSeedLab(node) {
     const copy = makeButton("Copy", "Copy the selected recent seed");
     const fresh = makeButton(
         "🎲 Manual Random Seed",
-        "Create a new seed, switch to Fixed, and reuse it until you change it",
+        "Create a new seed, switch to Fixed, and run the workflow immediately",
     );
     fresh.style.gridColumn = "1/-1";
     fresh.style.width = "100%";
+    const fixedRun = makeButton(
+        "Fixed Seed Run",
+        "Switch to Fixed and run the workflow with the seed shown above",
+    );
+    fixedRun.style.gridColumn = "1/-1";
+    fixedRun.style.width = "100%";
 
-    root.append(last, recent, reuse, copy, fresh);
+    root.append(last, recent, reuse, copy, fresh, fixedRun);
 
     const dom = node.addDOMWidget?.(
         "nova_seed_history",
@@ -759,7 +799,7 @@ function installSeedLab(node) {
     if (dom) {
         dom.computeSize = (width) => [
             Math.max(235, Math.min(360, width || 280)),
-            84,
+            113,
         ];
     }
 
@@ -863,8 +903,14 @@ function installSeedLab(node) {
         if (!Number.isFinite(seed)) return;
         const seedWidget = widget(node, "seed");
         const modeWidget = widget(node, "mode");
-        if (seedWidget) seedWidget.value = Math.max(0, Math.floor(seed));
-        if (modeWidget) modeWidget.value = "Fixed";
+        if (seedWidget) {
+            seedWidget.value = Math.max(0, Math.floor(seed));
+            seedWidget.callback?.(seedWidget.value);
+        }
+        if (modeWidget) {
+            modeWidget.value = "Fixed";
+            modeWidget.callback?.("Fixed");
+        }
         syncAfterGenerate();
         node.properties.novaSelectedSeed = String(Math.floor(seed));
         recentValue = node.properties.novaSelectedSeed;
@@ -888,7 +934,35 @@ function installSeedLab(node) {
         } catch (_) {}
     });
 
-    fresh.addEventListener("click", (event) => {
+    let queueBusy = false;
+    async function runSeed(value, sourceButton) {
+        if (queueBusy) return;
+        useSeed(value);
+        const clean = String(Math.max(0, Math.floor(Number(value) || 0)));
+        queueBusy = true;
+        fresh.disabled = true;
+        fixedRun.disabled = true;
+        const originalLabel = sourceButton.textContent;
+        sourceButton.textContent = "Queueing…";
+        last.textContent = `Queueing seed ${clean}`;
+        try {
+            await queueSeedWorkflow();
+            last.textContent = `Queued seed ${clean}`;
+            last.title = `Queued fixed seed: ${clean}`;
+        } catch (error) {
+            const message = String(error?.message || error || "Workflow queue failed");
+            last.textContent = "Seed run could not be queued";
+            last.title = message;
+            console.warn("[NovoLoko Seed Lab] queue failed:", error);
+        } finally {
+            sourceButton.textContent = originalLabel;
+            fresh.disabled = false;
+            fixedRun.disabled = false;
+            queueBusy = false;
+        }
+    }
+
+    fresh.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
         const value = randomSeed(widget(node, "digits")?.value);
@@ -900,7 +974,13 @@ function installSeedLab(node) {
         last.textContent = "Last used seed";
         last.title = `Last used seed: ${value}`;
         refreshRecent(String(value));
-        useSeed(value);
+        await runSeed(value, fresh);
+    });
+
+    fixedRun.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await runSeed(widget(node, "seed")?.value, fixedRun);
     });
 
     refreshRecent();
@@ -935,12 +1015,6 @@ function installSeedLab(node) {
         return originalRemoved?.apply(this, args);
     };
 
-    if (
-        Array.isArray(node.size)
-        && (node.size[0] > 500 || node.size[1] > 500)
-    ) {
-        node.setSize?.([260, 190]);
-    }
 }
 
 // ---------------------------------------------------------------------------

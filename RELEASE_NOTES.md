@@ -1,26 +1,26 @@
-# NovoLoko v3.9.0
+# NovoLoko v3.9.1
 
-This release expands the visual libraries and fixes the remaining Desktop
-style-browser and workflow-persistence issues:
+This patch release improves the NovoLoko style, seed and image-comparison
+workflow in ComfyUI Desktop:
 
-- imports the updated NovoLoko CSV and YAML collections, including 397 uploaded
-  medium styles and categorized anime, cartoon, comics, 3D/design, digital
-  painting, drawing, fine-art and photography libraries
-- keeps whole-library preview generation running after the style browser closes;
-  reopening the browser exposes the same Stop control
-- makes ComfyUI's normal Cancel action stop the active whole-library preview run
-- lets large preview images zoom up to 32× without flex-shrinking back to the
-  viewer bounds
-- adds **Open previews folder** and **Change preview folder…** controls; the
-  selected absolute folder is stored only as ignored local runtime state
-- marks manual NovoLoko node resizing as a workflow change so dimensions persist
-  when the workflow is saved
-- repairs mojibake in visible node and group titles whenever older workflows load,
-  without examining or changing prompt widgets
-- refreshes the AIO and Compare Studio workflows for v3.9.0
+- remembers the last 512 or 1024 style-preview generation size after the visual
+  library closes and reopens
+- displays each saved preview's actual pixel size in the lower-right corner of
+  its card
+- opens the visual CSV/YAML style library directly from Manual Prompt and lets
+  that node apply styles from either file type
+- makes **Manual Random Seed** generate a new fixed seed and immediately queue
+  the workflow
+- adds **Fixed Seed Run** to queue the workflow with the currently displayed
+  seed
+- fixes Compare Studio's Guide toggle and line-transparency control in both the
+  node preview and full-screen composition
+- preserves saved and manually resized node dimensions, including removal of a
+  legacy Seed Lab auto-shrink rule
 
 All 34 serialized node IDs, inputs, outputs, socket order and widget order remain
-unchanged.
+unchanged. The supplied workflow files contain no personal prompt, media,
+preview, seed-history or Compare Studio runtime state.
 
-Close ComfyUI, run the NovoLokoLabs updater, restart ComfyUI Desktop completely
-and press `Ctrl+F5` if its embedded frontend still has an older cached script.
+Close and restart ComfyUI Desktop completely after installing the update so its
+embedded frontend loads the new NovoLoko scripts.

@@ -292,6 +292,23 @@ class HighConfidenceFixTests(unittest.TestCase):
         self.assertIsInstance(stable, tuple)
         self.assertEqual(stable[3], "none")
 
+    def test_prompt_styler_lists_csv_and_yaml_libraries(self) -> None:
+        workflow = load_package_module("nova_workflow")
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "styles").mkdir()
+            (root / "csv/styles").mkdir(parents=True)
+            (root / "styles/camera.yaml").write_text("styles: []\n", encoding="utf-8")
+            (root / "csv/styles/portraits.csv").write_text(
+                "name,prompt,negative_prompt\nPortrait,cinematic {prompt},blurry\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(workflow, "_node_dir", return_value=str(root)):
+                files = workflow._style_files()
+
+        self.assertEqual("styles/camera.yaml", files[0])
+        self.assertIn("csv/styles/portraits.csv", files)
+
 
 if __name__ == "__main__":
     unittest.main()

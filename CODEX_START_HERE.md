@@ -1,6 +1,6 @@
 # Start Here — NovoLoko Project
 
-This repository contains the complete **ComfyUI-NovoLoko v3.9.0** custom-node package.
+This repository contains the complete **ComfyUI-NovoLoko v3.9.1** custom-node package.
 
 ## Project goal
 
@@ -45,4 +45,4 @@ Static checks cannot replace a real ComfyUI launch. A release candidate should a
 - Compare Studio image persistence and controls;
 - Media Studio history and image output;
 - optional voice package absent and present;
-- browser hard refresh after frontend changes.
+- full ComfyUI Desktop restart after frontend changes.

@@ -25,6 +25,7 @@ function readBrowserSettings() {
         autoOpenGenerated: true,
         wrapViewerNavigation: true,
         itemsPerPage: 24,
+        previewSize: 512,
     };
     try {
         return { ...defaults, ...JSON.parse(localStorage.getItem(BROWSER_SETTINGS_KEY) || "{}") };
@@ -84,6 +85,10 @@ function isCharacterLoader(nodeData) {
     return String(nodeData?.name || "").startsWith("NovaLoadCharactersCSVPro");
 }
 
+function isPromptStyler(nodeData) {
+    return String(nodeData?.name || "") === "NovaPromptStyler";
+}
+
 function setComboValues(target, values, fallback) {
     if (!target || !Array.isArray(values) || values.length === 0) return;
     target.type = "combo";
@@ -102,7 +107,12 @@ function markDirty(node) {
 function browserParams(node, nodeData, overrides = {}) {
     const kind = String(overrides.kind || (isCharacterLoader(nodeData) ? "characters" : "styles"));
     return new URLSearchParams({
-        csv: String(overrides.csv ?? widget(node, "csv_file_path")?.value ?? DEFAULT_STANDALONE_LIBRARY),
+        csv: String(
+            overrides.csv
+            ?? widget(node, "csv_file_path")?.value
+            ?? widget(node, "style_file")?.value
+            ?? DEFAULT_STANDALONE_LIBRARY
+        ),
         kind,
         search: String(overrides.search ?? widget(node, "search")?.value ?? ""),
         category: String(overrides.category ?? widget(node, "category")?.value ?? "All"),
@@ -246,14 +256,28 @@ function previewElement(item) {
     swatch.style.background = swatchBackground(item);
     if (item.preview_url) {
         const image = document.createElement("img");
+        const size = document.createElement("span");
         image.className = "nova-style-preview-image";
+        size.className = "nova-style-preview-size";
+        size.hidden = true;
         image.src = item.preview_url;
         image.alt = `${item.clean_name || item.name} preview`;
         image.loading = "lazy";
         image.decoding = "async";
         image.draggable = false;
-        image.onerror = () => image.remove();
-        swatch.append(image);
+        image.onload = () => {
+            const width = Math.max(0, Number(image.naturalWidth) || 0);
+            const height = Math.max(0, Number(image.naturalHeight) || 0);
+            if (!width || !height) return;
+            size.textContent = width === height ? String(width) : `${width}×${height}`;
+            size.title = `Saved preview: ${width}×${height}`;
+            size.hidden = false;
+        };
+        image.onerror = () => {
+            image.remove();
+            size.remove();
+        };
+        swatch.append(image, size);
     }
     return swatch;
 }
@@ -279,6 +303,7 @@ function ensureBrowserStyles() {
         .nova-style-swatch{width:100%;height:auto;aspect-ratio:1/1;position:relative;flex:none}.nova-style-grid.list .nova-style-card{display:grid;grid-template-columns:144px 1fr;min-height:92px}.nova-style-grid.list .nova-style-swatch{width:auto;height:100%;aspect-ratio:auto}
         .nova-style-swatch:after{content:"";position:absolute;inset:12%;border:1px solid #ffffff38;border-radius:50% 22% 50% 28%;transform:rotate(-14deg);box-shadow:inset 0 0 24px #fff2}
         .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b0d12;z-index:1}
+        .nova-style-preview-size{position:absolute;right:7px;bottom:7px;z-index:4;min-width:34px;padding:3px 6px;border:1px solid #ffffff55;border-radius:6px;background:#080b10d9;color:#fff;font:800 10px/1 Inter,Segoe UI,sans-serif;text-align:center;box-shadow:0 2px 8px #000a;pointer-events:none}
         .nova-style-card-copy{padding:9px 10px;min-width:0}.nova-style-card-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-style-card-category{color:#9fabbd;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .nova-style-star{position:absolute;right:7px;top:7px;z-index:5;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111e!important;font-size:17px!important;box-shadow:0 2px 10px #000b}.nova-style-star.on{color:#ffd45a}
         .nova-style-detail{border-left:1px solid #303541;background:#1b1f27;padding:18px;overflow:auto}.nova-style-detail h3{font-size:18px;margin:0 0 5px}.nova-style-detail .category{color:#8baeff;margin-bottom:16px}.nova-style-detail .label{color:#8f9bb0;text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.8px;margin-top:15px}.nova-style-detail .text{white-space:pre-wrap;color:#d5dbea;margin-top:5px}
@@ -300,7 +325,24 @@ function ensureBrowserStyles() {
     document.head.append(style);
 }
 
-function setSelectedStyle(node, item) {
+function setSelectedStyle(node, item, csv = "") {
+    const styleFile = widget(node, "style_file");
+    const template = widget(node, "template_name");
+    if (styleFile && template) {
+        const fileValue = String(csv || styleFile.value || DEFAULT_STANDALONE_LIBRARY);
+        const files = [...new Set([...(styleFile.options?.values || []), fileValue])];
+        setComboValues(styleFile, files, fileValue);
+        styleFile.value = fileValue;
+        styleFile.callback?.(fileValue);
+
+        const templates = [...new Set([...(template.options?.values || []), item.name])];
+        setComboValues(template, templates, item.name);
+        template.value = item.name;
+        template.callback?.(item.name);
+        markDirty(node);
+        return;
+    }
+
     const style = widget(node, "style");
     const mode = widget(node, "mode");
     const manual = widget(node, "manual_style_name");
@@ -458,7 +500,9 @@ async function downloadGeneratedImage(image) {
 
 function compatibleStyleTargets() {
     return graphNodes().filter((candidate) =>
-        widget(candidate, "medium_selection") || widget(candidate, "style")
+        widget(candidate, "medium_selection")
+        || widget(candidate, "style")
+        || (widget(candidate, "style_file") && widget(candidate, "template_name"))
     );
 }
 
@@ -477,8 +521,13 @@ function applyStandaloneStyle(item, csv, requestedTargetId = null) {
         : (compatible.length === 1 ? compatible[0] : null));
     if (!target) {
         throw new Error(
-            "Open this browser from Prompt Stack or a Style Loader, or select the one target node before generating."
+            "Open this browser from Prompt Stack, Manual Prompt or a Style Loader, or select the one target node before generating."
         );
+    }
+
+    if (widget(target, "style_file") && widget(target, "template_name")) {
+        setSelectedStyle(target, item, csv);
+        return;
     }
 
     const medium = widget(target, "medium_selection");
@@ -503,7 +552,7 @@ function applyStandaloneStyle(item, csv, requestedTargetId = null) {
         file.value = csv;
         file.callback?.(csv);
     }
-    setSelectedStyle(target, item);
+    setSelectedStyle(target, item, csv);
 }
 
 async function setFavourite(item, enabled, kind) {
@@ -548,10 +597,11 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         csv: String(
             options.csv
             ?? widget(node, "csv_file_path")?.value
+            ?? widget(node, "style_file")?.value
             ?? (options.standalone ? storedStandaloneLibrary() : DEFAULT_STANDALONE_LIBRARY)
         ),
         kind: String(options.kind || (isCharacterLoader(nodeData) ? "characters" : "styles")),
-        previewSize: Number(options.previewSize || 512) === 1024 ? 1024 : 512,
+        previewSize: Number(options.previewSize ?? browserSettings.previewSize ?? 512) === 1024 ? 1024 : 512,
         generating: false,
     };
     const favoriteKind = state.kind;
@@ -742,7 +792,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         if (typeof options.onSelect === "function") {
             options.onSelect(item);
         } else if (node) {
-            setSelectedStyle(node, item);
+            setSelectedStyle(node, item, state.csv);
         }
     }
 
@@ -1478,6 +1528,8 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
     };
     previewSize.onchange = () => {
         state.previewSize = Number(previewSize.value) === 1024 ? 1024 : 512;
+        browserSettings.previewSize = state.previewSize;
+        saveBrowserSettings(browserSettings);
     };
     pageSize.onchange = () => {
         state.pageSize = pageSize.value === "all"
@@ -1722,13 +1774,15 @@ function installStandaloneLauncher() {
 }
 
 app.registerExtension({
-    name: "NovoLoko.CSVStyleVisualLibrary.v390",
+    name: "NovoLoko.CSVStyleVisualLibrary.v391",
     setup() {
         bindPreviewBatchExecutionEvents();
         installStandaloneLauncher();
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (!isNovaStyleLoader(nodeData)) return;
+        const styleLoader = isNovaStyleLoader(nodeData);
+        const promptStyler = isPromptStyler(nodeData);
+        if (!styleLoader && !promptStyler) return;
 
         const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -1738,26 +1792,39 @@ app.registerExtension({
             if (!node.__novaCSVVisualBrowserAdded) {
                 const browse = node.addWidget(
                     "button",
-                    isCharacterLoader(nodeData) ? "Browse characters visually…" : "Browse styles visually…",
+                    isCharacterLoader(nodeData)
+                        ? "Browse characters visually…"
+                        : (promptStyler ? "Browse CSV / YAML styles visually…" : "Browse styles visually…"),
                     null,
-                    () => openStyleBrowser(node, nodeData),
+                    () => openStyleBrowser(node, nodeData, {
+                        csv: String(
+                            widget(node, promptStyler ? "style_file" : "csv_file_path")?.value
+                            || DEFAULT_STANDALONE_LIBRARY
+                        ),
+                        title: promptStyler
+                            ? "NovoLoko Manual Prompt — CSV / YAML styles"
+                            : undefined,
+                    }),
                 );
                 browse.serialize = false;
-                const reload = node.addWidget(
-                    "button",
-                    "↻ Reload CSV / YAML",
-                    null,
-                    () => refreshNovaCSVDropdown(node, nodeData, false),
-                );
-                reload.serialize = false;
+                if (styleLoader) {
+                    const reload = node.addWidget(
+                        "button",
+                        "↻ Reload CSV / YAML",
+                        null,
+                        () => refreshNovaCSVDropdown(node, nodeData, false),
+                    );
+                    reload.serialize = false;
+                }
                 node.__novaCSVVisualBrowserAdded = true;
             }
 
-            for (const name of ["csv_file_path", "category", "search", "favorites_list", "use_saved_favorites"]) {
-                wrapWidgetCallback(node, nodeData, name);
+            if (styleLoader) {
+                for (const name of ["csv_file_path", "category", "search", "favorites_list", "use_saved_favorites"]) {
+                    wrapWidgetCallback(node, nodeData, name);
+                }
+                setTimeout(() => refreshNovaCSVDropdown(node, nodeData, true), 100);
             }
-
-            setTimeout(() => refreshNovaCSVDropdown(node, nodeData, true), 100);
             return result;
         };
 

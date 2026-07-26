@@ -195,6 +195,10 @@ class StylePreviewTests(unittest.TestCase):
             "/nova_style_previews/upload",
             "/nova_style_previews/delete",
             "for (const size of [512, 1024])",
+            "browserSettings.previewSize",
+            "nova-style-preview-size",
+            "image.naturalWidth",
+            "image.naturalHeight",
             "preview_url",
             "object-fit:contain",
             "object-fit:cover",
@@ -219,6 +223,8 @@ class StylePreviewTests(unittest.TestCase):
             "setPointerCapture",
             "Click to open. Drag to move.",
             "node?.widgets?.find",
+            "Browse CSV / YAML styles visually",
+            'widget(candidate, "style_file") && widget(candidate, "template_name")',
         ):
             self.assertIn(marker, browser)
         self.assertIn("aspect-ratio:1/1", browser)

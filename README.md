@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.9.0
+# ComfyUI-NovoLoko v3.9.1
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -7,8 +7,8 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 1. Close ComfyUI completely.
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
-4. Restart ComfyUI and press `Ctrl+F5` in the browser.
-5. Load `workflows/NovoLoko AIO v3.9.0 - Latest Workflow.json`.
+4. Restart ComfyUI Desktop completely.
+5. Load `workflows/NovoLoko AIO v3.9.1 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,22 +22,24 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.9.0 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
-- `NovoLoko Compare Studio v3.9.0.json` — minimal image comparison example with theme-aware node chrome.
+- `NovoLoko AIO v3.9.1 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
+- `NovoLoko Compare Studio v3.9.1.json` — minimal image comparison example with theme-aware node chrome.
 
-The v3.9.0 frontend repairs corrupted punctuation in visible node and group
+The v3.9.1 frontend repairs corrupted punctuation in visible node and group
 titles whenever older workflows load while preserving serialized node IDs,
 sockets, widgets, links and prompt text.
 
 ## Main nodes
 
-Prompt tools include Prompt Stack AIO Pro, Prompt Enhancer Pro, Manual Prompt + YAML Styler, source selector, CSV style/character loaders, prompt switches, Text Prompt and Text Display. The full-screen visual library includes search, categories, favourites, recent history, grid/list views, prompt details and pagination. It can be opened from the CSV Style Loader, Prompt Stack's Medium controls or the standalone **Styles** button.
+Prompt tools include Prompt Stack AIO Pro, Prompt Enhancer Pro, Manual Prompt + CSV/YAML Styler, source selector, CSV style/character loaders, prompt switches, Text Prompt and Text Display. The full-screen visual library includes search, categories, favourites, recent history, grid/list views, prompt details and pagination. It can be opened from Manual Prompt, the CSV Style Loader, Prompt Stack's Medium controls or the standalone **Styles** button.
 
 Visual cards can use private local PNG, JPEG or WebP previews. Select a style and
 choose **Add image...**, or drag a folder onto `POPULATE_STYLE_PREVIEWS.bat` to
 populate the library at 512x512 or 1024x1024. Preview files remain under
 `data/style_previews/`, are ignored by Git and are preserved by updater overlay
 installs. See `STYLE_PREVIEWS.md`.
+The browser remembers the last 512 or 1024 preview size and shows the stored
+pixel size on the lower-right corner of every saved preview card.
 
 Use **Generate + save preview** to apply the selected style to the current
 Prompt Stack or Style Loader, queue the current workflow and automatically save
@@ -48,8 +50,9 @@ dragged anywhere, remembers its position and can switch among installed NovoLoko
 
 `NovoLoko Control Panel` provides compact TTS and Prompt Enhancer On/Off outputs
 for workflow-wide controls. `NovoLoko Seed Lab` includes a prominent manual
-random-seed button, Fixed/Random Every Queue modes, After-run behavior and its
-last 20 seeds without requiring a separate seed extension.
+random-seed-and-run button, a separate Fixed Seed Run button, Fixed/Random Every
+Queue modes, After-run behavior and its last 20 seeds without requiring a
+separate seed extension.
 
 Browser pages offer 24, 50, 100 or All entries. Cards retain a readable square
 size and the result area scrolls instead of shrinking large pages.
