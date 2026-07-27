@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
-NOVA_VOICE_VERSION = "3.9.5"
+NOVA_VOICE_VERSION = "3.9.6"
 
 _MODEL_CACHE: Dict[Tuple[str, str, str], Any] = {}
 _MODEL_LOCK = threading.Lock()
