@@ -307,8 +307,7 @@ function installTimerChromeCSS() {
     const style = document.createElement("style");
     style.id = "nova-timer-chrome-v318";
     style.textContent = `
-        .nova-timer-surface-v318,
-        .nova-timer-surface-v318 * {
+        .nova-timer-surface-v318 {
             min-width:0 !important;
             min-height:0 !important;
             background:transparent !important;
@@ -379,11 +378,6 @@ function styleTimerAncestors(node) {
         ) {
             node.__novaTimerHost = current;
             current.classList?.add("nova-timer-surface-v318");
-            for (const child of current.querySelectorAll?.("*") || []) {
-                child.style?.setProperty("background", "transparent", "important");
-                child.style?.setProperty("background-color", "transparent", "important");
-                child.style?.setProperty("box-shadow", "none", "important");
-            }
             break;
         }
         current = current.parentElement;
@@ -1027,6 +1021,7 @@ let timerInterval = 0;
 let timerLastMs = 0;
 let timerOutcome = "IDLE";
 let timerAudioContext = null;
+let timerCompletionHandled = true;
 
 const TIMER_DEFAULTS = {
     idleColor: "#f3f7ff",
@@ -1337,8 +1332,10 @@ function repaintTimers() {
             timerNodes.delete(node);
             continue;
         }
+        node.__novaTimerRefresh?.();
         dirty(node);
     }
+    uninstallTimerEventsIfUnused();
 }
 
 function beginTimer() {
@@ -1346,12 +1343,15 @@ function beginTimer() {
     timerStartedAt = Date.now();
     timerLastMs = 0;
     timerOutcome = "RUNNING";
+    timerCompletionHandled = false;
     clearInterval(timerInterval);
     timerInterval = setInterval(repaintTimers, 100);
     repaintTimers();
 }
 
 function finishTimer(outcome = "DONE") {
+    if (timerCompletionHandled) return;
+    timerCompletionHandled = true;
     if (timerRunning) timerLastMs = Math.max(0, Date.now() - timerStartedAt);
     timerRunning = false;
     timerOutcome = outcome;
@@ -1376,16 +1376,37 @@ function finishTimer(outcome = "DONE") {
 }
 
 let timerEventsInstalled = false;
+const timerEventHandlers = {
+    start: () => beginTimer(),
+    success: () => finishTimer("DONE"),
+    error: () => finishTimer("ERROR"),
+    interrupted: () => finishTimer("STOPPED"),
+    executing: (event) => {
+        if (event?.detail == null && timerRunning) finishTimer("DONE");
+    },
+};
 function installTimerEvents() {
     if (timerEventsInstalled) return;
     timerEventsInstalled = true;
-    api.addEventListener("execution_start", beginTimer);
-    api.addEventListener("execution_success", () => finishTimer("DONE"));
-    api.addEventListener("execution_error", () => finishTimer("ERROR"));
-    api.addEventListener("execution_interrupted", () => finishTimer("STOPPED"));
-    api.addEventListener("executing", (event) => {
-        if (event?.detail == null && timerRunning) finishTimer("DONE");
-    });
+    api.addEventListener("execution_start", timerEventHandlers.start);
+    api.addEventListener("execution_success", timerEventHandlers.success);
+    api.addEventListener("execution_error", timerEventHandlers.error);
+    api.addEventListener("execution_interrupted", timerEventHandlers.interrupted);
+    api.addEventListener("executing", timerEventHandlers.executing);
+}
+
+function uninstallTimerEventsIfUnused() {
+    if (!timerEventsInstalled || timerNodes.size) return;
+    timerEventsInstalled = false;
+    api.removeEventListener("execution_start", timerEventHandlers.start);
+    api.removeEventListener("execution_success", timerEventHandlers.success);
+    api.removeEventListener("execution_error", timerEventHandlers.error);
+    api.removeEventListener("execution_interrupted", timerEventHandlers.interrupted);
+    api.removeEventListener("executing", timerEventHandlers.executing);
+    clearInterval(timerInterval);
+    timerInterval = 0;
+    timerRunning = false;
+    timerCompletionHandled = true;
 }
 
 function colourInput(label, value) {
@@ -1710,6 +1731,250 @@ function restoreTimerNodeState(node) {
     }
 }
 
+function countdownFields(node) {
+    return {
+        hours: clamp(node.properties?.novaTimerCountdownHours ?? 0, 0, 999),
+        minutes: clamp(node.properties?.novaTimerCountdownMinutes ?? 0, 0, 59),
+        seconds: clamp(node.properties?.novaTimerCountdownSeconds ?? 10, 0, 59),
+    };
+}
+
+function countdownDurationMs(node) {
+    const values = countdownFields(node);
+    return Math.round(
+        (values.hours * 3600 + values.minutes * 60 + values.seconds) * 1000,
+    );
+}
+
+function countdownRemainingMs(node) {
+    if (node.__novaCountdownState === "RUNNING") {
+        return Math.max(0, Number(node.__novaCountdownEndsAt || 0) - Date.now());
+    }
+    return Math.max(0, Number(node.__novaCountdownRemainingMs || 0));
+}
+
+function stopCountdownInterval(node) {
+    clearInterval(node.__novaCountdownInterval || 0);
+    node.__novaCountdownInterval = 0;
+}
+
+function finishCountdown(node) {
+    if (node.__novaCountdownState === "DONE") return;
+    stopCountdownInterval(node);
+    node.__novaCountdownState = "DONE";
+    node.__novaCountdownRemainingMs = 0;
+    node.properties.novaTimerCountdownState = "DONE";
+    node.properties.novaTimerCountdownRemainingMs = 0;
+    if (!node.__novaCountdownCompletionPlayed) {
+        node.__novaCountdownCompletionPlayed = true;
+        playTimerSound(node, "DONE");
+    }
+    node.__novaTimerRefresh?.();
+    dirty(node);
+}
+
+function tickCountdown(node) {
+    if (node.__novaCountdownState !== "RUNNING") return;
+    node.__novaCountdownRemainingMs = countdownRemainingMs(node);
+    if (node.__novaCountdownRemainingMs <= 0) finishCountdown(node);
+    else node.__novaTimerRefresh?.();
+}
+
+function installTimerDOM(node) {
+    if (node.__novaTimerDOMInstalled || typeof node.addDOMWidget !== "function") return;
+    node.__novaTimerDOMInstalled = true;
+    const controller = new AbortController();
+    node.__novaTimerDOMController = controller;
+
+    const root = document.createElement("div");
+    root.className = "nova-timer-dom-v394";
+    root.style.cssText = [
+        "position:relative",
+        "z-index:3",
+        "width:100%",
+        "height:100%",
+        "min-height:118px",
+        "display:flex",
+        "flex-direction:column",
+        "gap:7px",
+        "padding:9px",
+        "box-sizing:border-box",
+        "border-radius:9px",
+        "background:#08101a",
+        "border:1px solid #2b5577",
+        "color:#f3f7ff",
+        "pointer-events:auto",
+    ].join(";");
+    const display = document.createElement("div");
+    display.style.cssText = "text-align:center;font:900 clamp(24px,8vw,64px)/1 ui-monospace,SFMono-Regular,Consolas,monospace;color:#6ee7ff";
+    const status = document.createElement("div");
+    status.style.cssText = "text-align:center;font:800 10px/1.2 system-ui;color:#c8d5e5;min-height:12px";
+    const values = document.createElement("div");
+    values.style.cssText = "display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px";
+    const inputs = {};
+    for (const [key, label, maximum] of [
+        ["hours", "Hours", 999],
+        ["minutes", "Minutes", 59],
+        ["seconds", "Seconds", 59],
+    ]) {
+        const field = document.createElement("label");
+        field.style.cssText = "display:flex;flex-direction:column;gap:2px;text-align:center;font:700 9px/1 system-ui";
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.max = String(maximum);
+        input.step = "1";
+        input.style.cssText = "width:100%;min-width:0;box-sizing:border-box;padding:4px;border:1px solid #456985;border-radius:5px;background:#101925;color:#fff;text-align:center";
+        field.append(label, input);
+        values.append(field);
+        inputs[key] = input;
+    }
+    const actions = document.createElement("div");
+    actions.style.cssText = "display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px";
+    const makeButton = (label) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.style.cssText = "min-width:0;padding:5px 3px;border:1px solid #456985;border-radius:5px;background:#18314a;color:#fff;font:800 10px/1 system-ui;cursor:pointer";
+        return button;
+    };
+    const start = makeButton("Start");
+    const pause = makeButton("Pause");
+    const resume = makeButton("Resume");
+    const reset = makeButton("Reset");
+    const settings = makeButton("Sound / settings");
+    settings.style.gridColumn = "1/-1";
+    actions.append(start, pause, resume, reset, settings);
+    root.append(display, status, values, actions);
+
+    function storeFields() {
+        node.properties.novaTimerCountdownHours = clamp(inputs.hours.value, 0, 999);
+        node.properties.novaTimerCountdownMinutes = clamp(inputs.minutes.value, 0, 59);
+        node.properties.novaTimerCountdownSeconds = clamp(inputs.seconds.value, 0, 59);
+        dirty(node);
+    }
+    function refresh() {
+        const countdownState = String(node.__novaCountdownState || "IDLE");
+        const showingCountdown = countdownState !== "IDLE";
+        const remaining = showingCountdown ? countdownRemainingMs(node) : timerElapsed();
+        display.textContent = formatTimer(remaining);
+        display.style.color = countdownState === "DONE"
+            ? String(timerSetting(node, "doneColor"))
+            : countdownState === "RUNNING"
+                ? String(timerSetting(node, "runningColor"))
+                : String(timerSetting(node, "idleColor"));
+        status.textContent = showingCountdown
+            ? `COUNTDOWN ${countdownState}`
+            : `GENERATION ${timerOutcome}`;
+        pause.disabled = countdownState !== "RUNNING";
+        resume.disabled = countdownState !== "PAUSED";
+    }
+    node.__novaTimerRefresh = refresh;
+
+    const savedFields = countdownFields(node);
+    inputs.hours.value = String(savedFields.hours);
+    inputs.minutes.value = String(savedFields.minutes);
+    inputs.seconds.value = String(savedFields.seconds);
+    for (const input of Object.values(inputs)) {
+        input.addEventListener("change", storeFields, { signal: controller.signal });
+        input.addEventListener("pointerdown", (event) => event.stopPropagation(), {
+            signal: controller.signal,
+        });
+        input.addEventListener("keydown", (event) => event.stopPropagation(), {
+            signal: controller.signal,
+        });
+    }
+
+    start.addEventListener("click", () => {
+        storeFields();
+        const duration = countdownDurationMs(node);
+        if (duration <= 0) return;
+        stopCountdownInterval(node);
+        node.__novaCountdownCompletionPlayed = false;
+        node.__novaCountdownState = "RUNNING";
+        node.__novaCountdownRemainingMs = duration;
+        node.__novaCountdownEndsAt = Date.now() + duration;
+        node.properties.novaTimerCountdownState = "RUNNING";
+        node.properties.novaTimerCountdownRemainingMs = duration;
+        node.__novaCountdownInterval = setInterval(() => tickCountdown(node), 100);
+        refresh();
+    }, { signal: controller.signal });
+    pause.addEventListener("click", () => {
+        if (node.__novaCountdownState !== "RUNNING") return;
+        node.__novaCountdownRemainingMs = countdownRemainingMs(node);
+        node.__novaCountdownState = "PAUSED";
+        node.properties.novaTimerCountdownState = "PAUSED";
+        node.properties.novaTimerCountdownRemainingMs = node.__novaCountdownRemainingMs;
+        stopCountdownInterval(node);
+        refresh();
+        dirty(node);
+    }, { signal: controller.signal });
+    resume.addEventListener("click", () => {
+        if (node.__novaCountdownState !== "PAUSED" || node.__novaCountdownRemainingMs <= 0) return;
+        node.__novaCountdownState = "RUNNING";
+        node.__novaCountdownEndsAt = Date.now() + node.__novaCountdownRemainingMs;
+        node.properties.novaTimerCountdownState = "RUNNING";
+        stopCountdownInterval(node);
+        node.__novaCountdownInterval = setInterval(() => tickCountdown(node), 100);
+        refresh();
+        dirty(node);
+    }, { signal: controller.signal });
+    reset.addEventListener("click", () => {
+        stopCountdownInterval(node);
+        node.__novaCountdownState = "IDLE";
+        node.__novaCountdownRemainingMs = countdownDurationMs(node);
+        node.__novaCountdownCompletionPlayed = false;
+        node.properties.novaTimerCountdownState = "IDLE";
+        node.properties.novaTimerCountdownRemainingMs = node.__novaCountdownRemainingMs;
+        refresh();
+        dirty(node);
+    }, { signal: controller.signal });
+    settings.addEventListener("click", () => showTimerSettings(node), {
+        signal: controller.signal,
+    });
+    for (const eventName of ["pointerdown", "pointermove", "pointerup", "keydown", "keyup"]) {
+        root.addEventListener(eventName, (event) => event.stopPropagation(), {
+            signal: controller.signal,
+        });
+    }
+
+    const restoredState = String(node.properties.novaTimerCountdownState || "IDLE");
+    node.__novaCountdownState = restoredState === "PAUSED" ? "PAUSED" : "IDLE";
+    node.__novaCountdownRemainingMs = Number(
+        node.properties.novaTimerCountdownRemainingMs || countdownDurationMs(node),
+    );
+    node.properties.novaTimerCountdownState = node.__novaCountdownState;
+
+    const dom = node.addDOMWidget(
+        "nova_timer_controls_v394",
+        "NOVA_TIMER_CONTROLS",
+        root,
+        {
+            serialize: false,
+            hideOnZoom: false,
+            getMinHeight: () => 118,
+            getHeight: () => Math.max(118, Number(node.size?.[1] || 180) - 20),
+            selectOn: ["focus", "click"],
+        },
+    );
+    dom.serialize = false;
+    dom.options.serialize = false;
+    const previousSerialize = node.onSerialize;
+    node.onSerialize = function (info) {
+        const result = previousSerialize?.apply(this, arguments);
+        if (info) {
+            info.properties ||= {};
+            const runtimeState = String(this.__novaCountdownState || "IDLE");
+            info.properties.novaTimerCountdownState =
+                runtimeState === "RUNNING" ? "PAUSED" : runtimeState;
+            info.properties.novaTimerCountdownRemainingMs =
+                countdownRemainingMs(this);
+        }
+        return result;
+    };
+    refresh();
+}
+
 function installTimerNode(node) {
     if (node.__novaTimerInstalled) return;
     node.__novaTimerInstalled = true;
@@ -1726,18 +1991,14 @@ function installTimerNode(node) {
     node.color = "rgba(0,0,0,0)";
     node.bgcolor = "rgba(0,0,0,0)";
     node.boxcolor = "rgba(0,0,0,0)";
-    node.min_size = [32, 24];
-    node.getMinSize = () => [32, 24];
-    if (!node.__novaTimerOriginalComputeSize) {
-        node.__novaTimerOriginalComputeSize = node.computeSize;
-        node.computeSize = () => [32, 24];
-    }
+    node.min_size = [260, 150];
+    node.getMinSize = () => [260, 150];
 
     const LG = globalThis.LiteGraph || {};
     node.shape = LG.ROUND_SHAPE ?? node.shape;
 
     if (!Array.isArray(node.size) || node.size[0] < 20 || node.size[1] < 20) {
-        node.size = [190, 70];
+        node.size = [320, 180];
     }
 
     installTimerChromeCSS();
@@ -1772,6 +2033,7 @@ function installTimerNode(node) {
     restoreTimerNodeState(node);
     timerNodes.add(node);
     installTimerEvents();
+    installTimerDOM(node);
 
     const previousForeground = node.onDrawForeground;
     node.onDrawForeground = function (ctx) {
@@ -1946,6 +2208,9 @@ function installTimerNode(node) {
     const previousRemoved = node.onRemoved;
     node.onRemoved = function () {
         timerNodes.delete(this);
+        uninstallTimerEventsIfUnused();
+        stopCountdownInterval(this);
+        this.__novaTimerDOMController?.abort?.();
         this.__novaTimerMarker = null;
         this.__novaTimerHost?.classList?.remove("nova-timer-surface-v318");
         previousRemoved?.apply(this, arguments);
@@ -2644,7 +2909,7 @@ app.registerExtension({
             // mutate nodeData package metadata: ComfyUI Desktop still consumes it.
             const LG = globalThis.LiteGraph || {};
             nodeType.title_mode = LG.NO_TITLE ?? 1;
-            nodeType.min_size = [32, 24];
+            nodeType.min_size = [260, 150];
 
             if (!nodeType.prototype.__novaTimerTypePatched) {
                 nodeType.prototype.__novaTimerTypePatched = true;

@@ -304,16 +304,18 @@ function ensureBrowserStyles() {
         .nova-style-swatch:after{content:"";position:absolute;inset:12%;border:1px solid #ffffff38;border-radius:50% 22% 50% 28%;transform:rotate(-14deg);box-shadow:inset 0 0 24px #fff2}
         .nova-style-preview-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b0d12;z-index:1}
         .nova-style-preview-size{position:absolute;right:7px;bottom:7px;z-index:4;min-width:34px;padding:3px 6px;border:1px solid #ffffff55;border-radius:6px;background:#080b10d9;color:#fff;font:800 10px/1 Inter,Segoe UI,sans-serif;text-align:center;box-shadow:0 2px 8px #000a;pointer-events:none}
+        .nova-style-preview-number{position:absolute;left:7px;top:7px;z-index:4;min-width:25px;padding:4px 7px;border:1px solid #ffffff80;border-radius:999px;background:#05070ae6;color:#fff;font:900 11px/1 Inter,Segoe UI,sans-serif;text-align:center;text-shadow:0 1px 2px #000;box-shadow:0 2px 9px #000c;pointer-events:none}
         .nova-style-card-copy{padding:9px 10px;min-width:0}.nova-style-card-name{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-style-card-category{color:#9fabbd;font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .nova-style-star{position:absolute;right:7px;top:7px;z-index:5;width:32px;height:32px;padding:0!important;border-radius:50%!important;background:#111e!important;font-size:17px!important;box-shadow:0 2px 10px #000b}.nova-style-star.on{color:#ffd45a}
         .nova-style-detail{border-left:1px solid #303541;background:#1b1f27;padding:18px;overflow:auto}.nova-style-detail h3{font-size:18px;margin:0 0 5px}.nova-style-detail .category{color:#8baeff;margin-bottom:16px}.nova-style-detail .label{color:#8f9bb0;text-transform:uppercase;font-size:10px;font-weight:800;letter-spacing:.8px;margin-top:15px}.nova-style-detail .text{white-space:pre-wrap;color:#d5dbea;margin-top:5px}
         .nova-style-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.nova-style-detail-actions button{flex:1 1 auto}
         .nova-style-preview-viewer{position:fixed;inset:0;z-index:100010;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.92)}
-        .nova-style-preview-viewer-panel{width:min(1180px,96vw);height:min(940px,94vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #3b4251;border-radius:15px;background:#11141a;box-shadow:0 28px 90px #000}
+        .nova-style-preview-viewer-panel{position:relative;width:min(1180px,96vw);height:min(940px,94vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #3b4251;border-radius:15px;background:#11141a;box-shadow:0 28px 90px #000}
         .nova-style-preview-viewer-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #303541}.nova-style-preview-viewer-title{flex:1;min-width:240px;font-size:15px;font-weight:800}.nova-style-preview-zoom{min-width:52px;text-align:center;color:#b9c5da;font-weight:700}
-        .nova-style-preview-viewer-stage{min-height:0;flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:#080a0e}.nova-style-preview-viewer-stage.overflow-x{justify-content:flex-start}.nova-style-preview-viewer-stage.overflow-y{align-items:flex-start}
+        .nova-style-preview-viewer-stage{position:relative;min-height:0;flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:16px;background:#080a0e}.nova-style-preview-viewer-stage.overflow-x{justify-content:flex-start}.nova-style-preview-viewer-stage.overflow-y{align-items:flex-start}
         .nova-style-preview-viewer-stage.zoomed{cursor:grab}.nova-style-preview-viewer-stage.panning{cursor:grabbing;user-select:none}
         .nova-style-preview-viewer-image{display:block;flex:0 0 auto;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.nova-style-preview-viewer-image.actual{max-width:none;max-height:none}
+        .nova-style-preview-viewer-counter{position:absolute;left:50%;bottom:12px;z-index:8;transform:translateX(-50%);min-width:78px;padding:6px 10px;border:1px solid #ffffff66;border-radius:999px;background:#05070aeb;color:#fff;font:900 12px/1 Inter,Segoe UI,sans-serif;text-align:center;text-shadow:0 1px 2px #000;box-shadow:0 3px 14px #000d;pointer-events:none}
         .nova-style-empty{grid-column:1/-1;align-self:center;justify-self:center;color:#98a3b7;font-size:16px;text-align:center}
         .nova-style-foot{display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #303541;background:#1d2129}.nova-style-pages{display:flex;gap:6px;flex:1;justify-content:center}.nova-style-page{min-width:38px}
         .nova-style-settings{position:absolute;right:18px;top:116px;z-index:8;min-width:290px;padding:12px;border:1px solid #424b5d;border-radius:12px;background:#20252f;box-shadow:0 18px 45px #000b}.nova-style-settings.hidden{display:none}.nova-style-setting{display:flex;align-items:center;gap:9px;padding:7px 4px}.nova-style-setting input{width:17px;height:17px}
@@ -1021,11 +1023,30 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
         const image = document.createElement("img");
         image.className = "nova-style-preview-viewer-image";
         image.draggable = false;
+        const viewerCounter = document.createElement("div");
+        viewerCounter.className = "nova-style-preview-viewer-counter";
+        function activeViewerPosition(target = currentItem) {
+            const data = state.data || {};
+            const items = data.items || [];
+            const localIndex = items.findIndex((candidate) => candidate.name === target?.name);
+            const page = Math.max(1, Number(data.page || state.page || 1));
+            const pageSize = Math.max(1, Number(data.page_size || state.pageSize || items.length || 1));
+            const total = Math.max(0, Number(data.filtered_count || items.length));
+            const index = localIndex >= 0
+                ? (page - 1) * pageSize + localIndex + 1
+                : 0;
+            return { index: Math.min(total, index), total };
+        }
+        function updateViewerCounter() {
+            const position = activeViewerPosition();
+            viewerCounter.textContent = `${position.index.toLocaleString()} / ${position.total.toLocaleString()}`;
+        }
         function updateTitle() {
             const dimensions = image.naturalWidth && image.naturalHeight
                 ? ` · ${image.naturalWidth}×${image.naturalHeight}`
                 : "";
             viewerTitle.textContent = `${currentItem.clean_name || currentItem.name}${dimensions}`;
+            updateViewerCounter();
         }
         function applyView() {
             image.classList.toggle("actual", !fitMode);
@@ -1082,6 +1103,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             image.alt = `${currentItem.clean_name || currentItem.name} large preview`;
             image.src = currentItem.preview_url;
             viewerTitle.textContent = currentItem.clean_name || currentItem.name;
+            updateViewerCounter();
             applyView();
         }
         image.onload = () => {
@@ -1256,7 +1278,7 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             closeViewer,
         );
         stage.append(image);
-        panel.append(viewerHead, stage);
+        panel.append(viewerHead, stage, viewerCounter);
         viewer.append(panel);
         document.body.append(viewer);
         loadViewerItem(currentItem);
@@ -1386,7 +1408,9 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             grid.append(empty);
             return;
         }
-        for (const item of items) {
+        const page = Math.max(1, Number(state.data?.page || state.page || 1));
+        const pageSize = Math.max(1, Number(state.data?.page_size || state.pageSize || items.length || 1));
+        for (const [localIndex, item] of items.entries()) {
             const card = document.createElement("div");
             card.className = `nova-style-card${state.selected?.name === item.name ? " selected" : ""}`;
             card.dataset.styleName = item.name;
@@ -1394,6 +1418,11 @@ function openStyleBrowser(node, nodeData = {}, options = {}) {
             card.tabIndex = 0;
             card.setAttribute("role", "button");
             const swatch = previewElement(item);
+            const number = document.createElement("span");
+            number.className = "nova-style-preview-number";
+            number.textContent = String((page - 1) * pageSize + localIndex + 1);
+            number.title = `Style ${(page - 1) * pageSize + localIndex + 1}`;
+            swatch.append(number);
             const copy = document.createElement("div");
             copy.className = "nova-style-card-copy";
             const name = document.createElement("div");
