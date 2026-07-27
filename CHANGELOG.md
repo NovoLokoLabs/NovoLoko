@@ -1,5 +1,20 @@
 # NovoLoko Changelog
 
+## v3.9.4 — Dual-frontend Compare and resize reliability
+
+- Makes Compare Studio's **Guide** toggle consistently hide both the divider
+  and circular handle in the node preview, full-screen viewer, copied images
+  and saved exports while keeping the invisible split drag area active.
+- Keeps node-preview and full-screen Guide/Line properties and global defaults
+  independent, with one-time migration for existing workflows.
+- Adds executable frontend regression coverage for rendering, copy/save,
+  dragging, state isolation and workflow reload.
+- Preserves exact manual sizes for Seed Lab, Voice TTS, Timer, Note and Markdown
+  Note in both legacy LiteGraph and Nodes 2.0, including legacy typed-array
+  dimensions.
+- Repairs legacy Compare remounting, Nodes 2.0 Note/Timer controls, and global
+  style-preview numbering with a stable large-viewer position counter.
+
 ## v3.9.3 — Revised style libraries and saved node dimensions
 
 - Imports the latest nine user-edited wildcard CSV libraries and their nine

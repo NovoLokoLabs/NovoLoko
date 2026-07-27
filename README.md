@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.9.3
+# ComfyUI-NovoLoko v3.9.4
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI Desktop completely.
-5. Load `workflows/NovoLoko AIO v3.9.3 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v3.9.4 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,12 +22,11 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.9.3 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
-- `NovoLoko Compare Studio v3.9.3.json` — minimal image comparison example with theme-aware node chrome.
+- `NovoLoko AIO v3.9.4 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
+- `NovoLoko Compare Studio v3.9.4.json` — minimal image comparison example with theme-aware node chrome.
 
-The v3.9.3 frontend repairs corrupted punctuation in visible node and group
-titles whenever older workflows load while preserving serialized node IDs,
-sockets, widgets, links and prompt text.
+The v3.9.4 frontend keeps legacy LiteGraph and Nodes 2.0 behavior aligned while
+preserving serialized node IDs, sockets, widgets, links and prompt text.
 
 ## Main nodes
 
@@ -73,7 +72,7 @@ Use **Open previews folder** to open managed preview storage in Windows Explorer
 package default. The selection is local ignored runtime state; existing previews
 are not moved automatically.
 
-Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger.
+Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger. Compare Studio keeps node and full-screen Guide/Line settings independent. Guide Off hides the divider and handle from the live view, clipboard and saved exports without disabling split dragging.
 
 Generation Timer includes 498 organized WAV/MP3 completion sounds under
 `data/NovoLokoTimerSounds/`. The timer scans every packaged subfolder and also
@@ -85,7 +84,7 @@ Optional media tools include Voice Prompt, the compact NovoLoko Voice TTS select
 
 All supplied libraries are organized under `csv/` and `styles/`. The release removes exact duplicates, obsolete character exports, old pose revisions and superseded 4,000/5,400-entry mega mixes. The current 9,000-entry mega mix remains.
 
-The v3.9.3 wildcard CSV/YAML pairs include the latest user-revised prompt text
+The included wildcard CSV/YAML pairs contain the latest user-revised prompt text
 for the 397 uploaded medium styles and all eight focused style collections.
 
 The latest workflow uses:
