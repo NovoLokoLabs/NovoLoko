@@ -1,6 +1,6 @@
 # Start Here — NovoLoko Project
 
-This repository contains the complete **ComfyUI-NovoLoko v3.9.3** custom-node package.
+This repository contains the complete **ComfyUI-NovoLoko v3.9.4** custom-node package.
 
 ## Project goal
 

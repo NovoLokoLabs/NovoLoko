@@ -1,24 +1,27 @@
-# NovoLoko v3.9.3
+# NovoLoko v3.9.4
 
-This patch release imports the latest user-edited style libraries and makes
-manual Seed Lab and Voice TTS dimensions survive workflow save/reopen in ComfyUI
-Desktop:
+This patch release makes NovoLoko's legacy LiteGraph and Nodes 2.0 frontends
+behave consistently:
 
-- updates all nine focused/master wildcard CSV libraries from the installed
-  `_FINAL` source files
-- updates the nine matching YAML libraries with the same revised prompt text
-- keeps canonical release filenames so the package does not ship duplicate
-  `_FINAL` libraries
-- records Seed Lab and Voice TTS width/height whenever either node is resized
-- explicitly writes the manual size into workflow serialization
-- restores the saved size after delayed DOM widgets and voice controls finish
-  configuring
-- scopes the new size persistence to `NovaSeedLab` and
-  `NovaVoiceEngineTTS`, leaving other node layout behavior unchanged
+- makes Compare Studio **Guide On** show the divider and circular handle, with
+  the Line slider controlling divider opacity
+- makes **Guide Off** hide both visible elements in the node preview,
+  full-screen viewer, clipboard copy and saved export while keeping the
+  invisible split drag area active
+- separates node-preview and full-screen Guide/Line properties and global
+  defaults, with one-time migration from existing shared values
+- preserves both sets independently through workflow serialization and reload
+- preserves exact manual sizes for Seed Lab, Voice TTS, Timer, Note and Markdown
+  Note across both frontends, including legacy typed-array node dimensions
+- repairs legacy Compare remounting and Nodes 2.0 Note/Timer controls
+- keeps style-preview numbering global across pages and shows the current
+  position in the large viewer
+- adds executable JavaScript regression tests for the new frontend state and
+  rendering decisions
 
 All 34 serialized node IDs, inputs, outputs, socket order and widget order remain
 unchanged. No supplied user workflow, preview, favourite, seed history, media or
 other personal runtime data is included in the release.
 
 Close and restart ComfyUI Desktop completely after installing the update so its
-embedded frontend loads the new resize-persistence code.
+embedded frontend loads the v3.9.4 JavaScript files.
