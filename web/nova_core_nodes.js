@@ -7,6 +7,10 @@ import {
     shouldInstallTextDisplayDOM,
     textDisplayCounterSummary,
 } from "./nova_text_display_state.js";
+import {
+    timerChromeCSS,
+    timerControlsLayoutSize,
+} from "./nova_timer_layout_state.js";
 
 const EXTENSION_NAME = "NovoLoko.CoreReplacements.v391WorkflowControls";
 const TIMER_NODE = "NovaGenerationTimer";
@@ -313,46 +317,7 @@ function installTimerChromeCSS() {
     if (document.getElementById("nova-timer-chrome-v318")) return;
     const style = document.createElement("style");
     style.id = "nova-timer-chrome-v318";
-    style.textContent = `
-        .nova-timer-surface-v318 {
-            min-width:0 !important;
-            min-height:0 !important;
-            background:transparent !important;
-            background-color:transparent !important;
-            border-color:transparent !important;
-            box-shadow:none !important;
-            filter:none !important;
-        }
-
-        .nova-timer-surface-v318 {
-            padding:0 !important;
-            margin:0 !important;
-            overflow:hidden !important;
-        }
-
-        .nova-timer-surface-v318 [class*="header"],
-        .nova-timer-surface-v318 [class*="title-bar"],
-        .nova-timer-surface-v318 [class*="node-title"] {
-            display:none !important;
-        }
-
-        .nova-timer-marker-v318,
-        .nova-timer-marker-wrapper-v318 {
-            position:absolute !important;
-            left:0 !important;
-            top:0 !important;
-            width:0 !important;
-            height:0 !important;
-            min-width:0 !important;
-            min-height:0 !important;
-            padding:0 !important;
-            margin:0 !important;
-            border:0 !important;
-            opacity:0 !important;
-            overflow:hidden !important;
-            pointer-events:none !important;
-        }
-    `;
+    style.textContent = timerChromeCSS();
     document.head.append(style);
 }
 
@@ -360,13 +325,13 @@ function styleTimerAncestors(node) {
     const marker = node?.__novaTimerMarker;
     let current = marker?.parentElement || null;
     let lastStyled = null;
+    let host = null;
 
     for (let depth = 0; current && depth < 12; depth += 1) {
         if (current === document.body || current === document.documentElement) break;
         const className = String(current.className || "");
         if (/graph-canvas|graph-container|workspace|canvas-container/i.test(className)) break;
 
-        current.classList?.add("nova-timer-surface-v318");
         current.style?.setProperty("background", "transparent", "important");
         current.style?.setProperty("background-color", "transparent", "important");
         current.style?.setProperty("border-color", "transparent", "important");
@@ -383,14 +348,14 @@ function styleTimerAncestors(node) {
             current.matches?.(".lg-node,.comfy-node,[data-node-id],[node-id]")
             || /(^|\s)(lg-node|comfy-node|node-container)(\s|$)/i.test(className)
         ) {
-            node.__novaTimerHost = current;
-            current.classList?.add("nova-timer-surface-v318");
+            host = current;
             break;
         }
         current = current.parentElement;
     }
 
-    node.__novaTimerHost ||= lastStyled;
+    node.__novaTimerHost = host || node.__novaTimerHost || lastStyled;
+    node.__novaTimerHost?.classList?.add("nova-timer-host-v397");
 }
 
 function tagTimerHost(node, attempt = 0) {
@@ -1966,6 +1931,7 @@ function installTimerDOM(node) {
     );
     dom.serialize = false;
     dom.options.serialize = false;
+    dom.computeLayoutSize = timerControlsLayoutSize;
     const previousSerialize = node.onSerialize;
     node.onSerialize = function (info) {
         const result = previousSerialize?.apply(this, arguments);
@@ -2219,7 +2185,10 @@ function installTimerNode(node) {
         stopCountdownInterval(this);
         this.__novaTimerDOMController?.abort?.();
         this.__novaTimerMarker = null;
-        this.__novaTimerHost?.classList?.remove("nova-timer-surface-v318");
+        this.__novaTimerHost?.classList?.remove(
+            "nova-timer-surface-v318",
+            "nova-timer-host-v397",
+        );
         previousRemoved?.apply(this, arguments);
     };
 
