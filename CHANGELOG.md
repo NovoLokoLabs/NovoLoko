@@ -1,5 +1,13 @@
 # NovoLoko Changelog
 
+## v3.9.6 — Nodes 2.0 Text Display output
+
+- Adds a DOM-backed renderer for NovoLoko Text Display when Nodes 2.0 is active.
+- Restores saved output after workflow load and refreshes output after execution.
+- Preserves manual resizing, scrolling, copying and text counters.
+- Leaves the legacy LiteGraph canvas renderer unchanged.
+- Adds executable frontend regression coverage for mounting and restored state.
+
 ## v3.9.5 — Independent Compare line and Nodes 2.0 Notes
 
 - Makes Compare Studio's **Line** opacity independent from **Guide** in the
