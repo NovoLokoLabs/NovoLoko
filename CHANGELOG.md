@@ -1,5 +1,13 @@
 # NovoLoko Changelog
 
+## v3.9.7 — Nodes 2.0 Timer repair
+
+- Removes the Timer CSS selector that matched ComfyUI's Nodes 2.0 node-body
+  header class and hid the entire Timer surface.
+- Keeps the Timer DOM controls visible with a non-zero minimum layout size.
+- Preserves saved workflow dimensions and legacy LiteGraph rendering.
+- Adds executable frontend regression coverage for the Timer layout contract.
+
 ## v3.9.6 — Nodes 2.0 Text Display output
 
 - Adds a DOM-backed renderer for NovoLoko Text Display when Nodes 2.0 is active.
