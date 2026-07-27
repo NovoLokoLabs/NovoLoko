@@ -1,27 +1,25 @@
-# NovoLoko v3.9.4
+# NovoLoko v3.9.5
 
-This patch release makes NovoLoko's legacy LiteGraph and Nodes 2.0 frontends
-behave consistently:
+This patch release corrects Compare Studio's divider semantics and finishes the
+Notes repair for ComfyUI Nodes 2.0:
 
-- makes Compare Studio **Guide On** show the divider and circular handle, with
-  the Line slider controlling divider opacity
-- makes **Guide Off** hide both visible elements in the node preview,
-  full-screen viewer, clipboard copy and saved export while keeping the
-  invisible split drag area active
-- separates node-preview and full-screen Guide/Line properties and global
-  defaults, with one-time migration from existing shared values
-- preserves both sets independently through workflow serialization and reload
-- preserves exact manual sizes for Seed Lab, Voice TTS, Timer, Note and Markdown
-  Note across both frontends, including legacy typed-array node dimensions
-- repairs legacy Compare remounting and Nodes 2.0 Note/Timer controls
-- keeps style-preview numbering global across pages and shows the current
-  position in the large viewer
-- adds executable JavaScript regression tests for the new frontend state and
-  rendering decisions
+- makes the **Line** opacity slider independently control the visible split
+  divider in the node preview and full-screen viewer
+- makes **Guide On/Off** show or hide only the circular drag handle
+- keeps the invisible split drag area active when Guide is off or Line is 0%
+- applies the initiating surface's independent Guide/Line values to clipboard
+  copies and saved exports
+- detects the connected native Note textarea in both legacy LiteGraph and
+  Nodes 2.0 instead of reusing Nodes 2.0's detached legacy `inputEl`
+- waits for the Nodes 2.0 Vue host before creating a single fallback editor
+- preserves multiline Note text and manual dimensions through serialization
+  and reload without changing the original serialized widget
+- adds executable frontend regression tests for Compare render decisions and
+  Notes mount/serialization decisions
 
 All 34 serialized node IDs, inputs, outputs, socket order and widget order remain
 unchanged. No supplied user workflow, preview, favourite, seed history, media or
 other personal runtime data is included in the release.
 
 Close and restart ComfyUI Desktop completely after installing the update so its
-embedded frontend loads the v3.9.4 JavaScript files.
+embedded frontend loads the v3.9.5 JavaScript files.

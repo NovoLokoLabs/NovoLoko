@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RepositoryTests(unittest.TestCase):
     def test_manifest_brand_and_package(self) -> None:
-        manifest = json.loads((ROOT / "NovoLoko_v3.9.4_manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "NovoLoko_v3.9.5_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["brand"], "NovoLoko")
         self.assertEqual(manifest["package"], "ComfyUI-NovoLoko")
         self.assertEqual(manifest["registered_node_count"], len(manifest["registered_nodes"]))
@@ -91,7 +91,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertNotIn("get_input_directory()", source[source.index("def _nova_timer_sound_dir"):source.index("def _safe_timer_sound_filename")])
 
     def test_v394_workflow_has_clean_visible_text_and_no_personal_runtime_state(self) -> None:
-        path = ROOT / "workflows/NovoLoko AIO v3.9.4 - Latest Workflow.json"
+        path = ROOT / "workflows/NovoLoko AIO v3.9.5 - Latest Workflow.json"
         text = path.read_text(encoding="utf-8")
         workflow = json.loads(text)
         self.assertEqual(39, len(workflow["nodes"]))
