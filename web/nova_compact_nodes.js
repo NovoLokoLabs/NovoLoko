@@ -1,4 +1,11 @@
 import { app } from "../../scripts/app.js";
+import {
+    findNoteSourceWidget,
+    isCompatibleNoteType,
+    noteInstallDecision,
+    noteSerializationPatch,
+    readNoteValue,
+} from "./nova_note_state.js";
 
 const DEFAULT_MIN_WIDTH = 150;
 const DOM_MIN_WIDTH = 210;
@@ -25,6 +32,13 @@ const PERSISTED_SIZE_NODE_TYPES = new Set([
 
 function nodeTypeName(node) {
     return String(node?.comfyClass || node?.type || "");
+}
+
+function isNoteNode(node) {
+    return (
+        isCompatibleNoteType(node?.comfyClass)
+        || isCompatibleNoteType(node?.type)
+    );
 }
 
 function compactMinimum(nodeTypeName) {
@@ -371,36 +385,84 @@ function installCompactSizing(node, nodeTypeName) {
     }
 }
 
-function installNoteCompatibility(node) {
-    const type = nodeTypeName(node);
-    if (!["Note", "MarkdownNote"].includes(type) || node.__novaNoteCompatibilityInstalled) {
-        return;
+function installNoteCompatibility(node, allowFallback = false) {
+    const sourceWidget = findNoteSourceWidget(node?.widgets);
+    const sourceEditors = [
+        sourceWidget?.inputEl,
+        sourceWidget?.element,
+        sourceWidget?.el,
+    ].flatMap((candidate) => {
+        if (!(candidate instanceof HTMLElement)) return [];
+        if (candidate.matches?.("textarea")) return [candidate];
+        return [...(candidate.querySelectorAll?.("textarea") || [])];
+    });
+    const nodeHost = document.querySelector?.(`[data-node-id="${node?.id}"]`);
+    const nodes2Editors = [...(nodeHost?.querySelectorAll?.("textarea") || [])];
+    const nativeEditor = [...sourceEditors, ...nodes2Editors]
+        .find((candidate) => candidate?.isConnected) || null;
+    const decision = noteInstallDecision({
+        nodeType: node?.comfyClass,
+        alternateType: node?.type,
+        installed: node?.__novaNoteCompatibilityInstalled,
+        hasSourceWidget: Boolean(sourceWidget),
+        // Nodes 2.0 retains the detached legacy inputEl and mounts a separate
+        // textarea in its Vue host. Only a connected editor is usable.
+        hasNativeEditor: Boolean(nativeEditor),
+        canAddDOMWidget: (
+            allowFallback
+            && typeof node?.addDOMWidget === "function"
+        ),
+    });
+    if (decision === "skip" || decision === "installed") {
+        return true;
     }
-    const sourceWidget = node.widgets?.find(
-        (item) => item?.name === "text" && item?.type !== "NOVA_NOTE_EDITOR",
-    );
-    if (!sourceWidget || typeof node.addDOMWidget !== "function") return;
-    node.__novaNoteCompatibilityInstalled = true;
+    if (decision === "retry") return false;
+
     node.properties ||= {};
 
-    sourceWidget.hidden = true;
-    sourceWidget.inputEl?.style?.setProperty("display", "none", "important");
-    sourceWidget.element?.style?.setProperty("display", "none", "important");
+    let editor = nativeEditor;
+    let root = nativeEditor;
+    let dom = null;
+    if (decision === "create-fallback") {
+        root = document.createElement("div");
+        root.className = "nova-note-editor-v395";
+        root.style.cssText = [
+            "position:relative",
+            "z-index:3",
+            "width:100%",
+            "height:100%",
+            "min-height:90px",
+            "padding:5px",
+            "box-sizing:border-box",
+            "pointer-events:auto",
+            "visibility:visible",
+            "opacity:1",
+        ].join(";");
+        editor = document.createElement("textarea");
+        root.append(editor);
+        dom = node.addDOMWidget(
+            "nova_note_editor_v395",
+            "NOVA_NOTE_EDITOR",
+            root,
+            {
+                serialize: false,
+                hideOnZoom: false,
+                getMinHeight: () => 90,
+                getHeight: () => Math.max(90, Number(node.size?.[1] || 180) - 52),
+                selectOn: ["focus", "click"],
+            },
+        );
+        if (!dom) return false;
+        dom.serialize = false;
+        dom.options ||= {};
+        dom.options.serialize = false;
+        sourceWidget.hidden = true;
+    } else {
+        sourceWidget.hidden = false;
+    }
 
-    const root = document.createElement("div");
-    root.className = "nova-note-editor-v394";
-    root.style.cssText = [
-        "position:relative",
-        "z-index:3",
-        "width:100%",
-        "height:100%",
-        "min-height:90px",
-        "padding:5px",
-        "box-sizing:border-box",
-        "pointer-events:auto",
-    ].join(";");
-    const editor = document.createElement("textarea");
-    editor.value = String(sourceWidget.value ?? node.properties.text ?? "");
+    node.__novaNoteCompatibilityInstalled = true;
+    editor.value = readNoteValue(sourceWidget, node.properties);
     editor.setAttribute("aria-label", "Note text");
     editor.spellcheck = true;
     editor.style.cssText = [
@@ -423,13 +485,18 @@ function installNoteCompatibility(node) {
         "white-space:pre-wrap",
         "overflow:auto",
         "pointer-events:auto",
+        "visibility:visible",
+        "opacity:1",
     ].join(";");
-    root.append(editor);
+    editor.style.setProperty("display", "block", "important");
+    editor.style.setProperty("visibility", "visible", "important");
+    editor.style.setProperty("opacity", "1", "important");
+    editor.style.setProperty("pointer-events", "auto", "important");
 
     const syncFromEditor = (markChanged = true) => {
         const value = editor.value;
         sourceWidget.value = value;
-        node.properties.text = value;
+        node.properties = noteSerializationPatch(value, node.properties);
         if (markChanged) {
             sourceWidget.callback?.(value);
             node.graph?.change?.();
@@ -448,24 +515,13 @@ function installNoteCompatibility(node) {
         if (canScroll) event.stopPropagation();
     }, { passive: true });
 
-    const dom = node.addDOMWidget(
-        "nova_note_editor_v394",
-        "NOVA_NOTE_EDITOR",
-        root,
-        {
-            serialize: false,
-            hideOnZoom: false,
-            getMinHeight: () => 90,
-            getHeight: () => Math.max(90, Number(node.size?.[1] || 180) - 52),
-            selectOn: ["focus", "click"],
-        },
-    );
-    dom.serialize = false;
-    dom.options.serialize = false;
     node.__novaNoteEditor = editor;
+    node.__novaNoteEditorSource = decision === "reuse-native"
+        ? "native"
+        : "fallback";
 
     const syncToEditor = () => {
-        const value = String(sourceWidget.value ?? node.properties?.text ?? "");
+        const value = readNoteValue(sourceWidget, node.properties);
         if (editor.value !== value) editor.value = value;
     };
     const previousConfigure = node.onConfigure;
@@ -484,6 +540,23 @@ function installNoteCompatibility(node) {
         }
         return result;
     };
+    return true;
+}
+
+function scheduleNoteCompatibility(node) {
+    if (!isNoteNode(node) || node.__novaNoteCompatibilityScheduled) return;
+    node.__novaNoteCompatibilityScheduled = true;
+    const delays = [0, 20, 75, 200, 500, 1200, 2500, 5000];
+    for (const delay of delays) {
+        setTimeout(() => {
+            // Give the Nodes 2.0 Vue host time to mount its own textarea. A
+            // fallback is created only after that grace period.
+            const installed = installNoteCompatibility(node, delay >= 500);
+            if (installed || delay === delays.at(-1)) {
+                node.__novaNoteCompatibilityScheduled = false;
+            }
+        }, delay);
+    }
 }
 
 app.registerExtension({
@@ -530,12 +603,12 @@ app.registerExtension({
     },
 
     nodeCreated(node) {
-        const type = nodeTypeName(node);
+        const type = isNoteNode(node) ? "Note" : nodeTypeName(node);
         if (PERSISTED_SIZE_NODE_TYPES.has(type)) {
             queueMicrotask(() => installCompactSizing(node, type));
         }
-        if (type === "Note" || type === "MarkdownNote") {
-            queueMicrotask(() => installNoteCompatibility(node));
+        if (isNoteNode(node)) {
+            scheduleNoteCompatibility(node);
         }
     },
 });

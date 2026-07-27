@@ -31,7 +31,7 @@ const nodeOff = compareGuideRenderState(
     { mode: "Split", guide: false, lineOpacity: 100 },
     true,
 );
-assert.equal(nodeOff.drawDivider, false, "node Guide Off must hide the line");
+assert.equal(nodeOff.drawDivider, true, "node Guide Off must leave the independent split line visible");
 assert.equal(nodeOff.drawHandle, false, "node Guide Off must hide the handle");
 assert.equal(nodeOff.dragHitActive, true, "Guide Off must retain the invisible drag hit area");
 
@@ -39,7 +39,7 @@ const fullscreenOff = compareGuideRenderState(
     { mode: "Split", guide: false, lineOpacity: 100 },
     true,
 );
-assert.equal(fullscreenOff.drawDivider, false, "fullscreen Guide Off must prevent divider drawing");
+assert.equal(fullscreenOff.drawDivider, true, "fullscreen Guide Off must leave the independent split line visible");
 assert.equal(fullscreenOff.drawHandle, false, "fullscreen Guide Off must prevent handle drawing");
 assert.equal(fullscreenOff.dragHitActive, true, "fullscreen split dragging must remain active");
 
@@ -58,8 +58,8 @@ for (const operation of ["copy", "save"]) {
     );
     assert.equal(
         compareGuideRenderState({ mode: "Split", ...nodeGuide }, true).drawDivider,
-        false,
-        `node ${operation} must respect node Guide Off`,
+        true,
+        `node ${operation} must retain the independent line with Guide Off`,
     );
 
     const fullscreenGuide = readCompareSurfaceGuide(
@@ -69,10 +69,18 @@ for (const operation of ["copy", "save"]) {
     );
     assert.equal(
         compareGuideRenderState({ mode: "Split", ...fullscreenGuide }, true).drawDivider,
-        false,
-        `fullscreen ${operation} must respect fullscreen Guide Off`,
+        true,
+        `fullscreen ${operation} must retain the independent line with Guide Off`,
     );
 }
+
+const guideOffAtZero = compareGuideRenderState(
+    { mode: "Split", guide: false, lineOpacity: 0 },
+    true,
+);
+assert.equal(guideOffAtZero.drawDivider, false, "0% line opacity must hide the independent divider");
+assert.equal(guideOffAtZero.drawHandle, false, "Guide Off must keep the handle hidden");
+assert.equal(guideOffAtZero.dragHitActive, true, "0% line and Guide Off must still allow split dragging");
 
 const fullscreenChange = persistCompareSurfaceGuide(
     initialGlobals,

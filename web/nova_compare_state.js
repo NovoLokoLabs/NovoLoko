@@ -117,7 +117,9 @@ export function compareGuideRenderState(state = {}, includeGuide = true) {
     const guide = Boolean(state.guide);
     const lineOpacity = clamp(state.lineOpacity ?? 100, 0, 100) / 100;
     return {
-        drawDivider: Boolean(split && includeGuide && guide && lineOpacity > 0),
+        // The divider is the image split line and has its own opacity control.
+        // "Guide" controls only the circular drag handle.
+        drawDivider: Boolean(split && includeGuide && lineOpacity > 0),
         drawHandle: Boolean(split && includeGuide && guide),
         dragHitActive: split,
         lineOpacity,
