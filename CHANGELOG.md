@@ -1,5 +1,20 @@
 # NovoLoko Changelog
 
+## v3.9.5 — Independent Compare line and Nodes 2.0 Notes
+
+- Makes Compare Studio's **Line** opacity independent from **Guide** in the
+  node preview, full-screen viewer, copied images and saved exports.
+- Keeps **Guide On/Off** responsible only for the circular drag handle while
+  the invisible split drag area remains active.
+- Repairs Note and Markdown Note in Nodes 2.0 by reusing the connected Vue
+  textarea instead of the detached legacy editor object.
+- Keeps the legacy native Note editor unchanged and creates no duplicate
+  editor in either frontend.
+- Preserves multiline Note text and manually saved dimensions through workflow
+  serialization and reload.
+- Adds executable frontend regression coverage for independent divider/handle
+  decisions and delayed Notes mounting.
+
 ## v3.9.4 — Dual-frontend Compare and resize reliability
 
 - Makes Compare Studio's **Guide** toggle consistently hide both the divider

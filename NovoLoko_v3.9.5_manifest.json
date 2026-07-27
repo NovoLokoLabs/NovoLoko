@@ -1,5 +1,5 @@
 {
-  "version": "3.9.4",
+  "version": "3.9.5",
   "brand": "NovoLoko",
   "package": "ComfyUI-NovoLoko",
   "registered_node_count": 34,
@@ -40,8 +40,8 @@
     "NovaTextDisplay"
   ],
   "workflows": [
-    "workflows/NovoLoko AIO v3.9.4 - Latest Workflow.json",
-    "workflows/NovoLoko Compare Studio v3.9.4.json"
+    "workflows/NovoLoko AIO v3.9.5 - Latest Workflow.json",
+    "workflows/NovoLoko Compare Studio v3.9.5.json"
   ],
   "style_libraries": {
     "csv_yaml_file_count": 76,
