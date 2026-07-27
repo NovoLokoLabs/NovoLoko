@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.9.6
+# ComfyUI-NovoLoko v3.9.7
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI Desktop completely.
-5. Load `workflows/NovoLoko AIO v3.9.6 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v3.9.7 - Latest Workflow.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,10 +22,10 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.9.6 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
-- `NovoLoko Compare Studio v3.9.6.json` — minimal image comparison example with theme-aware node chrome.
+- `NovoLoko AIO v3.9.7 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
+- `NovoLoko Compare Studio v3.9.7.json` — minimal image comparison example with theme-aware node chrome.
 
-The v3.9.6 frontend keeps legacy LiteGraph and Nodes 2.0 behavior aligned while
+The v3.9.7 frontend keeps legacy LiteGraph and Nodes 2.0 behavior aligned while
 preserving serialized node IDs, sockets, widgets, links and prompt text.
 
 ## Main nodes

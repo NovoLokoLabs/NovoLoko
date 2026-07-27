@@ -231,7 +231,7 @@ class SubjectCollectionTests(unittest.TestCase):
         self.assertEqual(self.aio.SEED_SLOT_INDEX["subject"], 6)
 
     def test_v350_workflow_uses_subject_and_one_unified_voice_node(self) -> None:
-        path = ROOT / "workflows/NovoLoko AIO v3.9.6 - Latest Workflow.json"
+        path = ROOT / "workflows/NovoLoko AIO v3.9.7 - Latest Workflow.json"
         text = path.read_text(encoding="utf-8")
         workflow = json.loads(text)
         types = [node["type"] for node in workflow["nodes"]]
@@ -261,7 +261,7 @@ class SubjectCollectionTests(unittest.TestCase):
 
     def test_new_assets_contain_no_credentials_models_audio_or_private_paths(self) -> None:
         paths = [ROOT / relative for relative in COLLECTIONS]
-        paths.extend((ROOT / "workflows").glob("*v3.9.6*.json"))
+        paths.extend((ROOT / "workflows").glob("*v3.9.7*.json"))
         forbidden = (
             "bearertoken",
             "deploy_key",
