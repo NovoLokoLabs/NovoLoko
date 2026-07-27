@@ -1,6 +1,13 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { precisionHalves, zoomPrecisionAtPointerLocked } from "./nova_precision_zoom.js";
+import {
+    compareGuideRenderState,
+    migrateCompareFullscreenProperties,
+    migrateCompareGlobalGuideSettings,
+    persistCompareSurfaceGuide,
+    readCompareSurfaceGuide,
+} from "./nova_compare_state.js";
 
 const MODES = ["Split", "Side by Side", "Overlay", "Blink", "A Only", "B Only"];
 const ORIENTATIONS = ["Vertical", "Horizontal"];
@@ -46,6 +53,8 @@ const DEFAULTS = Object.freeze({
     opacity: 50,
     lineOpacity: 96,
     guide: true,
+    fullscreenLineOpacity: 96,
+    fullscreenGuide: true,
     followMouse: false,
     sbsOverlap: 0,
     sbsStyle: "Native",
@@ -105,7 +114,11 @@ function loadGlobal() {
                 if (raw) break;
             }
         }
-        return { ...DEFAULTS, ...JSON.parse(raw || "{}") };
+        const stored = JSON.parse(raw || "{}");
+        return {
+            ...DEFAULTS,
+            ...migrateCompareGlobalGuideSettings(stored, DEFAULTS),
+        };
     } catch (_) {
         return { ...DEFAULTS };
     }
@@ -510,7 +523,9 @@ function applyChecker(element, state) {
 function nodeState(node) {
     const global = loadGlobal();
     const props = node.properties || (node.properties = {});
+    const guideState = readCompareSurfaceGuide(props, global, "node");
     return {
+        surface: "node",
         node,
         a: node._novaCompareA || null,
         b: node._novaCompareB || null,
@@ -525,8 +540,8 @@ function nodeState(node) {
         orientation: props.novaCompareOrientation || global.orientation || DEFAULTS.orientation,
         position: clamp(Number(props.novaComparePosition ?? global.position / 100) * 100, 0, 100),
         opacity: clamp(Number(props.novaCompareOpacity ?? global.opacity / 100) * 100, 0, 100),
-        lineOpacity: clamp(Number(props.novaCompareLineOpacity ?? global.lineOpacity / 100) * 100, 0, 100),
-        guide: props.novaCompareGuide ?? global.guide ?? DEFAULTS.guide,
+        lineOpacity: guideState.lineOpacity,
+        guide: guideState.guide,
         followMouse: Boolean(props.novaCompareFollowMouse ?? global.followMouse ?? DEFAULTS.followMouse),
         sbsOverlap: clamp(props.novaCompareSbsOverlap ?? global.sbsOverlap ?? DEFAULTS.sbsOverlap, 0, 90),
         sbsStyle: (() => {
@@ -558,14 +573,35 @@ function nodeState(node) {
     };
 }
 
+function migrateFullscreenCompareProperties(node, sourceProperties = null) {
+    if (!node) return;
+    node.properties ||= {};
+    node.properties = migrateCompareFullscreenProperties(
+        node.properties,
+        sourceProperties,
+        DEFAULTS,
+    );
+}
+
+function fullscreenState(node) {
+    migrateFullscreenCompareProperties(node);
+    const state = nodeState(node);
+    const props = node.properties || {};
+    const guideState = readCompareSurfaceGuide(props, loadGlobal(), "fullscreen");
+    state.surface = "fullscreen";
+    state.guide = guideState.guide;
+    state.lineOpacity = guideState.lineOpacity;
+    return state;
+}
+
 function persistState(state) {
+    const currentGlobal = loadGlobal();
     const picked = {
+        ...currentGlobal,
         mode: state.mode,
         orientation: state.orientation,
         position: state.position,
         opacity: state.opacity,
-        lineOpacity: state.lineOpacity,
-        guide: state.guide,
         followMouse: state.followMouse,
         sbsOverlap: state.sbsOverlap,
         sbsStyle: state.sbsStyle,
@@ -586,7 +622,13 @@ function persistState(state) {
         showSources: state.showSources,
         showLabels: state.showLabels,
     };
-    saveGlobal(picked);
+    const persistedGuide = persistCompareSurfaceGuide(
+        picked,
+        state.surface,
+        state.guide,
+        state.lineOpacity,
+    );
+    saveGlobal(persistedGuide.globalSettings);
     const node = state.node;
     if (node) {
         node.properties = node.properties || {};
@@ -595,8 +637,6 @@ function persistState(state) {
             novaCompareOrientation: state.orientation,
             novaComparePosition: state.position / 100,
             novaCompareOpacity: state.opacity / 100,
-            novaCompareLineOpacity: state.lineOpacity / 100,
-            novaCompareGuide: state.guide,
             novaCompareFollowMouse: state.followMouse,
             novaCompareSbsOverlap: state.sbsOverlap,
             novaCompareSbsStyle: state.sbsStyle,
@@ -618,6 +658,7 @@ function persistState(state) {
             novaCompareDifferenceStyle: state.differenceStyle,
             novaCompareShowSources: state.showSources,
             novaCompareShowLabels: state.showLabels,
+            ...persistedGuide.propertyPatch,
         });
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
@@ -953,9 +994,10 @@ function drawComposition(ctx, state, x, y, width, height, options = {}) {
         drawEffectPanel(ctx, state, a, b, x, y, width, height);
         ctx.restore();
 
-        if (includeGuide) {
+        const guideVisibility = compareGuideRenderState(state, includeGuide);
+        if (guideVisibility.drawDivider || guideVisibility.drawHandle) {
             const theme = themeFor(state);
-            ctx.globalAlpha = clamp(state.lineOpacity, 0, 100) / 100;
+            ctx.globalAlpha = guideVisibility.lineOpacity;
             ctx.strokeStyle = "#ffffff";
             ctx.lineWidth = Math.max(2, Math.min(width, height) / 350);
             ctx.shadowColor = "#000";
@@ -1869,7 +1911,7 @@ function ensureFullViewer() {
 
     function open(node) {
         releaseAllExternal();
-        const latest = nodeState(node);
+        const latest = fullscreenState(node);
         Object.assign(state, latest);
         state.info = { ...(latest.info || {}) };
         state.nodeSnapshot = {
@@ -2164,7 +2206,22 @@ function ensureFullViewer() {
 }
 
 function addCompareWidget(node) {
-    if (node.__novaCompareWidgetAdded || typeof node.addDOMWidget !== "function") return;
+    if (node.__novaCompareUI?.root?.isConnected) {
+        node.__novaCompareUI.refresh?.();
+        return;
+    }
+    if (node.__novaCompareWidgetAdded) {
+        const staleIndex = node.widgets?.findIndex(
+            (item) => item?.name === "novaComparePro",
+        ) ?? -1;
+        if (staleIndex >= 0) {
+            const [stale] = node.widgets.splice(staleIndex, 1);
+            stale?.onRemove?.();
+        }
+        node.__novaCompareWidgetAdded = false;
+        node.__novaCompareUI = null;
+    }
+    if (typeof node.addDOMWidget !== "function") return;
     node.__novaCompareWidgetAdded = true;
 
     const state = nodeState(node);
@@ -2176,6 +2233,11 @@ function addCompareWidget(node) {
     ].join(";");
 
     const controls = createControlUI(state, true);
+    for (const eventName of ["pointerdown", "pointermove", "pointerup"]) {
+        controls.root.addEventListener(eventName, (event) => {
+            event.stopPropagation();
+        });
+    }
     const studioBanner = document.createElement("button");
     studioBanner.type = "button";
     studioBanner.textContent = "NOVOLOKO IMAGE / COMPARE STUDIO — native-resolution preview • click for full screen";
@@ -2305,9 +2367,10 @@ function addCompareWidget(node) {
         const position = clamp(state.position, 0, 100);
         const vertical = state.orientation === "Vertical";
         const opacity = clamp(state.lineOpacity, 0, 100) / 100;
-        guideLine.style.display = opacity > 0 ? "block" : "none";
+        const guideVisibility = compareGuideRenderState(state, true);
+        guideLine.style.display = guideVisibility.drawDivider ? "block" : "none";
         guideLine.style.opacity = String(opacity);
-        guideHandle.style.display = state.guide ? "flex" : "none";
+        guideHandle.style.display = guideVisibility.drawHandle ? "flex" : "none";
         guideHandle.style.background = themeFor(state).accent;
         guideHit.style.display = "block";
 
@@ -2663,12 +2726,42 @@ function addCompareWidget(node) {
     dom.serialize = false;
     dom.options.serialize = false;
 
-    node.__novaCompareUI = { root, stage, controls, state, refresh, openFull };
-    new ResizeObserver(refresh).observe(preview);
-    requestAnimationFrame(() => {
+    const resizeObserver = new ResizeObserver(refresh);
+    resizeObserver.observe(preview);
+    const repairMount = () => {
+        root.style.setProperty("pointer-events", "auto", "important");
+        root.style.setProperty("visibility", "visible", "important");
+        root.style.setProperty("opacity", "1", "important");
+        const wrapper = root.parentElement;
+        wrapper?.style?.setProperty("pointer-events", "auto", "important");
+        wrapper?.style?.setProperty("visibility", "visible", "important");
+        wrapper?.style?.setProperty("opacity", "1", "important");
         refresh();
+    };
+    node.__novaCompareUI = {
+        root,
+        stage,
+        controls,
+        state,
+        refresh,
+        openFull,
+        resizeObserver,
+    };
+    for (const delay of [0, 50, 250]) setTimeout(repairMount, delay);
+    requestAnimationFrame(() => {
+        repairMount();
         restoreCompareImages(node);
     });
+
+    const originalRemoved = node.onRemoved;
+    node.onRemoved = function (...args) {
+        clearTimeout(blinkTimer);
+        if (refreshFrame) cancelAnimationFrame(refreshFrame);
+        resizeObserver.disconnect();
+        this.__novaCompareWidgetAdded = false;
+        this.__novaCompareUI = null;
+        return originalRemoved?.apply(this, args);
+    };
 }
 
 app.registerExtension({
@@ -2697,6 +2790,9 @@ app.registerExtension({
             this.properties.novaCompareOpacity ??= global.opacity / 100;
             this.properties.novaCompareLineOpacity ??= global.lineOpacity / 100;
             this.properties.novaCompareGuide ??= global.guide;
+            this.properties.novaCompareFullscreenLineOpacity ??=
+                global.fullscreenLineOpacity / 100;
+            this.properties.novaCompareFullscreenGuide ??= global.fullscreenGuide;
             this.properties.novaCompareFollowMouse ??= global.followMouse;
             this.properties.novaCompareSbsOverlap ??= global.sbsOverlap;
             this.properties.novaCompareSbsStyle ??= (global.sbsStyle === "Classic Fit" ? "Precision Align" : (global.sbsStyle || "Native"));
@@ -2725,7 +2821,25 @@ app.registerExtension({
         const originalConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function (...args) {
             const result = originalConfigure?.apply(this, args);
-            setTimeout(() => restoreCompareImages(this, true), 0);
+            migrateFullscreenCompareProperties(this, args[0]?.properties || null);
+            setTimeout(() => {
+                addCompareWidget(this);
+                restoreCompareImages(this, true);
+            }, 0);
+            return result;
+        };
+
+        const originalSerialize = nodeType.prototype.onSerialize;
+        nodeType.prototype.onSerialize = function (info) {
+            migrateFullscreenCompareProperties(this);
+            const result = originalSerialize?.apply(this, arguments);
+            if (info) {
+                info.properties ||= {};
+                info.properties.novaCompareFullscreenGuide =
+                    this.properties.novaCompareFullscreenGuide;
+                info.properties.novaCompareFullscreenLineOpacity =
+                    this.properties.novaCompareFullscreenLineOpacity;
+            }
             return result;
         };
 

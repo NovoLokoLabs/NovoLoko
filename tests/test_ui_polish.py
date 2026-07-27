@@ -191,14 +191,23 @@ class UiPolishTests(unittest.TestCase):
 
     def test_compare_guide_and_line_opacity_update_without_resize_reset(self) -> None:
         source = (ROOT / "web/nova_image_compare.js").read_text(encoding="utf-8")
+        state_source = (ROOT / "web/nova_compare_state.js").read_text(encoding="utf-8")
         media_source = (ROOT / "web/nova_voice_prompt.js").read_text(encoding="utf-8")
-        self.assertIn("if (includeGuide)", source)
-        self.assertNotIn("if (includeGuide && state.guide)", source)
+        self.assertIn("compareGuideRenderState(state, includeGuide)", source)
+        self.assertIn("split && includeGuide && guide", state_source)
         self.assertIn(
-            'guideLine.style.display = opacity > 0 ? "block" : "none"',
+            "if (guideVisibility.drawDivider || guideVisibility.drawHandle)",
             source,
         )
-        self.assertIn('guideHandle.style.display = state.guide ? "flex" : "none"', source)
+        self.assertIn(
+            'guideLine.style.display = guideVisibility.drawDivider ? "block" : "none"',
+            source,
+        )
+        self.assertIn(
+            'guideHandle.style.display = guideVisibility.drawHandle ? "flex" : "none"',
+            source,
+        )
+        self.assertIn('guideHit.style.display = "block"', source)
         self.assertIn('compareDivider.style.display = "block"', media_source)
         self.assertIn(
             'compareHandle.style.display = state.showGuide ? "block" : "none"',
