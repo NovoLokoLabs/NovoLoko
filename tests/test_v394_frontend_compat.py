@@ -59,6 +59,7 @@ class DualFrontendCompatibilityTests(unittest.TestCase):
 
     def test_notes_keep_original_widget_serialization_and_single_editor(self) -> None:
         source = self.source("nova_compact_nodes.js")
+        state_source = self.source("nova_note_state.js")
         block = source[
             source.index("function installNoteCompatibility"):
             source.index("app.registerExtension")
@@ -68,6 +69,13 @@ class DualFrontendCompatibilityTests(unittest.TestCase):
         self.assertIn("info.properties.text = editor.value", block)
         self.assertIn('"copy", "cut", "paste"', block)
         self.assertIn("event.stopPropagation()", block)
+        self.assertIn('"reuse-native"', block)
+        self.assertIn("scheduleNoteCompatibility", block)
+        self.assertIn("sourceWidget.hidden = false", block)
+        self.assertIn('querySelector?.(`[data-node-id="${node?.id}"]`)', block)
+        self.assertIn("delay >= 500", block)
+        self.assertIn("hasSourceWidget", state_source)
+        self.assertIn("hasNativeEditor", state_source)
         self.assertNotIn("node.widgets = []", block)
 
     def test_timer_has_nodes2_dom_controls_exact_once_and_cleanup(self) -> None:
