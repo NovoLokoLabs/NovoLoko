@@ -1,5 +1,12 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import {
+    TEXT_COUNTER_MODES,
+    normaliseTextCounterMode,
+    restoreTextDisplayText,
+    shouldInstallTextDisplayDOM,
+    textDisplayCounterSummary,
+} from "./nova_text_display_state.js";
 
 const EXTENSION_NAME = "NovoLoko.CoreReplacements.v391WorkflowControls";
 const TIMER_NODE = "NovaGenerationTimer";
@@ -2324,40 +2331,177 @@ function installTextWheelCapture() {
     }, { capture: true, passive: false });
 }
 
-const TEXT_COUNTER_MODES = ["Off", "Words", "Words + Characters"];
-
-function normaliseTextCounterMode(value) {
-    const clean = String(value || "").trim();
-    return TEXT_COUNTER_MODES.includes(clean) ? clean : "Words + Characters";
-}
-
-function textDisplayCounts(value) {
-    const text = String(value || "");
-    const trimmed = text.trim();
-    const words = trimmed ? (trimmed.match(/\S+/gu) || []).length : 0;
-    const characters = Array.from(text).length;
-    return { words, characters };
-}
-
-function pluralCount(value, singular, plural = `${singular}s`) {
-    return `${value} ${value === 1 ? singular : plural}`;
-}
-
 function textDisplayCounterLabel(node, boxWidth) {
-    const mode = normaliseTextCounterMode(
+    return textDisplayCounterSummary(
+        node?.__novaDisplayText || "",
         node?.properties?.novaTextCounterMode,
+        boxWidth,
     );
-    if (mode === "Off") return "";
-
-    const counts = textDisplayCounts(node?.__novaDisplayText || "");
-    const words = pluralCount(counts.words, "word");
-    if (mode === "Words" || boxWidth < 225) return words;
-
-    return `${words} • ${pluralCount(counts.characters, "character")}`;
 }
 
 function textDisplayScale() {
     return Math.max(.05, Number(app.canvas?.ds?.scale || 1));
+}
+
+function installTextDisplayDOM(node) {
+    if (!shouldInstallTextDisplayDOM({
+        nodes2: Boolean(globalThis.LiteGraph?.vueNodesMode),
+        canAddDOMWidget: typeof node?.addDOMWidget === "function",
+        installed: Boolean(node?.__novaTextDisplayDOMInstalled),
+    })) return;
+
+    node.__novaTextDisplayDOMInstalled = true;
+    const controller = new AbortController();
+    node.__novaTextDisplayDOMController = controller;
+
+    const root = document.createElement("section");
+    root.className = "nova-text-display-nodes2-v396";
+    root.style.cssText = [
+        "position:relative",
+        "width:100%",
+        "height:100%",
+        "min-height:0",
+        "flex:1 1 0",
+        "display:flex",
+        "flex-direction:column",
+        "overflow:hidden",
+        "box-sizing:border-box",
+        "border:1px solid rgba(92,159,208,.82)",
+        "border-radius:7px",
+        "background:#03060a",
+        "color:#d7e2ee",
+        "font:12px/1.38 ui-monospace,SFMono-Regular,Consolas,monospace",
+        "pointer-events:auto",
+    ].join(";");
+
+    const toolbar = document.createElement("header");
+    toolbar.style.cssText = [
+        "display:flex",
+        "align-items:center",
+        "justify-content:flex-end",
+        "min-height:27px",
+        "padding:4px 6px",
+        "box-sizing:border-box",
+        "border-bottom:1px solid rgba(92,159,208,.28)",
+        "background:#08111a",
+    ].join(";");
+
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.textContent = "COPY";
+    copy.style.cssText = [
+        "min-width:45px",
+        "height:20px",
+        "padding:2px 7px",
+        "border:1px solid rgba(180,215,240,.38)",
+        "border-radius:5px",
+        "background:#2a4862",
+        "color:#f3f8ff",
+        "font:700 10px/1 system-ui",
+        "cursor:pointer",
+    ].join(";");
+    toolbar.append(copy);
+
+    const content = document.createElement("pre");
+    content.tabIndex = 0;
+    content.style.cssText = [
+        "flex:1 1 0",
+        "min-height:0",
+        "margin:0",
+        "padding:7px 8px",
+        "overflow:auto",
+        "box-sizing:border-box",
+        "white-space:pre-wrap",
+        "overflow-wrap:anywhere",
+        "user-select:text",
+        "cursor:text",
+        "color:#d7e2ee",
+        "background:#03060a",
+        "font:inherit",
+    ].join(";");
+
+    const counter = document.createElement("footer");
+    counter.style.cssText = [
+        "min-height:20px",
+        "padding:3px 7px",
+        "box-sizing:border-box",
+        "border-top:1px solid rgba(92,159,208,.22)",
+        "background:#08111a",
+        "color:#bcd7ea",
+        "text-align:right",
+        "font:700 10px/1.3 system-ui",
+    ].join(";");
+    root.append(toolbar, content, counter);
+
+    const refresh = () => {
+        const value = String(node.__novaDisplayText || "");
+        content.textContent = value;
+        counter.textContent = textDisplayCounterSummary(
+            value,
+            node.properties?.novaTextCounterMode,
+            root.clientWidth || node.size?.[0] || 320,
+        );
+        counter.style.display = counter.textContent ? "block" : "none";
+    };
+    node.__novaTextDisplayRefresh = refresh;
+
+    copy.addEventListener("click", async () => {
+        const value = String(node.__novaDisplayText || "");
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (_) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            area.style.cssText = "position:fixed;left:-9999px;top:-9999px";
+            document.body.append(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        copy.textContent = "COPIED";
+        setTimeout(() => { copy.textContent = "COPY"; }, 1200);
+    }, { signal: controller.signal });
+
+    for (const eventName of [
+        "pointerdown",
+        "pointermove",
+        "pointerup",
+        "keydown",
+        "keyup",
+        "wheel",
+    ]) {
+        root.addEventListener(eventName, (event) => event.stopPropagation(), {
+            signal: controller.signal,
+        });
+    }
+
+    const dom = node.addDOMWidget(
+        "nova_text_display_nodes2_v396",
+        "NOVA_TEXT_DISPLAY_NODES2",
+        root,
+        {
+            serialize: false,
+            hideOnZoom: false,
+            getMinHeight: () => 64,
+            selectOn: ["focus", "click"],
+        },
+    );
+    dom.serialize = false;
+    dom.options.serialize = false;
+    dom.computeLayoutSize = () => ({ minHeight: 64, minWidth: 1 });
+
+    const observer = new ResizeObserver(refresh);
+    observer.observe(root);
+    node.__novaTextDisplayDOMObserver = observer;
+
+    const previousRemoved = node.onRemoved;
+    node.onRemoved = function () {
+        controller.abort();
+        observer.disconnect();
+        previousRemoved?.apply(this, arguments);
+    };
+
+    requestAnimationFrame(refresh);
 }
 
 function installTextDisplay(node) {
@@ -2369,7 +2513,7 @@ function installTextDisplay(node) {
     );
     node.min_size = [110, 80];
     node.getMinSize = () => [110, 80];
-    node.__novaDisplayText = String(node.properties.novaDisplayLastText || "");
+    node.__novaDisplayText = restoreTextDisplayText(node.properties);
     node.__novaDisplayScroll = 0;
     node.__novaDisplayLines = [];
     node.__novaCopyFeedbackUntil = 0;
@@ -2377,6 +2521,7 @@ function installTextDisplay(node) {
     node.__novaDisplayMaxScroll = 0;
     textDisplayNodes.add(node);
     installTextWheelCapture();
+    installTextDisplayDOM(node);
 
     const draw = node.onDrawForeground;
     node.onDrawForeground = function (ctx) {
@@ -2645,7 +2790,21 @@ function installTextDisplay(node) {
         this.properties ||= {};
         this.properties.novaDisplayLastText = this.__novaDisplayText;
         this.__novaDisplayScroll = 0;
+        this.__novaTextDisplayRefresh?.();
         dirty(this);
+    };
+
+    const originalConfigure = node.onConfigure;
+    node.onConfigure = function () {
+        const result = originalConfigure?.apply(this, arguments);
+        this.__novaDisplayText = restoreTextDisplayText(
+            this.properties,
+            this.__novaDisplayText,
+        );
+        this.__novaDisplayScroll = 0;
+        this.__novaTextDisplayRefresh?.();
+        dirty(this);
+        return result;
     };
 }
 
