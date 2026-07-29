@@ -31,13 +31,13 @@ SEED_SLOT_INDEX = {
 }
 
 DEFAULT_FILES = {
-    "medium": "styles/basic.yaml",
-    "subject": "csv/subjects/novoloko_subjects_master_2200.csv",
-    "pose": "csv/poses/novoloko_poses_1000.csv",
-    "action": "csv/actions/novoloko_actions_1000.csv",
-    "clothing": "csv/clothing/novoloko_branded_clothing_gendered_2400.csv",
-    "location": "csv/locations/novoloko_real_locations_1000.csv",
-    "character": "csv/characters/novoloko_characters_master_1098.csv",
+    "medium": "csv/wildcards/novoloko_uploaded_styles_master_397_FINAL.csv",
+    "subject": "csv/subjects/novoloko_subjects_master_3600.csv",
+    "pose": "csv/poses/novoloko_poses_1500.csv",
+    "action": "csv/actions/novoloko_actions_1500.csv",
+    "clothing": "csv/clothing/novoloko_clothing_hair_expanded_5800.csv",
+    "location": "csv/locations/novoloko_locations_expanded_global_3846.csv",
+    "character": "csv/characters/novoloko_characters_master_3200.csv",
 }
 
 SLOT_LABELS = {
@@ -723,8 +723,13 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
         # initial combo lists returned above.
         return True
 
-    RETURN_TYPES = ("STRING",) * 10
-    RETURN_NAMES = NovaPromptStackAIOV2.RETURN_NAMES + ("subject_name",)
+    RETURN_TYPES = ("STRING",) * 4
+    RETURN_NAMES = (
+        "combined_prompt",
+        "combined_negative",
+        "selected_summary",
+        "all_names",
+    )
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):
@@ -815,7 +820,7 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
             }
             for slot in SLOTS
         }
-        return _build_stack(
+        outputs = _build_stack(
             slot_values,
             random_mode,
             seed,
@@ -827,6 +832,18 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
             manual_prompt_input,
             slots=SLOTS,
         )
+        joiner = str(delimiter if delimiter is not None else ", ") or ", "
+        effective_manual_prompt = (
+            str(manual_prompt_input).strip()
+            if manual_prompt_input is not None and str(manual_prompt_input).strip()
+            else str(manual_prompt or "").strip()
+        )
+        all_names = joiner.join(
+            name
+            for name in (*outputs[3:], effective_manual_prompt)
+            if str(name).strip().lower() not in {"", "none", "off"}
+        )
+        return (*outputs[:3], all_names)
 
 def _display_path(path: str) -> str:
     real = os.path.abspath(path)
@@ -868,8 +885,6 @@ def _slot_file_candidates(slot: str) -> List[str]:
         if slot != "character" and is_character:
             continue
         if slot == "subject" and not is_subject:
-            continue
-        if slot != "subject" and is_subject:
             continue
         seen.add(real)
         unique.append(real)

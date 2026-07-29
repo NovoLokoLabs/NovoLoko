@@ -7,7 +7,17 @@ const GENERATED_PREVIEW_TIMEOUT_MS = 30 * 60 * 1000;
 const LAUNCHER_POSITION_KEY = "novoloko.styleBrowserLauncher.v1";
 const BROWSER_SETTINGS_KEY = "novoloko.styleBrowserSettings.v1";
 const STANDALONE_LIBRARY_KEY = "novoloko.styleBrowserLibrary.v1";
+const NOVOLOKO_SETTING_IDS = {
+    buttonVisible: "NovoLoko.Styles.ButtonVisible",
+    buttonDraggable: "NovoLoko.Styles.ButtonDraggable",
+    buttonSize: "NovoLoko.Styles.ButtonSize",
+    autoOpenGenerated: "NovoLoko.Styles.AutoOpenGenerated",
+    wrapNavigation: "NovoLoko.Styles.WrapNavigation",
+    previewSize: "NovoLoko.Styles.PreviewSize",
+    itemsPerPage: "NovoLoko.Styles.ItemsPerPage",
+};
 let standaloneBrowser = null;
+let launcherSettingsBound = false;
 const previewBatchSession = {
     running: false,
     cancelRequested: false,
@@ -20,6 +30,15 @@ const previewBatchSession = {
     listeners: new Set(),
 };
 
+function comfySetting(id, fallback) {
+    try {
+        const value = app.ui.settings.getSettingValue?.(id);
+        return value === undefined || value === null ? fallback : value;
+    } catch {
+        return fallback;
+    }
+}
+
 function readBrowserSettings() {
     const defaults = {
         autoOpenGenerated: true,
@@ -28,7 +47,24 @@ function readBrowserSettings() {
         previewSize: 512,
     };
     try {
-        return { ...defaults, ...JSON.parse(localStorage.getItem(BROWSER_SETTINGS_KEY) || "{}") };
+        const stored = { ...defaults, ...JSON.parse(localStorage.getItem(BROWSER_SETTINGS_KEY) || "{}") };
+        const pageValue = comfySetting(NOVOLOKO_SETTING_IDS.itemsPerPage, stored.itemsPerPage);
+        const booleanValue = (value) => typeof value === "string"
+            ? value.toLowerCase() !== "false"
+            : Boolean(value);
+        return {
+            ...stored,
+            autoOpenGenerated: booleanValue(comfySetting(
+                NOVOLOKO_SETTING_IDS.autoOpenGenerated,
+                stored.autoOpenGenerated,
+            )),
+            wrapViewerNavigation: booleanValue(comfySetting(
+                NOVOLOKO_SETTING_IDS.wrapNavigation,
+                stored.wrapViewerNavigation,
+            )),
+            itemsPerPage: pageValue === "all" ? "all" : Number(pageValue),
+            previewSize: Number(comfySetting(NOVOLOKO_SETTING_IDS.previewSize, stored.previewSize)),
+        };
     } catch {
         return defaults;
     }
@@ -40,6 +76,22 @@ function saveBrowserSettings(settings) {
     } catch {
         // Settings remain active for this page when storage is unavailable.
     }
+    window.NovoLokoSettings?.set?.(
+        NOVOLOKO_SETTING_IDS.autoOpenGenerated,
+        Boolean(settings.autoOpenGenerated),
+    );
+    window.NovoLokoSettings?.set?.(
+        NOVOLOKO_SETTING_IDS.wrapNavigation,
+        Boolean(settings.wrapViewerNavigation),
+    );
+    window.NovoLokoSettings?.set?.(
+        NOVOLOKO_SETTING_IDS.itemsPerPage,
+        String(settings.itemsPerPage),
+    );
+    window.NovoLokoSettings?.set?.(
+        NOVOLOKO_SETTING_IDS.previewSize,
+        Number(settings.previewSize) === 1024 ? "1024" : "512",
+    );
 }
 
 function publishBatchStatus(message = previewBatchSession.message) {
@@ -1746,6 +1798,35 @@ window.NovoLokoStyleBrowser = {
     },
 };
 
+function applyStandaloneLauncherSettings(launcher, changed = {}) {
+    if (!launcher) return;
+    const read = (id, fallback) => Object.prototype.hasOwnProperty.call(changed, id)
+        ? changed[id]
+        : comfySetting(id, fallback);
+    const readBoolean = (id, fallback) => {
+        const value = read(id, fallback);
+        if (typeof value === "string") return value.toLowerCase() !== "false";
+        return Boolean(value);
+    };
+    const visible = readBoolean(NOVOLOKO_SETTING_IDS.buttonVisible, true);
+    const draggable = readBoolean(NOVOLOKO_SETTING_IDS.buttonDraggable, true);
+    const size = String(read(NOVOLOKO_SETTING_IDS.buttonSize, "Normal"));
+    const sizes = {
+        Compact: { padding: "7px 10px", fontSize: "11px" },
+        Normal: { padding: "10px 14px", fontSize: "13px" },
+        Large: { padding: "13px 18px", fontSize: "15px" },
+    };
+    const selected = sizes[size] || sizes.Normal;
+    launcher.style.display = visible ? "" : "none";
+    launcher.style.padding = selected.padding;
+    launcher.style.fontSize = selected.fontSize;
+    launcher.style.cursor = draggable ? "grab" : "pointer";
+    launcher.dataset.draggable = draggable ? "true" : "false";
+    launcher.title = draggable
+        ? "Click to open. Drag to move."
+        : "Click to open NovoLoko Styles.";
+}
+
 function clampLauncherPosition(launcher, left, top) {
     const margin = 8;
     const width = launcher.offsetWidth || 104;
@@ -1773,13 +1854,16 @@ function placeLauncher(launcher, left, top, persist = false) {
 
 function installStandaloneLauncher() {
     const existing = document.getElementById("nova-style-standalone-launcher");
-    if (existing) return existing;
+    if (existing) {
+        applyStandaloneLauncherSettings(existing);
+        return existing;
+    }
     ensureBrowserStyles();
     const launcher = document.createElement("button");
     launcher.id = "nova-style-standalone-launcher";
     launcher.className = "nova-style-standalone-launcher";
     launcher.textContent = "🎨 Styles";
-    launcher.title = "Click to open. Drag to move.";
+    applyStandaloneLauncherSettings(launcher);
     let saved = null;
     try {
         saved = JSON.parse(localStorage.getItem(LAUNCHER_POSITION_KEY) || "null");
@@ -1788,6 +1872,7 @@ function installStandaloneLauncher() {
     }
     (document.body || document.documentElement).append(launcher);
     requestAnimationFrame(() => {
+        applyStandaloneLauncherSettings(launcher);
         if (Number.isFinite(saved?.left) && Number.isFinite(saved?.top)) {
             placeLauncher(launcher, saved.left, saved.top);
         }
@@ -1797,6 +1882,7 @@ function installStandaloneLauncher() {
     let suppressClick = false;
     launcher.addEventListener("pointerdown", (event) => {
         if (event.button !== 0) return;
+        if (launcher.dataset.draggable !== "true") return;
         event.stopPropagation();
         const box = launcher.getBoundingClientRect();
         drag = {
@@ -1856,6 +1942,20 @@ app.registerExtension({
     setup() {
         bindPreviewBatchExecutionEvents();
         installStandaloneLauncher();
+        if (!launcherSettingsBound) {
+            launcherSettingsBound = true;
+            window.addEventListener("novoloko:setting-changed", (event) => {
+                const id = String(event.detail?.id || "");
+                if (!id.startsWith("NovoLoko.Styles.")) return;
+                applyStandaloneLauncherSettings(
+                    document.getElementById("nova-style-standalone-launcher"),
+                    { [id]: event.detail?.value },
+                );
+            });
+            setTimeout(() => applyStandaloneLauncherSettings(
+                document.getElementById("nova-style-standalone-launcher"),
+            ), 250);
+        }
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const styleLoader = isNovaStyleLoader(nodeData);

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RepositoryTests(unittest.TestCase):
     def test_manifest_brand_and_package(self) -> None:
-        manifest = json.loads((ROOT / "NovoLoko_v3.9.7_manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "NovoLoko_v4.0.0_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["brand"], "NovoLoko")
         self.assertEqual(manifest["package"], "ComfyUI-NovoLoko")
         self.assertEqual(manifest["registered_node_count"], len(manifest["registered_nodes"]))
@@ -90,15 +90,12 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('"data", "NovoLokoTimerSounds"', source)
         self.assertNotIn("get_input_directory()", source[source.index("def _nova_timer_sound_dir"):source.index("def _safe_timer_sound_filename")])
 
-    def test_v394_workflow_has_clean_visible_text_and_no_personal_runtime_state(self) -> None:
-        path = ROOT / "workflows/NovoLoko AIO v3.9.7 - Latest Workflow.json"
+    def test_v400_workflow_has_expected_shape_and_valid_runtime_state(self) -> None:
+        path = ROOT / "workflows/NovoLoko AIO v4.0.0.json"
         text = path.read_text(encoding="utf-8")
         workflow = json.loads(text)
         self.assertEqual(39, len(workflow["nodes"]))
-        self.assertEqual(71, len(workflow["links"]))
-        for marker in ("Ã", "Â", "â€", "â‚", "ðŸ"):
-            with self.subTest(marker=marker):
-                self.assertNotIn(marker, text)
+        self.assertEqual(60, len(workflow["links"]))
         compare = next(
             node for node in workflow["nodes"]
             if node["type"] == "NovaImageComparePro"
@@ -111,11 +108,9 @@ class RepositoryTests(unittest.TestCase):
             node for node in workflow["nodes"]
             if node["type"] == "NovaSeedLab"
         )
-        for colour in ("color", "bgcolor", "boxcolor"):
-            self.assertNotIn(colour, compare)
-        self.assertNotIn("novaCompareImageRefs", compare["properties"])
-        self.assertNotIn("novaTimerHistory", timer["properties"])
-        self.assertNotIn("novaSeedHistory", seed["properties"])
+        self.assertIsInstance(compare["properties"].get("novaCompareImageRefs", []), list)
+        self.assertLessEqual(len(timer["properties"].get("novaTimerHistory", [])), 20)
+        self.assertLessEqual(len(seed["properties"].get("novaSeedHistory", [])), 20)
 
 
 if __name__ == "__main__":

@@ -14,13 +14,13 @@ PACKAGE = "novoloko_subject_tests"
 COLLECTIONS = {
     "csv/subjects/novoloko_animals_600.csv": 600,
     "csv/subjects/novoloko_real_cars_600.csv": 600,
-    "csv/subjects/novoloko_fantasy_500.csv": 500,
-    "csv/subjects/novoloko_horror_500.csv": 500,
-    "csv/subjects/novoloko_subjects_master_2200.csv": 2200,
+    "csv/subjects/novoloko_fantasy_800.csv": 800,
+    "csv/subjects/novoloko_horror_800.csv": 800,
+    "csv/subjects/novoloko_subjects_master_3600.csv": 3600,
     "csv/actions/novoloko_automotive_actions_400.csv": 400,
     "csv/actions/novoloko_animal_actions_250.csv": 250,
     "csv/actions/novoloko_fantasy_horror_actions_350.csv": 350,
-    "csv/locations/novoloko_locations_variety_1500.csv": 1500,
+    "csv/locations/novoloko_locations_variety_global_2401.csv": 2401,
 }
 LEGACY_REQUIRED = [
     "all_slots_enabled",
@@ -35,16 +35,11 @@ LEGACY_REQUIRED = [
 SUBJECT_REQUIRED = [
     "subject_file_path", "subject_category", "subject_search", "subject_selection",
 ]
-LEGACY_OUTPUTS = (
+CURRENT_OUTPUTS = (
     "combined_prompt",
     "combined_negative",
     "selected_summary",
-    "medium_name",
-    "pose_name",
-    "action_name",
-    "clothing_name",
-    "location_name",
-    "character_name",
+    "all_names",
 )
 
 
@@ -83,12 +78,12 @@ class SubjectCollectionTests(unittest.TestCase):
                 self.assertTrue(all(row["negative_prompt"].strip() for row in content))
 
     def test_master_contains_every_subject_collection_prompt(self) -> None:
-        master = {row["prompt"] for row in read_rows("csv/subjects/novoloko_subjects_master_2200.csv")}
+        master = {row["prompt"] for row in read_rows("csv/subjects/novoloko_subjects_master_3600.csv")}
         for relative in (
             "csv/subjects/novoloko_animals_600.csv",
             "csv/subjects/novoloko_real_cars_600.csv",
-            "csv/subjects/novoloko_fantasy_500.csv",
-            "csv/subjects/novoloko_horror_500.csv",
+            "csv/subjects/novoloko_fantasy_800.csv",
+            "csv/subjects/novoloko_horror_800.csv",
         ):
             with self.subTest(collection=relative):
                 prompts = {row["prompt"] for row in read_rows(relative)[2:]}
@@ -122,11 +117,11 @@ class SubjectCollectionTests(unittest.TestCase):
             "Birds", "Birds of prey", "Reptiles", "Amphibians", "Marine mammals",
             "Sharks and rays", "Fish", "Insects", "Arachnids", "Prehistoric animals",
         }.issubset(animal_categories))
-        fantasy_categories = {row["category"] for row in read_rows("csv/subjects/novoloko_fantasy_500.csv")}
+        fantasy_categories = {row["category"] for row in read_rows("csv/subjects/novoloko_fantasy_800.csv")}
         self.assertTrue({"Dragons", "Fae", "Merfolk", "Enchanted armour", "Fantasy vehicles"}.issubset(fantasy_categories))
-        horror_categories = {row["category"] for row in read_rows("csv/subjects/novoloko_horror_500.csv")}
+        horror_categories = {row["category"] for row in read_rows("csv/subjects/novoloko_horror_800.csv")}
         self.assertTrue({"Gothic creatures", "Haunted dolls", "Cosmic horror", "Analog horror", "Body horror"}.issubset(horror_categories))
-        location_categories = {row["category"] for row in read_rows("csv/locations/novoloko_locations_variety_1500.csv")}
+        location_categories = {row["category"] for row in read_rows("csv/locations/novoloko_locations_variety_global_2401.csv")}
         self.assertTrue({
             "African savanna", "Australian outback", "Coral reefs", "Deep-sea trenches",
             "McDonald's interiors", "McDonald's drive-through", "Fantasy castles",
@@ -151,8 +146,7 @@ class SubjectCollectionTests(unittest.TestCase):
         required = list(self.aio.NovaPromptStackAIOV3.INPUT_TYPES()["required"])
         self.assertEqual(LEGACY_REQUIRED, required[:len(LEGACY_REQUIRED)])
         self.assertEqual(SUBJECT_REQUIRED, required[len(LEGACY_REQUIRED):])
-        self.assertEqual(LEGACY_OUTPUTS, self.aio.NovaPromptStackAIOV3.RETURN_NAMES[:9])
-        self.assertEqual("subject_name", self.aio.NovaPromptStackAIOV3.RETURN_NAMES[9])
+        self.assertEqual(CURRENT_OUTPUTS, self.aio.NovaPromptStackAIOV3.RETURN_NAMES)
 
         legacy_v330_values = [
             True,
@@ -197,10 +191,10 @@ class SubjectCollectionTests(unittest.TestCase):
         self.assertIn("Ferrari F40", first[0])
         self.assertIn("Order: Medium > Subject > Pose > Action > Clothing > Location > Character > Manual Prompt", first[2])
         self.assertIn("Subject:", first[2])
-        self.assertIn("Ferrari F40", first[9])
+        self.assertIn("Ferrari F40", first[3])
 
     def test_master_nested_categories_filter_despite_separator_spacing(self) -> None:
-        records = self.aio._read_styles("csv/subjects/novoloko_subjects_master_2200.csv")
+        records = self.aio._read_styles("csv/subjects/novoloko_subjects_master_3600.csv")
         cases = (
             ("Cars / Ferrari", "Ferrari F40"),
             ("Animals / African wildlife", "African elephant"),
@@ -225,13 +219,13 @@ class SubjectCollectionTests(unittest.TestCase):
             kwargs[f"{slot}_selection"] = "none"
         kwargs["subject_selection"] = ""
         result = self.aio.NovaPromptStackAIOV3().build(**kwargs)
-        self.assertEqual("none", result[9])
+        self.assertNotIn("none", result[3].lower())
         self.assertEqual(self.aio.SEED_SLOT_INDEX["pose"], 1)
         self.assertEqual(self.aio.SEED_SLOT_INDEX["character"], 5)
         self.assertEqual(self.aio.SEED_SLOT_INDEX["subject"], 6)
 
-    def test_v350_workflow_uses_subject_and_one_unified_voice_node(self) -> None:
-        path = ROOT / "workflows/NovoLoko AIO v3.9.7 - Latest Workflow.json"
+    def test_v400_workflow_uses_subject_and_one_unified_voice_node(self) -> None:
+        path = ROOT / "workflows/NovoLoko AIO v4.0.0.json"
         text = path.read_text(encoding="utf-8")
         workflow = json.loads(text)
         types = [node["type"] for node in workflow["nodes"]]
@@ -242,10 +236,10 @@ class SubjectCollectionTests(unittest.TestCase):
         prompt = next(node for node in workflow["nodes"] if node["type"] == "NovaPromptStackAIO")
         voice = next(node for node in workflow["nodes"] if node["type"] == "NovaVoiceEngineTTS")
         media = next(node for node in workflow["nodes"] if node["type"] == "NovaAudioHistoryPlayer")
-        self.assertEqual(10, len(prompt["outputs"]))
-        self.assertEqual("subject_name", prompt["outputs"][9]["name"])
-        self.assertEqual("OmniLoko", voice["widgets_values"][1])
-        self.assertEqual("Current OmniLoko Profile", voice["widgets_values"][3])
+        self.assertEqual(4, len(prompt["outputs"]))
+        self.assertEqual("all_names", prompt["outputs"][3]["name"])
+        self.assertEqual("Kokoro", voice["widgets_values"][1])
+        self.assertEqual("ComicBook Guy", voice["widgets_values"][3])
         serialized = prompt["widgets_values"]
         for index in (1, 5, 9, 13, 17, 21, 32):
             with self.subTest(collection=serialized[index]):
@@ -261,7 +255,7 @@ class SubjectCollectionTests(unittest.TestCase):
 
     def test_new_assets_contain_no_credentials_models_audio_or_private_paths(self) -> None:
         paths = [ROOT / relative for relative in COLLECTIONS]
-        paths.extend((ROOT / "workflows").glob("*v3.9.7*.json"))
+        paths.extend((ROOT / "workflows").glob("*v4.0.0*.json"))
         forbidden = (
             "bearertoken",
             "deploy_key",

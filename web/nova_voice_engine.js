@@ -13,8 +13,25 @@ function setWidgetVisible(item, visible) {
     if (!Object.hasOwn(item, "__novaVoiceEngineOriginalType")) {
         item.__novaVoiceEngineOriginalType = item.type;
         item.__novaVoiceEngineOriginalComputeSize = item.computeSize;
+        item.__novaVoiceEngineOriginalHidden = Boolean(item.hidden);
+        item.__novaVoiceEngineHadOptionsHidden = Object.hasOwn(
+            item.options || {},
+            "hidden",
+        );
+        item.__novaVoiceEngineOriginalOptionsHidden = item.options?.hidden;
     }
+    item.options ||= {};
     item.type = visible ? item.__novaVoiceEngineOriginalType : "hidden";
+    item.hidden = visible ? item.__novaVoiceEngineOriginalHidden : true;
+    if (visible) {
+        if (item.__novaVoiceEngineHadOptionsHidden) {
+            item.options.hidden = item.__novaVoiceEngineOriginalOptionsHidden;
+        } else {
+            delete item.options.hidden;
+        }
+    } else {
+        item.options.hidden = true;
+    }
     item.computeSize = visible
         ? item.__novaVoiceEngineOriginalComputeSize
         : () => [0, -4];
@@ -26,6 +43,20 @@ function setWidgetVisible(item, visible) {
             element.style.display = visible ? "" : "none";
             element.style.pointerEvents = visible ? "" : "none";
         }
+    }
+}
+
+function invalidateNodes2Widgets(node) {
+    if (!globalThis.LiteGraph?.vueNodesMode) return;
+    try {
+        const widgets = [...(node.widgets || [])];
+        node.widgets = [];
+        node.widgets = widgets;
+    } catch (error) {
+        console.warn(
+            "[NovoLoko Voice TTS] Nodes 2.0 widget refresh unavailable:",
+            error?.message || String(error),
+        );
     }
 }
 
@@ -64,6 +95,7 @@ function refreshVisibility(node) {
     for (const [name, visible] of Object.entries(visibility)) {
         setWidgetVisible(widget(node, name), visible);
     }
+    invalidateNodes2Widgets(node);
     resizeNode(node);
 }
 

@@ -1,8 +1,8 @@
 {
-  "version": "3.9.7",
+  "version": "4.0.0",
   "brand": "NovoLoko",
   "package": "ComfyUI-NovoLoko",
-  "registered_node_count": 34,
+  "registered_node_count": 38,
   "registered_nodes": [
     "NovaLoadStylesCSVPro",
     "NovaLoadCharactersCSVPro",
@@ -37,14 +37,18 @@
     "NovaPreviewPassThrough",
     "NovaMemoryManager",
     "NovaPromptEnhancer",
-    "NovaTextDisplay"
+    "NovaTextDisplay",
+    "NovaPowerLoraStack",
+    "NovaGroupController",
+    "NovaWorkflowBanner",
+    "NovaWorkflowGuide"
   ],
   "workflows": [
-    "workflows/NovoLoko AIO v3.9.7 - Latest Workflow.json",
-    "workflows/NovoLoko Compare Studio v3.9.7.json"
+    "workflows/NovoLoko AIO v4.0.0.json",
+    "workflows/NovoLoko Compare Studio v4.0.0.json"
   ],
   "style_libraries": {
-    "csv_yaml_file_count": 76,
+    "csv_yaml_file_count": 107,
     "uploaded_medium_style_count": 397,
     "categorized_wildcard_collections": 9
   },
@@ -77,6 +81,6 @@
     "workflow_json_and_links": "passed",
     "old_workflow_migration": "passed",
     "duplicate_registered_mappings": 0,
-    "exact_comfyui_desktop_runtime": "passed"
+    "exact_comfyui_desktop_runtime": "user-confirmed"
   }
 }

@@ -801,6 +801,10 @@ class LokoBridgeNodeTests(unittest.TestCase):
                 "NovaOmniLokoTTS",
                 "NovaVoiceEngineTTS",
                 "NovaControlPanelSwitch",
+                "NovaPowerLoraStack",
+                "NovaGroupController",
+                "NovaWorkflowBanner",
+                "NovaWorkflowGuide",
             },
             set(package.NODE_CLASS_MAPPINGS),
         )
@@ -949,7 +953,7 @@ class LokoBridgeNodeTests(unittest.TestCase):
             post = next(item for item in context.host.requests if item["path"].endswith("/jobs/speech"))
             request = json.loads(post["body"])
             self.assertEqual("NovoLoko", request["clientName"])
-            self.assertEqual("3.9.7", request["clientVersion"])
+            self.assertEqual("4.0.0", request["clientVersion"])
             self.assertEqual({"kind": "profile-current"}, request["voice"])
             self.assertFalse(request["normalizeLoudness"])
             self.assertEqual("hello bridge", spoken)

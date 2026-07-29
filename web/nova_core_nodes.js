@@ -1,15 +1,40 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+
+function installLegacyGraphNavigation(root) {
+    if (root.__novaLegacyGraphNavigationInstalled) return;
+    root.__novaLegacyGraphNavigationInstalled = true;
+    const legacy = () => !globalThis.LiteGraph?.vueNodesMode;
+    const consume = (event, handler) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        handler?.call(app.canvas, event);
+    };
+    root.addEventListener("wheel", (event) => {
+        if (!legacy()) return;
+        consume(event, app.canvas?.processMouseWheel);
+    }, { passive: false, capture: true });
+    root.addEventListener("pointerdown", (event) => {
+        if (!legacy() || event.button !== 1) return;
+        consume(event, app.canvas?.processMouseDown);
+    }, true);
+    root.addEventListener("pointermove", (event) => {
+        if (!legacy() || (Number(event.buttons || 0) & 4) === 0) return;
+        consume(event, app.canvas?.processMouseMove);
+    }, true);
+    root.addEventListener("pointerup", (event) => {
+        if (!legacy() || event.button !== 1) return;
+        consume(event, app.canvas?.processMouseUp);
+    }, true);
+}
 import {
     TEXT_COUNTER_MODES,
     normaliseTextCounterMode,
     restoreTextDisplayText,
-    shouldInstallTextDisplayDOM,
     textDisplayCounterSummary,
 } from "./nova_text_display_state.js";
 import {
     timerChromeCSS,
-    timerControlsLayoutSize,
 } from "./nova_timer_layout_state.js";
 
 const EXTENSION_NAME = "NovoLoko.CoreReplacements.v391WorkflowControls";
@@ -45,6 +70,11 @@ const ENHANCER_PRESET_LENGTH = {
 const NOVA_TEXT_PANEL_EXCLUDED_WIDGETS = new Set([
     "filename_prefix",
 ]);
+const LEGACY_CONNECTED_TEXT_WIDGETS = new Map([
+    ["NovaVoiceEngineTTS", new Set(["text"])],
+    ["NovaPromptEnhancer", new Set(["idea"])],
+    ["TextEncodeKrea2", new Set(["prompt"])],
+]);
 
 function isNovaNodeName(value) {
     return /^Nova/.test(String(value || ""));
@@ -78,8 +108,9 @@ function widget(node, name) {
 function installControlPanel(node) {
     if (node.__novaControlPanelInstalled) return;
     node.__novaControlPanelInstalled = true;
-    node.color = "#327a3e";
-    node.bgcolor = "#163c20";
+    // Leave colour ownership entirely with ComfyUI. Its native node colour
+    // serializer also handles subgraph nodes; applying a NovoLoko default here
+    // overwrote the user's saved choice whenever the subgraph was rebuilt.
     node.min_size = [235, 92];
     const labels = {
         tts_enabled: "TTS On/Off",
@@ -97,13 +128,24 @@ function installControlPanel(node) {
     dirty(node);
 }
 
+function nodeHostElement(node) {
+    const value = String(node?.id ?? "");
+    if (!value) return null;
+    const escaped = globalThis.CSS?.escape
+        ? globalThis.CSS.escape(value)
+        : value.replace(/(["\\])/g, "\\$1");
+    return document.querySelector?.(`[data-node-id="${escaped}"]`) || null;
+}
+
 function nodeSelected(node) {
     const selected = app.canvas?.selected_nodes || {};
+    const host = nodeHostElement(node);
     return Boolean(
         node?.is_selected
         || node?.selected
         || selected?.[node?.id]
         || selected?.[String(node?.id)]
+        || host?.classList?.contains("outline-node-component-outline")
     );
 }
 
@@ -204,6 +246,97 @@ function widgetTextElements(item) {
         }
     }
     return [...elements];
+}
+
+function revealLegacyConnectedTextWidgets(node) {
+    if (globalThis.LiteGraph?.vueNodesMode) return;
+    const nodeName = String(node?.comfyClass || node?.type || "");
+    const names = LEGACY_CONNECTED_TEXT_WIDGETS.get(nodeName);
+    if (!names) return;
+
+    for (const item of node?.widgets || []) {
+        if (!names.has(String(item?.name || ""))) continue;
+        // Current ComfyUI marks every widget-backed connected input as
+        // computedDisabled. DOM widgets use that flag as a hard visibility
+        // gate, so styling the textarea alone cannot bring it back in Legacy.
+        // These three large multiline fields are intentionally retained as
+        // note/preview panels while their input socket is connected.
+        item.computedDisabled = false;
+        for (const element of widgetTextElements(item)) {
+            element.hidden = false;
+            element.removeAttribute?.("hidden");
+            element.style.setProperty("display", "block", "important");
+            element.style.setProperty("visibility", "visible", "important");
+            element.style.setProperty("opacity", "1", "important");
+            element.style.setProperty("pointer-events", "auto", "important");
+            element.style.setProperty("width", "100%", "important");
+            element.style.setProperty("height", "100%", "important");
+            element.style.setProperty("box-sizing", "border-box", "important");
+        }
+    }
+}
+
+function installLegacyConnectedTextWidgetRepair(node) {
+    const nodeName = String(node?.comfyClass || node?.type || "");
+    if (!LEGACY_CONNECTED_TEXT_WIDGETS.has(nodeName)) return;
+    if (node.__novaLegacyConnectedTextRepairInstalled) {
+        revealLegacyConnectedTextWidgets(node);
+        return;
+    }
+    node.__novaLegacyConnectedTextRepairInstalled = true;
+
+    const previousUpdateComputedDisabled = node.updateComputedDisabled;
+    node.updateComputedDisabled = function (...args) {
+        const result = previousUpdateComputedDisabled?.apply(this, args);
+        if (!globalThis.LiteGraph?.vueNodesMode) {
+            const names = LEGACY_CONNECTED_TEXT_WIDGETS.get(
+                String(this?.comfyClass || this?.type || ""),
+            );
+            for (const item of this?.widgets || []) {
+                if (names?.has(String(item?.name || ""))) {
+                    item.computedDisabled = false;
+                }
+            }
+        }
+        return result;
+    };
+
+    const apply = () => {
+        revealLegacyConnectedTextWidgets(node);
+    };
+    const schedule = () => {
+        if (node.__novaLegacyConnectedTextRepairQueued) return;
+        node.__novaLegacyConnectedTextRepairQueued = true;
+        requestAnimationFrame(() => {
+            node.__novaLegacyConnectedTextRepairQueued = false;
+            apply();
+        });
+    };
+
+    for (const delay of [0, 35, 120, 350, 900, 1800]) {
+        setTimeout(apply, delay);
+    }
+
+    const previousConfigure = node.onConfigure;
+    node.onConfigure = function (...args) {
+        const result = previousConfigure?.apply(this, args);
+        for (const delay of [0, 60, 260, 900]) setTimeout(apply, delay);
+        return result;
+    };
+
+    const previousResize = node.onResize;
+    node.onResize = function (...args) {
+        const result = previousResize?.apply(this, args);
+        schedule();
+        return result;
+    };
+
+    const previousDraw = node.onDrawForeground;
+    node.onDrawForeground = function (...args) {
+        const result = previousDraw?.apply(this, args);
+        schedule();
+        return result;
+    };
 }
 
 function novaNodeTextElements(node) {
@@ -322,6 +455,14 @@ function installTimerChromeCSS() {
 }
 
 function styleTimerAncestors(node) {
+    const directHost = nodeHostElement(node);
+    if (directHost) {
+        node.__novaTimerHost = directHost;
+        directHost.classList.add("nova-timer-host-v397");
+        applyTimerVisualState(node);
+        return;
+    }
+
     const marker = node?.__novaTimerMarker;
     let current = marker?.parentElement || null;
     let lastStyled = null;
@@ -752,6 +893,7 @@ function installSeedLab(node) {
     fixedRun.style.width = "100%";
 
     root.append(last, recent, reuse, copy, fresh, fixedRun);
+    installLegacyGraphNavigation(root);
 
     const dom = node.addDOMWidget?.(
         "nova_seed_history",
@@ -1648,7 +1790,7 @@ function showTimerSettings(node) {
             node.properties[`novaTimer_${key}`] = value;
         }
         applyTimerVisualState(node);
-        tagTimerHost(node);
+        if (globalThis.LiteGraph?.vueNodesMode) tagTimerHost(node);
         close();
         dirty(node);
     };
@@ -1670,7 +1812,7 @@ function showTimerSettings(node) {
         node.properties.novaTimer_showBest = showBest.checked;
         node.properties.novaTimer_glow = glow.checked;
         applyTimerVisualState(node);
-        tagTimerHost(node);
+        if (globalThis.LiteGraph?.vueNodesMode) tagTimerHost(node);
         close();
         dirty(node);
     };
@@ -1753,199 +1895,131 @@ function tickCountdown(node) {
 }
 
 function installTimerDOM(node) {
-    if (node.__novaTimerDOMInstalled || typeof node.addDOMWidget !== "function") return;
+    if (
+        node.__novaTimerDOMInstalled
+    ) return;
+
     node.__novaTimerDOMInstalled = true;
     const controller = new AbortController();
     node.__novaTimerDOMController = controller;
 
     const root = document.createElement("div");
-    root.className = "nova-timer-dom-v394";
+    root.className = "nova-timer-nodes2-legacy-v398";
     root.style.cssText = [
-        "position:relative",
-        "z-index:3",
-        "width:100%",
-        "height:100%",
-        "min-height:118px",
-        "display:flex",
-        "flex-direction:column",
-        "gap:7px",
-        "padding:9px",
+        "position:absolute",
+        "inset:0",
+        "min-width:0",
+        "min-height:0",
+        "overflow:hidden",
         "box-sizing:border-box",
-        "border-radius:9px",
-        "background:#08101a",
-        "border:1px solid #2b5577",
-        "color:#f3f7ff",
         "pointer-events:auto",
     ].join(";");
-    const display = document.createElement("div");
-    display.style.cssText = "text-align:center;font:900 clamp(24px,8vw,64px)/1 ui-monospace,SFMono-Regular,Consolas,monospace;color:#6ee7ff";
-    const status = document.createElement("div");
-    status.style.cssText = "text-align:center;font:800 10px/1.2 system-ui;color:#c8d5e5;min-height:12px";
-    const values = document.createElement("div");
-    values.style.cssText = "display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px";
-    const inputs = {};
-    for (const [key, label, maximum] of [
-        ["hours", "Hours", 999],
-        ["minutes", "Minutes", 59],
-        ["seconds", "Seconds", 59],
-    ]) {
-        const field = document.createElement("label");
-        field.style.cssText = "display:flex;flex-direction:column;gap:2px;text-align:center;font:700 9px/1 system-ui";
-        const input = document.createElement("input");
-        input.type = "number";
-        input.min = "0";
-        input.max = String(maximum);
-        input.step = "1";
-        input.style.cssText = "width:100%;min-width:0;box-sizing:border-box;padding:4px;border:1px solid #456985;border-radius:5px;background:#101925;color:#fff;text-align:center";
-        field.append(label, input);
-        values.append(field);
-        inputs[key] = input;
-    }
-    const actions = document.createElement("div");
-    actions.style.cssText = "display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px";
-    const makeButton = (label) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = label;
-        button.style.cssText = "min-width:0;padding:5px 3px;border:1px solid #456985;border-radius:5px;background:#18314a;color:#fff;font:800 10px/1 system-ui;cursor:pointer";
-        return button;
-    };
-    const start = makeButton("Start");
-    const pause = makeButton("Pause");
-    const resume = makeButton("Resume");
-    const reset = makeButton("Reset");
-    const settings = makeButton("Sound / settings");
-    settings.style.gridColumn = "1/-1";
-    actions.append(start, pause, resume, reset, settings);
-    root.append(display, status, values, actions);
+    root.style.setProperty("display", "block", "important");
+    root.style.setProperty("visibility", "visible", "important");
+    root.style.setProperty("opacity", "1", "important");
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "display:block;width:100%;height:100%;min-width:0;min-height:0";
+    root.append(canvas);
 
-    function storeFields() {
-        node.properties.novaTimerCountdownHours = clamp(inputs.hours.value, 0, 999);
-        node.properties.novaTimerCountdownMinutes = clamp(inputs.minutes.value, 0, 59);
-        node.properties.novaTimerCountdownSeconds = clamp(inputs.seconds.value, 0, 59);
-        dirty(node);
-    }
-    function refresh() {
-        const countdownState = String(node.__novaCountdownState || "IDLE");
-        const showingCountdown = countdownState !== "IDLE";
-        const remaining = showingCountdown ? countdownRemainingMs(node) : timerElapsed();
-        display.textContent = formatTimer(remaining);
-        display.style.color = countdownState === "DONE"
-            ? String(timerSetting(node, "doneColor"))
-            : countdownState === "RUNNING"
-                ? String(timerSetting(node, "runningColor"))
-                : String(timerSetting(node, "idleColor"));
-        status.textContent = showingCountdown
-            ? `COUNTDOWN ${countdownState}`
-            : `GENERATION ${timerOutcome}`;
-        pause.disabled = countdownState !== "RUNNING";
-        resume.disabled = countdownState !== "PAUSED";
-    }
+    const refresh = () => {
+        const width = Math.max(1, root.clientWidth || Number(node.size?.[0] || 190));
+        const height = Math.max(1, root.clientHeight || Number(node.size?.[1] || 70));
+        const sourceWidth = Math.max(1, Number(node.size?.[0] || 190));
+        const sourceHeight = Math.max(1, Number(node.size?.[1] || 70));
+        const pixelRatio = clamp(globalThis.devicePixelRatio || 1, 1, 2);
+        canvas.width = Math.max(1, Math.round(width * pixelRatio));
+        canvas.height = Math.max(1, Math.round(height * pixelRatio));
+        const context = canvas.getContext("2d");
+        if (!context) return;
+        context.setTransform(
+            pixelRatio * width / sourceWidth,
+            0,
+            0,
+            pixelRatio * height / sourceHeight,
+            0,
+            0,
+        );
+        context.clearRect(0, 0, sourceWidth, sourceHeight);
+        node.onDrawForeground?.call(node, context);
+    };
     node.__novaTimerRefresh = refresh;
 
-    const savedFields = countdownFields(node);
-    inputs.hours.value = String(savedFields.hours);
-    inputs.minutes.value = String(savedFields.minutes);
-    inputs.seconds.value = String(savedFields.seconds);
-    for (const input of Object.values(inputs)) {
-        input.addEventListener("change", storeFields, { signal: controller.signal });
-        input.addEventListener("pointerdown", (event) => event.stopPropagation(), {
-            signal: controller.signal,
-        });
-        input.addEventListener("keydown", (event) => event.stopPropagation(), {
-            signal: controller.signal,
-        });
-    }
+    root.addEventListener("pointerenter", () => {
+        node.__novaTimerHover = true;
+        refresh();
+    }, { signal: controller.signal });
+    root.addEventListener("pointerleave", () => {
+        node.__novaTimerHover = false;
+        refresh();
+    }, { signal: controller.signal });
+    root.addEventListener("pointerdown", (event) => {
+        const hit = node.__novaTimerCogHit;
+        if (!hit) return;
+        const bounds = root.getBoundingClientRect();
+        const x = (event.clientX - bounds.left)
+            * Math.max(1, Number(node.size?.[0] || 190))
+            / Math.max(1, bounds.width);
+        const y = (event.clientY - bounds.top)
+            * Math.max(1, Number(node.size?.[1] || 70))
+            / Math.max(1, bounds.height);
+        if (
+            x < hit.x || x > hit.x + hit.width
+            || y < hit.y || y > hit.y + hit.height
+        ) return;
+        event.preventDefault();
+        event.stopPropagation();
+        showTimerSettings(node);
+    }, { signal: controller.signal });
 
-    start.addEventListener("click", () => {
-        storeFields();
-        const duration = countdownDurationMs(node);
-        if (duration <= 0) return;
-        stopCountdownInterval(node);
-        node.__novaCountdownCompletionPlayed = false;
-        node.__novaCountdownState = "RUNNING";
-        node.__novaCountdownRemainingMs = duration;
-        node.__novaCountdownEndsAt = Date.now() + duration;
-        node.properties.novaTimerCountdownState = "RUNNING";
-        node.properties.novaTimerCountdownRemainingMs = duration;
-        node.__novaCountdownInterval = setInterval(() => tickCountdown(node), 100);
-        refresh();
-    }, { signal: controller.signal });
-    pause.addEventListener("click", () => {
-        if (node.__novaCountdownState !== "RUNNING") return;
-        node.__novaCountdownRemainingMs = countdownRemainingMs(node);
-        node.__novaCountdownState = "PAUSED";
-        node.properties.novaTimerCountdownState = "PAUSED";
-        node.properties.novaTimerCountdownRemainingMs = node.__novaCountdownRemainingMs;
-        stopCountdownInterval(node);
-        refresh();
-        dirty(node);
-    }, { signal: controller.signal });
-    resume.addEventListener("click", () => {
-        if (node.__novaCountdownState !== "PAUSED" || node.__novaCountdownRemainingMs <= 0) return;
-        node.__novaCountdownState = "RUNNING";
-        node.__novaCountdownEndsAt = Date.now() + node.__novaCountdownRemainingMs;
-        node.properties.novaTimerCountdownState = "RUNNING";
-        stopCountdownInterval(node);
-        node.__novaCountdownInterval = setInterval(() => tickCountdown(node), 100);
-        refresh();
-        dirty(node);
-    }, { signal: controller.signal });
-    reset.addEventListener("click", () => {
-        stopCountdownInterval(node);
-        node.__novaCountdownState = "IDLE";
-        node.__novaCountdownRemainingMs = countdownDurationMs(node);
-        node.__novaCountdownCompletionPlayed = false;
-        node.properties.novaTimerCountdownState = "IDLE";
-        node.properties.novaTimerCountdownRemainingMs = node.__novaCountdownRemainingMs;
-        refresh();
-        dirty(node);
-    }, { signal: controller.signal });
-    settings.addEventListener("click", () => showTimerSettings(node), {
-        signal: controller.signal,
-    });
-    for (const eventName of ["pointerdown", "pointermove", "pointerup", "keydown", "keyup"]) {
-        root.addEventListener(eventName, (event) => event.stopPropagation(), {
-            signal: controller.signal,
-        });
-    }
-
-    const restoredState = String(node.properties.novaTimerCountdownState || "IDLE");
-    node.__novaCountdownState = restoredState === "PAUSED" ? "PAUSED" : "IDLE";
-    node.__novaCountdownRemainingMs = Number(
-        node.properties.novaTimerCountdownRemainingMs || countdownDurationMs(node),
-    );
-    node.properties.novaTimerCountdownState = node.__novaCountdownState;
-
-    const dom = node.addDOMWidget(
-        "nova_timer_controls_v394",
-        "NOVA_TIMER_CONTROLS",
-        root,
-        {
-            serialize: false,
-            hideOnZoom: false,
-            getMinHeight: () => 118,
-            getHeight: () => Math.max(118, Number(node.size?.[1] || 180) - 20),
-            selectOn: ["focus", "click"],
-        },
-    );
-    dom.serialize = false;
-    dom.options.serialize = false;
-    dom.computeLayoutSize = timerControlsLayoutSize;
-    const previousSerialize = node.onSerialize;
-    node.onSerialize = function (info) {
-        const result = previousSerialize?.apply(this, arguments);
-        if (info) {
-            info.properties ||= {};
-            const runtimeState = String(this.__novaCountdownState || "IDLE");
-            info.properties.novaTimerCountdownState =
-                runtimeState === "RUNNING" ? "PAUSED" : runtimeState;
-            info.properties.novaTimerCountdownRemainingMs =
-                countdownRemainingMs(this);
+    const mount = () => {
+        if (!globalThis.LiteGraph?.vueNodesMode) {
+            root.remove();
+            return;
         }
-        return result;
+        const host = nodeHostElement(node);
+        if (!host) return;
+        host.classList.add("nova-timer-host-v397");
+        node.__novaTimerHost = host;
+
+        const body = host.querySelector?.(`[data-testid="node-body-${node.id}"]`);
+        if (body?.style) {
+            body.style.setProperty("padding", "0", "important");
+            body.style.setProperty("gap", "0", "important");
+            body.style.setProperty("background", "transparent", "important");
+            for (const child of body.children || []) {
+                if (child.classList?.contains("mt-auto")) {
+                    child.style.setProperty("display", "none", "important");
+                }
+            }
+        }
+
+        if (root.parentElement !== host) {
+            const firstResizeHandle = [...host.children].find(
+                (child) => child.getAttribute?.("role") === "button",
+            );
+            host.insertBefore(root, firstResizeHandle || null);
+        }
+        refresh();
     };
-    refresh();
+    node.__novaTimerMount = mount;
+
+    const observer = new ResizeObserver(refresh);
+    observer.observe(root);
+    node.__novaTimerDOMObserver = observer;
+    const mountInterval = setInterval(mount, 250);
+    node.__novaTimerMountInterval = mountInterval;
+
+    const previousRemoved = node.onRemoved;
+    node.onRemoved = function () {
+        controller.abort();
+        observer.disconnect();
+        clearInterval(mountInterval);
+        root.remove();
+        previousRemoved?.apply(this, arguments);
+    };
+    requestAnimationFrame(() => {
+        mount();
+    });
 }
 
 function installTimerNode(node) {
@@ -1964,50 +2038,33 @@ function installTimerNode(node) {
     node.color = "rgba(0,0,0,0)";
     node.bgcolor = "rgba(0,0,0,0)";
     node.boxcolor = "rgba(0,0,0,0)";
-    node.min_size = [260, 150];
-    node.getMinSize = () => [260, 150];
+    node.min_size = [32, 24];
+    node.getMinSize = () => [32, 24];
+    if (
+        !globalThis.LiteGraph?.vueNodesMode
+        && !node.__novaTimerOriginalComputeSize
+    ) {
+        node.__novaTimerOriginalComputeSize = node.computeSize;
+        node.computeSize = () => [32, 24];
+    }
 
     const LG = globalThis.LiteGraph || {};
     node.shape = LG.ROUND_SHAPE ?? node.shape;
 
     if (!Array.isArray(node.size) || node.size[0] < 20 || node.size[1] < 20) {
-        node.size = [320, 180];
+        node.size = [190, 70];
     }
 
     installTimerChromeCSS();
     applyTimerVisualState(node);
 
-    if (!node.__novaTimerMarkerWidget && node.addDOMWidget) {
-        const marker = document.createElement("i");
-        marker.className = "nova-timer-marker-v318";
-        marker.setAttribute("aria-hidden", "true");
-        node.__novaTimerMarker = marker;
-        const markerWidget = node.addDOMWidget(
-            "nova_timer_marker_v317",
-            "NOVA_TIMER_MARKER",
-            marker,
-            { serialize: false, hideOnZoom: false },
-        );
-        if (markerWidget) {
-            markerWidget.computeSize = () => [0, 0];
-            markerWidget.serialize = false;
-            node.__novaTimerMarkerWidget = markerWidget;
-            requestAnimationFrame(() => {
-                const wrapper = marker.parentElement;
-                if (wrapper) {
-                    wrapper.classList.add("nova-timer-marker-wrapper-v318");
-                }
-                tagTimerHost(node);
-            });
-        }
-    }
-    tagTimerHost(node);
+    // Legacy draws directly on the graph canvas and must not own a hidden DOM
+    // widget below the visible timer. Nodes 2.0 still uses its real node host.
+    if (globalThis.LiteGraph?.vueNodesMode) tagTimerHost(node);
 
     restoreTimerNodeState(node);
     timerNodes.add(node);
     installTimerEvents();
-    installTimerDOM(node);
-
     const previousForeground = node.onDrawForeground;
     node.onDrawForeground = function (ctx) {
         const result = previousForeground?.apply(this, arguments);
@@ -2168,7 +2225,8 @@ function installTimerNode(node) {
     node.onResize = function (...args) {
         const result = previousResize?.apply(this, args);
         applyTimerVisualState(this);
-        tagTimerHost(this);
+        if (globalThis.LiteGraph?.vueNodesMode) tagTimerHost(this);
+        this.__novaTimerRefresh?.();
         if (this.__novaTimerHost) {
             this.__novaTimerHost.style.setProperty(
                 "--nova-timer-radius",
@@ -2178,12 +2236,15 @@ function installTimerNode(node) {
         return result;
     };
 
+    installTimerDOM(node);
+
     const previousRemoved = node.onRemoved;
     node.onRemoved = function () {
         timerNodes.delete(this);
         uninstallTimerEventsIfUnused();
         stopCountdownInterval(this);
         this.__novaTimerDOMController?.abort?.();
+        clearInterval(this.__novaTimerMountInterval || 0);
         this.__novaTimerMarker = null;
         this.__novaTimerHost?.classList?.remove(
             "nova-timer-surface-v318",
@@ -2276,6 +2337,10 @@ function installTextWheelCapture() {
     textWheelCaptureInstalled = true;
 
     document.addEventListener("wheel", (event) => {
+        // Nodes 2.0 needs the selected-node capture for text scrolling.
+        // Legacy should keep native canvas wheel zoom, including over this DOM widget.
+        if (!globalThis.LiteGraph?.vueNodesMode) return;
+
         const point = eventToGraphPoint(event);
         if (!point) return;
 
@@ -2313,11 +2378,10 @@ function textDisplayScale() {
 }
 
 function installTextDisplayDOM(node) {
-    if (!shouldInstallTextDisplayDOM({
-        nodes2: Boolean(globalThis.LiteGraph?.vueNodesMode),
-        canAddDOMWidget: typeof node?.addDOMWidget === "function",
-        installed: Boolean(node?.__novaTextDisplayDOMInstalled),
-    })) return;
+    if (
+        typeof node?.addDOMWidget !== "function"
+        || node.__novaTextDisplayDOMInstalled
+    ) return;
 
     node.__novaTextDisplayDOMInstalled = true;
     const controller = new AbortController();
@@ -2329,55 +2393,50 @@ function installTextDisplayDOM(node) {
         "position:relative",
         "width:100%",
         "height:100%",
+        "min-width:0",
         "min-height:0",
         "flex:1 1 0",
-        "display:flex",
-        "flex-direction:column",
         "overflow:hidden",
         "box-sizing:border-box",
-        "border:1px solid rgba(92,159,208,.82)",
+        "border:1px solid rgba(92,159,208,.72)",
         "border-radius:7px",
+        "box-shadow:inset 0 0 0 2px rgba(210,232,250,.20)",
         "background:#03060a",
         "color:#d7e2ee",
         "font:12px/1.38 ui-monospace,SFMono-Regular,Consolas,monospace",
         "pointer-events:auto",
     ].join(";");
-
-    const toolbar = document.createElement("header");
-    toolbar.style.cssText = [
-        "display:flex",
-        "align-items:center",
-        "justify-content:flex-end",
-        "min-height:27px",
-        "padding:4px 6px",
-        "box-sizing:border-box",
-        "border-bottom:1px solid rgba(92,159,208,.28)",
-        "background:#08111a",
-    ].join(";");
+    root.style.setProperty("display", "block", "important");
+    root.style.setProperty("visibility", "visible", "important");
+    root.style.setProperty("opacity", "1", "important");
 
     const copy = document.createElement("button");
     copy.type = "button";
     copy.textContent = "COPY";
     copy.style.cssText = [
+        "position:absolute",
+        "z-index:2",
+        "top:6px",
+        "right:7px",
         "min-width:45px",
         "height:20px",
         "padding:2px 7px",
         "border:1px solid rgba(180,215,240,.38)",
         "border-radius:5px",
-        "background:#2a4862",
+        "background:rgba(42,72,98,.92)",
         "color:#f3f8ff",
         "font:700 10px/1 system-ui",
         "cursor:pointer",
     ].join(";");
-    toolbar.append(copy);
 
     const content = document.createElement("pre");
     content.tabIndex = 0;
     content.style.cssText = [
-        "flex:1 1 0",
+        "position:absolute",
+        "inset:2px",
         "min-height:0",
         "margin:0",
-        "padding:7px 8px",
+        "padding:7px 8px 8px",
         "overflow:auto",
         "box-sizing:border-box",
         "white-space:pre-wrap",
@@ -2391,58 +2450,129 @@ function installTextDisplayDOM(node) {
 
     const counter = document.createElement("footer");
     counter.style.cssText = [
+        "position:absolute",
+        "z-index:2",
+        "right:7px",
+        "bottom:6px",
         "min-height:20px",
-        "padding:3px 7px",
+        "max-width:calc(100% - 18px)",
+        "padding:3px 8px",
         "box-sizing:border-box",
-        "border-top:1px solid rgba(92,159,208,.22)",
-        "background:#08111a",
+        "overflow:hidden",
+        "border:1px solid rgba(122,184,226,.46)",
+        "border-radius:6px",
+        "background:rgba(15,31,45,.94)",
         "color:#bcd7ea",
+        "white-space:nowrap",
+        "text-overflow:ellipsis",
         "text-align:right",
         "font:700 10px/1.3 system-ui",
+        "pointer-events:none",
     ].join(";");
-    root.append(toolbar, content, counter);
+    root.append(content, copy, counter);
 
     const refresh = () => {
         const value = String(node.__novaDisplayText || "");
-        content.textContent = value;
-        counter.textContent = textDisplayCounterSummary(
+        const width = Math.max(1, root.clientWidth || node.size?.[0] || 320);
+        const height = Math.max(1, root.clientHeight || node.size?.[1] || 180);
+        const fontSize = Math.max(8, Math.min(18, width / 42));
+        const copyVisible = width >= 120 && height >= 34;
+        const counterLabel = textDisplayCounterSummary(
             value,
             node.properties?.novaTextCounterMode,
-            root.clientWidth || node.size?.[0] || 320,
+            width,
         );
-        counter.style.display = counter.textContent ? "block" : "none";
+        const counterVisible = Boolean(counterLabel) && width >= 100 && height >= 48;
+
+        content.textContent = value;
+        content.style.fontSize = `${fontSize}px`;
+        content.style.paddingTop = copyVisible ? "39px" : "7px";
+        content.style.paddingBottom = counterVisible ? "38px" : "8px";
+        copy.style.display = copyVisible ? "block" : "none";
+        counter.textContent = counterLabel;
+        counter.style.display = counterVisible ? "block" : "none";
+        root.style.borderColor = nodeSelected(node)
+            ? "rgba(124,202,255,.96)"
+            : "rgba(92,159,208,.72)";
     };
     node.__novaTextDisplayRefresh = refresh;
 
     copy.addEventListener("click", async () => {
-        const value = String(node.__novaDisplayText || "");
-        try {
-            await navigator.clipboard.writeText(value);
-        } catch (_) {
-            const area = document.createElement("textarea");
-            area.value = value;
-            area.style.cssText = "position:fixed;left:-9999px;top:-9999px";
-            document.body.append(area);
-            area.select();
-            document.execCommand("copy");
-            area.remove();
-        }
+        await node.__novaTextDisplayCopyText?.();
         copy.textContent = "COPIED";
-        setTimeout(() => { copy.textContent = "COPY"; }, 1200);
+        copy.style.background = "rgba(84,190,132,.88)";
+        setTimeout(() => {
+            copy.textContent = "COPY";
+            copy.style.background = "rgba(42,72,98,.92)";
+        }, 1200);
     }, { signal: controller.signal });
 
-    for (const eventName of [
-        "pointerdown",
-        "pointermove",
-        "pointerup",
-        "keydown",
-        "keyup",
-        "wheel",
-    ]) {
+    root.addEventListener("pointerdown", (event) => {
+        if (event.button === 1) {
+            if (!globalThis.LiteGraph?.vueNodesMode) {
+                event.preventDefault();
+                event.stopPropagation();
+                app.canvas?.processMouseDown?.(event);
+            }
+            return;
+        }
+        app.canvas?.selectNode?.(node);
+        app.canvas?.bringToFront?.(node);
+        event.stopPropagation();
+    }, { signal: controller.signal });
+
+    root.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        node.__novaTextDisplaySelectedText = String(
+            globalThis.getSelection?.()?.toString?.() || "",
+        );
+        app.canvas?.selectNode?.(node);
+        app.canvas?.bringToFront?.(node);
+        app.canvas?.processContextMenu?.(node, event);
+    }, { signal: controller.signal });
+
+    for (const eventName of ["pointermove", "pointerup"]) {
+        root.addEventListener(eventName, (event) => {
+            if (event.button === 1 || (Number(event.buttons || 0) & 4) !== 0) {
+                if (!globalThis.LiteGraph?.vueNodesMode) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (eventName === "pointermove") {
+                        app.canvas?.processMouseMove?.(event);
+                    } else {
+                        app.canvas?.processMouseUp?.(event);
+                    }
+                }
+                return;
+            }
+            event.stopPropagation();
+        }, {
+            signal: controller.signal,
+        });
+    }
+    for (const eventName of ["keydown", "keyup"]) {
         root.addEventListener(eventName, (event) => event.stopPropagation(), {
             signal: controller.signal,
         });
     }
+    root.addEventListener("wheel", (event) => {
+        if (!globalThis.LiteGraph?.vueNodesMode) {
+            event.preventDefault();
+            event.stopPropagation();
+            app.canvas?.processMouseWheel?.(event);
+            return;
+        }
+        if (!nodeSelected(node)) {
+            event.preventDefault();
+            return;
+        }
+        event.stopPropagation();
+    }, {
+        signal: controller.signal,
+        passive: false,
+    });
 
     const dom = node.addDOMWidget(
         "nova_text_display_nodes2_v396",
@@ -2451,13 +2581,29 @@ function installTextDisplayDOM(node) {
         {
             serialize: false,
             hideOnZoom: false,
-            getMinHeight: () => 64,
+            getMinHeight: () => 1,
+            getHeight: () => Math.max(1, Number(node.size?.[1] || 180) - 52),
             selectOn: ["focus", "click"],
+            afterResize: () => requestAnimationFrame(refresh),
         },
     );
     dom.serialize = false;
     dom.options.serialize = false;
-    dom.computeLayoutSize = () => ({ minHeight: 64, minWidth: 1 });
+    node.__novaTextDisplayUsesDOM = true;
+
+    let lastNodes2Mode = null;
+    const syncRendererMode = () => {
+        const nodes2 = Boolean(globalThis.LiteGraph?.vueNodesMode);
+        if (lastNodes2Mode === nodes2) return;
+        lastNodes2Mode = nodes2;
+        // The DOM panel is now the single implementation for both renderers,
+        // keeping Legacy behaviour identical to Nodes 2.0.
+        dom.hidden = false;
+        root.style.pointerEvents = "auto";
+        refresh();
+        dirty(node);
+    };
+    node.__novaTextDisplayModeInterval = setInterval(syncRendererMode, 250);
 
     const observer = new ResizeObserver(refresh);
     observer.observe(root);
@@ -2467,10 +2613,11 @@ function installTextDisplayDOM(node) {
     node.onRemoved = function () {
         controller.abort();
         observer.disconnect();
+        clearInterval(node.__novaTextDisplayModeInterval || 0);
         previousRemoved?.apply(this, arguments);
     };
 
-    requestAnimationFrame(refresh);
+    requestAnimationFrame(syncRendererMode);
 }
 
 function installTextDisplay(node) {
@@ -2488,6 +2635,62 @@ function installTextDisplay(node) {
     node.__novaCopyFeedbackUntil = 0;
     node.__novaCopyHit = null;
     node.__novaDisplayMaxScroll = 0;
+    node.__novaTextDisplayCopyText = async () => {
+        const value = String(node.__novaDisplayText || "");
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (_) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            area.style.cssText = "position:fixed;left:-9999px;top:-9999px";
+            document.body.append(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+        node.__novaCopyFeedbackUntil = Date.now() + 1200;
+        node.__novaTextDisplayRefresh?.();
+        dirty(node);
+        setTimeout(() => {
+            node.__novaTextDisplayRefresh?.();
+            dirty(node);
+        }, 1250);
+    };
+    node.__novaTextDisplayCopySelectedText = async () => {
+        const value = String(node.__novaTextDisplaySelectedText || "");
+        if (!value) return;
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch (_) {
+            const area = document.createElement("textarea");
+            area.value = value;
+            area.style.cssText = "position:fixed;left:-9999px;top:-9999px";
+            document.body.append(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+        }
+    };
+    const previousExtraMenuOptions = node.getExtraMenuOptions;
+    node.getExtraMenuOptions = function (_canvas, options) {
+        const result = previousExtraMenuOptions?.apply(this, arguments);
+        const menu = Array.isArray(options) ? options : [];
+        menu.unshift(
+            {
+                content: "Copy text",
+                callback: () => Promise.resolve(this.__novaTextDisplayCopyText?.())
+                    .catch((error) => console.warn("[NovoLoko] Copy text failed:", error)),
+            },
+            {
+                content: "Copy selected text",
+                disabled: !String(this.__novaTextDisplaySelectedText || ""),
+                callback: () => Promise.resolve(this.__novaTextDisplayCopySelectedText?.())
+                    .catch((error) => console.warn("[NovoLoko] Copy selected text failed:", error)),
+            },
+            null,
+        );
+        return result;
+    };
     textDisplayNodes.add(node);
     installTextWheelCapture();
     installTextDisplayDOM(node);
@@ -2495,6 +2698,7 @@ function installTextDisplay(node) {
     const draw = node.onDrawForeground;
     node.onDrawForeground = function (ctx) {
         draw?.apply(this, arguments);
+        if (this.__novaTextDisplayUsesDOM) return;
         if (!ctx) return;
 
         const width = Math.max(1, Number(this.size?.[0] || 320));
@@ -2693,25 +2897,12 @@ function installTextDisplay(node) {
     };
 
     async function copyDisplayText(targetNode) {
-        const value = String(targetNode.__novaDisplayText || "");
-        try {
-            await navigator.clipboard.writeText(value);
-        } catch (_) {
-            const area = document.createElement("textarea");
-            area.value = value;
-            area.style.cssText = "position:fixed;left:-9999px;top:-9999px";
-            document.body.append(area);
-            area.select();
-            document.execCommand("copy");
-            area.remove();
-        }
-        targetNode.__novaCopyFeedbackUntil = Date.now() + 1200;
-        dirty(targetNode);
-        setTimeout(() => dirty(targetNode), 1250);
+        await targetNode.__novaTextDisplayCopyText?.();
     }
 
     const previousMouseDown = node.onMouseDown;
     node.onMouseDown = function (event, pos, graphCanvas) {
+        if (event?.button === 1) return false;
         const hit = this.__novaCopyHit;
         const x = Number(pos?.[0] ?? -1);
         const y = Number(pos?.[1] ?? -1);
@@ -3001,6 +3192,18 @@ app.registerExtension({
     async beforeRegisterNodeDef(nodeType, nodeData) {
         const name = nodeData?.name;
 
+        if (LEGACY_CONNECTED_TEXT_WIDGETS.has(name)) {
+            const created = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = function () {
+                created?.apply(this, arguments);
+                safeInstall(
+                    this,
+                    `${name} Legacy connected text panel`,
+                    installLegacyConnectedTextWidgetRepair,
+                );
+            };
+        }
+
         if (name === ENHANCER_NODE) {
             replaceNodeDataCombo(nodeData, "preset", ENHANCER_PRESETS);
             replaceNodeDataCombo(nodeData, "detail_level", ENHANCER_LENGTHS);
@@ -3048,7 +3251,9 @@ app.registerExtension({
                     this.flags ||= {};
                     this.flags.no_title = true;
                     restoreTimerNodeState(this);
-                    setTimeout(() => tagTimerHost(this), 0);
+                    if (globalThis.LiteGraph?.vueNodesMode) {
+                        setTimeout(() => tagTimerHost(this), 0);
+                    }
                     dirty(this);
                     return result;
                 };
@@ -3082,6 +3287,13 @@ app.registerExtension({
 
     nodeCreated(node) {
         const nodeName = node?.comfyClass || node?.type;
+        if (LEGACY_CONNECTED_TEXT_WIDGETS.has(nodeName)) {
+            safeInstall(
+                node,
+                `${nodeName} Legacy connected text panel`,
+                installLegacyConnectedTextWidgetRepair,
+            );
+        }
         if (isTimerNode(node)) {
             safeInstall(node, "Generation Timer", installTimerNode);
         }
@@ -3110,6 +3322,17 @@ app.registerExtension({
             });
             return [
                 null,
+                {
+                    content: "Copy text",
+                    callback: () => Promise.resolve(node.__novaTextDisplayCopyText?.())
+                        .catch((error) => console.warn("[NovoLoko] Copy text failed:", error)),
+                },
+                {
+                    content: "Copy selected text",
+                    disabled: !String(node.__novaTextDisplaySelectedText || ""),
+                    callback: () => Promise.resolve(node.__novaTextDisplayCopySelectedText?.())
+                        .catch((error) => console.warn("[NovoLoko] Copy selected text failed:", error)),
+                },
                 option("Off"),
                 option("Words"),
                 option("Words + Characters"),

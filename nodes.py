@@ -40,7 +40,7 @@ except ImportError:
         style_key as _preview_style_key,
     )
 
-NOVA_VERSION = "3.9.7"
+NOVA_VERSION = "4.0.0"
 
 try:
     import folder_paths
@@ -48,7 +48,7 @@ except Exception:
     folder_paths = None
 
 DEFAULT_CSV = "csv/styles/novoloko_krea2_styles_1455.csv"
-DEFAULT_CHARACTER_CSV = "csv/characters/novoloko_characters_master_1098.csv"
+DEFAULT_CHARACTER_CSV = "csv/characters/novoloko_characters_master_3200.csv"
 DEFAULT_STANDALONE_LIBRARY = "styles/novoloko_all_yaml_styles.yaml"
 WEB_DIRECTORY = "./web"
 

@@ -13,6 +13,23 @@ export function timerChromeCSS() {
             overflow:hidden !important;
         }
 
+        .nova-timer-host-v397 [data-testid="node-inner-wrapper"],
+        .nova-timer-host-v397 [data-testid^="node-body-"] {
+            background:transparent !important;
+            background-color:transparent !important;
+            border-color:transparent !important;
+            box-shadow:none !important;
+        }
+
+        .nova-timer-host-v397 [data-testid^="node-body-"] {
+            gap:0 !important;
+            padding:0 !important;
+        }
+
+        .nova-timer-host-v397 [data-testid^="node-body-"] > .mt-auto {
+            display:none !important;
+        }
+
         .nova-timer-marker-v318,
         .nova-timer-marker-wrapper-v318 {
             position:absolute !important;

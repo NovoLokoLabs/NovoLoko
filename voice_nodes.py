@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
-NOVA_VOICE_VERSION = "3.9.7"
+NOVA_VOICE_VERSION = "4.0.0"
 
 _MODEL_CACHE: Dict[Tuple[str, str, str], Any] = {}
 _MODEL_LOCK = threading.Lock()
@@ -292,14 +292,39 @@ def _silent_audio(seconds: float = 0.25):
 
 
 
-def _nova_audio_output_dir() -> str:
+DEFAULT_MEDIA_FOLDER = "Default"
+
+
+def _safe_media_folder(value: Any = DEFAULT_MEDIA_FOLDER) -> str:
+    raw = str(value or "").strip().replace("\\", "/")
+    if not raw or raw.casefold() == DEFAULT_MEDIA_FOLDER.casefold():
+        return ""
+    parts = []
+    for part in raw.split("/"):
+        clean = re.sub(r"[^A-Za-z0-9 ._()-]+", "_", part.strip())
+        clean = clean.strip(" .")
+        if not clean or clean in {".", ".."}:
+            continue
+        parts.append(clean[:80])
+    return "/".join(parts[:8])
+
+
+def _media_folder_label(value: Any = DEFAULT_MEDIA_FOLDER) -> str:
+    return _safe_media_folder(value) or DEFAULT_MEDIA_FOLDER
+
+
+def _nova_audio_output_dir(media_folder: Any = DEFAULT_MEDIA_FOLDER) -> str:
     try:
         import folder_paths
 
         output_root = folder_paths.get_output_directory()
     except Exception:
         output_root = os.path.abspath(os.path.join(os.getcwd(), "output"))
-    path = os.path.join(output_root, "NovoLokoVoice", "Audio")
+    base = os.path.realpath(os.path.join(output_root, "NovoLokoVoice", "Audio"))
+    subfolder = _safe_media_folder(media_folder)
+    path = os.path.realpath(os.path.join(base, *subfolder.split("/"))) if subfolder else base
+    if os.path.commonpath([base, path]) != base:
+        raise ValueError("Media folder must stay inside NovoLoko managed storage.")
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -314,8 +339,8 @@ def _audio_metadata_path(audio_path: str) -> str:
     return os.path.splitext(audio_path)[0] + ".json"
 
 
-def _nova_audio_image_dir() -> str:
-    path = os.path.join(_nova_audio_output_dir(), "Images")
+def _nova_audio_image_dir(media_folder: Any = DEFAULT_MEDIA_FOLDER) -> str:
+    path = os.path.join(_nova_audio_output_dir(media_folder), "Images")
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -380,9 +405,18 @@ def _save_autoplay_audio(audio: Any) -> tuple[str, float]:
     return filename, duration
 
 
-def _open_known_folder(kind: str, filename: str = "", reveal: bool = False) -> str:
+def _open_known_folder(
+    kind: str,
+    filename: str = "",
+    reveal: bool = False,
+    media_folder: Any = DEFAULT_MEDIA_FOLDER,
+) -> str:
     key = str(kind or "audio").strip().lower()
-    directory = _nova_audio_image_dir() if key in {"image", "images"} else _nova_audio_output_dir()
+    directory = (
+        _nova_audio_image_dir(media_folder)
+        if key in {"image", "images"}
+        else _nova_audio_output_dir(media_folder)
+    )
     directory = os.path.realpath(directory)
     selected = ""
     if filename:
@@ -409,7 +443,13 @@ def _voice_code(value: str) -> str:
     return str(value or "").split("|", 1)[0].strip()
 
 
-def _save_history_image(image: Any, stem: str, max_size: int = 0, metadata_fields: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def _save_history_image(
+    image: Any,
+    stem: str,
+    max_size: int = 0,
+    metadata_fields: Optional[Dict[str, Any]] = None,
+    media_folder: Any = DEFAULT_MEDIA_FOLDER,
+) -> Dict[str, Any]:
     """Save one ComfyUI IMAGE without silently resizing it.
 
     The returned audit records both the incoming tensor size and the PNG size
@@ -458,7 +498,7 @@ def _save_history_image(image: Any, stem: str, max_size: int = 0, metadata_field
             capped = True
 
         filename = f"{stem}.png"
-        full = os.path.join(_nova_audio_image_dir(), filename)
+        full = os.path.join(_nova_audio_image_dir(media_folder), filename)
         # Avoid PIL optimise rewriting surprises; compression changes bytes only.
         pil.save(full, format="PNG", pnginfo=build_pnginfo(metadata_fields), compress_level=2)
         with Image.open(full) as verify:
@@ -473,8 +513,12 @@ def _save_history_image(image: Any, stem: str, max_size: int = 0, metadata_field
         return empty
 
 
-def _audio_history_entries(limit: int = 1000) -> list[Dict[str, Any]]:
-    directory = _nova_audio_output_dir()
+def _audio_history_entries(
+    limit: int = 1000,
+    media_folder: Any = DEFAULT_MEDIA_FOLDER,
+) -> list[Dict[str, Any]]:
+    directory = _nova_audio_output_dir(media_folder)
+    folder_label = _media_folder_label(media_folder)
     max_items = max(1, min(int(limit or 1000), 5000))
     files = []
     try:
@@ -514,7 +558,7 @@ def _audio_history_entries(limit: int = 1000) -> list[Dict[str, Any]]:
             filename = os.path.basename(str(value or ""))
             if not filename:
                 return ""
-            image_path = os.path.join(_nova_audio_image_dir(), filename)
+            image_path = os.path.join(_nova_audio_image_dir(media_folder), filename)
             return filename if os.path.isfile(image_path) else ""
 
         image_filename = valid_history_image(metadata.get("image_filename"))
@@ -527,6 +571,7 @@ def _audio_history_entries(limit: int = 1000) -> list[Dict[str, Any]]:
             image_filename = image_second_filename or image_first_filename
         entries.append({
             "filename": name,
+            "media_folder": folder_label,
             "label": label,
             "voice": voice,
             "voice_code": str(metadata.get("voice_code") or _voice_code(voice)),
@@ -581,14 +626,18 @@ def _managed_history_path(directory: str, filename: Any, extensions: tuple[str, 
     return candidate
 
 
-def _history_metadata(filename: Any) -> tuple[str, str, Dict[str, Any]]:
+def _history_metadata(
+    filename: Any,
+    media_folder: Any = DEFAULT_MEDIA_FOLDER,
+) -> tuple[str, str, Dict[str, Any]]:
+    directory = _nova_audio_output_dir(media_folder)
     audio_path = _managed_history_path(
-        _nova_audio_output_dir(),
+        directory,
         filename,
         (".wav", ".flac", ".mp3", ".ogg", ".opus"),
     )
     metadata_path = _managed_history_path(
-        _nova_audio_output_dir(),
+        directory,
         os.path.splitext(os.path.basename(audio_path))[0] + ".json",
         (".json",),
     )
@@ -611,8 +660,11 @@ def _metadata_image_names(metadata: Dict[str, Any]) -> set[str]:
     return names
 
 
-def _other_history_image_references(excluded_metadata_path: str) -> set[str]:
-    directory = os.path.realpath(_nova_audio_output_dir())
+def _other_history_image_references(
+    excluded_metadata_path: str,
+    media_folder: Any = DEFAULT_MEDIA_FOLDER,
+) -> set[str]:
+    directory = os.path.realpath(_nova_audio_output_dir(media_folder))
     referenced: set[str] = set()
     for name in os.listdir(directory):
         if not name.lower().endswith(".json"):
@@ -630,10 +682,13 @@ def _other_history_image_references(excluded_metadata_path: str) -> set[str]:
     return referenced
 
 
-def _delete_history_entry(filename: Any) -> Dict[str, Any]:
-    audio_path, metadata_path, metadata = _history_metadata(filename)
-    image_directory = _nova_audio_image_dir()
-    shared_images = _other_history_image_references(metadata_path)
+def _delete_history_entry(
+    filename: Any,
+    media_folder: Any = DEFAULT_MEDIA_FOLDER,
+) -> Dict[str, Any]:
+    audio_path, metadata_path, metadata = _history_metadata(filename, media_folder)
+    image_directory = _nova_audio_image_dir(media_folder)
+    shared_images = _other_history_image_references(metadata_path, media_folder)
     image_paths = []
     for image_name in sorted(_metadata_image_names(metadata) - shared_images):
         image_paths.append(
@@ -652,7 +707,7 @@ def _delete_history_entry(filename: Any) -> Dict[str, Any]:
     return {
         "removed": removed,
         "preservedSharedImages": sorted(_metadata_image_names(metadata) & shared_images),
-        "items": _audio_history_entries(),
+        "items": _audio_history_entries(media_folder=media_folder),
     }
 
 
@@ -688,7 +743,11 @@ def _write_history_audio(audio: Any, path: str) -> float:
 def _revoice_history_entry(data: Dict[str, Any], cancellation_event=None) -> Dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("Invalid revoice request.")
-    _audio_path, _metadata_path, original = _history_metadata(data.get("filename"))
+    media_folder = _media_folder_label(data.get("mediaFolder"))
+    _audio_path, _metadata_path, original = _history_metadata(
+        data.get("filename"),
+        media_folder,
+    )
     prompt_mode = str(data.get("promptSource") or "Spoken").strip().title()
     prompt_keys = {"Spoken": "label", "Manual": "manual_prompt", "Enhanced": "enhanced_prompt"}
     if prompt_mode not in prompt_keys:
@@ -728,7 +787,7 @@ def _revoice_history_entry(data: Dict[str, Any], cancellation_event=None) -> Dic
     if cancellation_event is not None and cancellation_event.is_set():
         raise InterruptedError("Revoice cancelled.")
 
-    directory = _nova_audio_output_dir()
+    directory = _nova_audio_output_dir(media_folder)
     prefix = _safe_audio_prefix(f"NovoLokoRevoice_{engine}")
     stamp = time.strftime("%Y%m%d_%H%M%S")
     filename = f"{prefix}_{stamp}_{time.time_ns() % 1_000_000:06d}.wav"
@@ -749,6 +808,7 @@ def _revoice_history_entry(data: Dict[str, Any], cancellation_event=None) -> Dic
             "duration": duration,
             "has_audio": True,
             "media_only": False,
+            "media_folder": media_folder,
         })
         with open(temporary_metadata, "w", encoding="utf-8") as handle:
             json.dump(metadata, handle, ensure_ascii=False, indent=2)
@@ -762,7 +822,11 @@ def _revoice_history_entry(data: Dict[str, Any], cancellation_event=None) -> Dic
                 pass
         raise
     entry = next(
-        (item for item in _audio_history_entries() if item.get("filename") == filename),
+        (
+            item
+            for item in _audio_history_entries(media_folder=media_folder)
+            if item.get("filename") == filename
+        ),
         None,
     )
     if entry is None:
@@ -1124,6 +1188,17 @@ class NovaAudioHistoryPlayer:
                 "negative_prompt": ("STRING", {"forceInput": True}),
                 "prompt_source": ("STRING", {"forceInput": True}),
                 "prompt_stack_summary": ("STRING", {"forceInput": True}),
+                "media_folder": (
+                    "STRING",
+                    {
+                        "default": DEFAULT_MEDIA_FOLDER,
+                        "multiline": False,
+                        "tooltip": (
+                            "Default uses the existing NovoLoko Media Studio history. "
+                            "Enter a folder name for a separate history library."
+                        ),
+                    },
+                ),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -1157,6 +1232,7 @@ class NovaAudioHistoryPlayer:
         negative_prompt="",
         prompt_source="",
         prompt_stack_summary="",
+        media_folder=DEFAULT_MEDIA_FOLDER,
         prompt=None,
         extra_pnginfo=None,
         unique_id=None,
@@ -1181,7 +1257,8 @@ class NovaAudioHistoryPlayer:
         except Exception as exc:
             raise RuntimeError("NovoLoko Media Studio needs PyTorch.") from exc
 
-        directory = _nova_audio_output_dir()
+        media_folder = _media_folder_label(media_folder)
+        directory = _nova_audio_output_dir(media_folder)
         prefix = _safe_audio_prefix(filename_prefix)
         if not has_audio and prefix == "NovoLokoVoiceKokoro":
             prefix = "NovoLokoGallery"
@@ -1273,10 +1350,18 @@ class NovaAudioHistoryPlayer:
         second_fields = dict(metadata_fields)
         second_fields["nova_pass"] = "second"
         first_audit = _save_history_image(
-            first_image, f"{stem}_pass1", history_max_side, first_fields
+            first_image,
+            f"{stem}_pass1",
+            history_max_side,
+            first_fields,
+            media_folder,
         )
         second_audit = _save_history_image(
-            second_image, f"{stem}_pass2", history_max_side, second_fields
+            second_image,
+            f"{stem}_pass2",
+            history_max_side,
+            second_fields,
+            media_folder,
         )
         image_first_filename = str(first_audit.get("filename") or "")
         image_second_filename = str(second_audit.get("filename") or "")
@@ -1298,6 +1383,7 @@ class NovaAudioHistoryPlayer:
             selected_image = torch.zeros((1, 1, 1, 3), dtype=torch.float32)
         metadata = {
             "filename": filename,
+            "media_folder": media_folder,
             "label": clean_label[:50000],
             "manual_prompt": clean_manual[:50000],
             "enhanced_prompt": clean_enhanced[:50000],
@@ -1335,6 +1421,7 @@ class NovaAudioHistoryPlayer:
 
         entry = {
             "filename": filename,
+            "media_folder": media_folder,
             "label": metadata["label"],
             "voice": metadata["voice"],
             "voice_code": metadata["voice_code"],
@@ -1364,7 +1451,7 @@ class NovaAudioHistoryPlayer:
             "has_audio": metadata["has_audio"],
             "media_only": metadata["media_only"],
         }
-        history = _audio_history_entries(history_limit)
+        history = _audio_history_entries(history_limit, media_folder)
         if has_audio:
             status = (
                 f"Saved {filename} ({duration:.2f}s) with "
@@ -1382,9 +1469,13 @@ class NovaAudioHistoryPlayer:
             "nova_audio_loop": [bool(loop)],
         }
         if has_audio:
+            media_subfolder = "NovoLokoVoice/Audio"
+            safe_subfolder = _safe_media_folder(media_folder)
+            if safe_subfolder:
+                media_subfolder += f"/{safe_subfolder}"
             ui_payload["audio"] = [{
                 "filename": filename,
-                "subfolder": "NovoLokoVoice/Audio",
+                "subfolder": media_subfolder,
                 "type": "output",
             }]
         return {
@@ -1530,7 +1621,12 @@ try:
             limit = max(1, min(int(request.query.get("limit", "1000")), 5000))
         except Exception:
             limit = 1000
-        return web.json_response({"ok": True, "items": _audio_history_entries(limit)})
+        media_folder = request.query.get("folder", DEFAULT_MEDIA_FOLDER)
+        return web.json_response({
+            "ok": True,
+            "media_folder": _media_folder_label(media_folder),
+            "items": _audio_history_entries(limit, media_folder),
+        })
 
     @PromptServer.instance.routes.get("/nova_voice/voices")
     async def nova_voice_voices(request):
@@ -1559,7 +1655,11 @@ try:
     async def nova_voice_audio_delete(request):
         try:
             data = await request.json()
-            result = await asyncio.to_thread(_delete_history_entry, data.get("filename"))
+            result = await asyncio.to_thread(
+                _delete_history_entry,
+                data.get("filename"),
+                data.get("mediaFolder", DEFAULT_MEDIA_FOLDER),
+            )
             return web.json_response({"ok": True, **result})
         except (ValueError, FileNotFoundError) as exc:
             return web.json_response({"ok": False, "error": str(exc)}, status=400)
@@ -1612,7 +1712,9 @@ try:
         filename = os.path.basename(str(request.query.get("filename", "")).strip())
         if not filename or not filename.lower().endswith((".wav", ".flac", ".mp3", ".ogg", ".opus")):
             return web.json_response({"ok": False, "error": "Invalid audio filename."}, status=400)
-        directory = os.path.realpath(_nova_audio_output_dir())
+        directory = os.path.realpath(
+            _nova_audio_output_dir(request.query.get("folder", DEFAULT_MEDIA_FOLDER))
+        )
         full_path = os.path.realpath(os.path.join(directory, filename))
         if os.path.dirname(full_path) != directory or not os.path.isfile(full_path):
             return web.json_response({"ok": False, "error": "Audio file was not found."}, status=404)
@@ -1623,7 +1725,9 @@ try:
     @PromptServer.instance.routes.get("/nova_voice/image/info")
     async def nova_voice_image_info(request):
         filename = os.path.basename(str(request.query.get("filename", "")).strip())
-        directory = os.path.realpath(_nova_audio_image_dir())
+        directory = os.path.realpath(
+            _nova_audio_image_dir(request.query.get("folder", DEFAULT_MEDIA_FOLDER))
+        )
         full_path = os.path.realpath(os.path.join(directory, filename))
         if os.path.dirname(full_path) != directory or not os.path.isfile(full_path):
             return web.json_response({"ok": False, "error": "History image was not found."}, status=404)
@@ -1640,7 +1744,9 @@ try:
         filename = os.path.basename(str(request.query.get("filename", "")).strip())
         if not filename or not filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
             return web.json_response({"ok": False, "error": "Invalid image filename."}, status=400)
-        directory = os.path.realpath(_nova_audio_image_dir())
+        directory = os.path.realpath(
+            _nova_audio_image_dir(request.query.get("folder", DEFAULT_MEDIA_FOLDER))
+        )
         full_path = os.path.realpath(os.path.join(directory, filename))
         if os.path.dirname(full_path) != directory or not os.path.isfile(full_path):
             return web.json_response({"ok": False, "error": "History image was not found."}, status=404)
@@ -1671,8 +1777,15 @@ try:
         kind = str(data.get("kind") or "audio")
         filename = str(data.get("filename") or "")
         reveal = _bool(data.get("reveal"), False)
+        media_folder = data.get("mediaFolder", DEFAULT_MEDIA_FOLDER)
         try:
-            opened = await asyncio.to_thread(_open_known_folder, kind, filename, reveal)
+            opened = await asyncio.to_thread(
+                _open_known_folder,
+                kind,
+                filename,
+                reveal,
+                media_folder,
+            )
             return web.json_response({"ok": True, "path": opened})
         except Exception as exc:
             return web.json_response({"ok": False, "error": str(exc) or "Folder could not be opened."}, status=500)

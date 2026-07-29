@@ -63,7 +63,7 @@ class HighConfidenceFixTests(unittest.TestCase):
         self.assertEqual(node["widgets_values"][1], "A NOVA explosion")
         self.assertEqual(
             node["widgets_values"][2],
-            "csv/actions/novoloko_actions_1000.csv",
+            "csv/actions/novoloko_actions_1500.csv",
         )
         self.assertEqual(node["properties"]["cnr_id"], "ComfyUI-NovoLoko")
         self.assertEqual(

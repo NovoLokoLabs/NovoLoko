@@ -75,6 +75,55 @@ const DEFAULTS = Object.freeze({
     showLabels: true,
 });
 
+function installLegacyGraphNavigation(root) {
+    if (root.__novaLegacyGraphNavigationInstalled) return;
+    root.__novaLegacyGraphNavigationInstalled = true;
+    const legacy = () => !globalThis.LiteGraph?.vueNodesMode;
+    const consume = (event, handler) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        handler?.call(app.canvas, event);
+    };
+    root.addEventListener("wheel", (event) => {
+        if (!legacy()) return;
+        consume(event, app.canvas?.processMouseWheel);
+    }, { passive: false, capture: true });
+    root.addEventListener("pointerdown", (event) => {
+        if (!legacy() || event.button !== 1) return;
+        consume(event, app.canvas?.processMouseDown);
+    }, true);
+    root.addEventListener("pointermove", (event) => {
+        if (!legacy() || (Number(event.buttons || 0) & 4) === 0) return;
+        consume(event, app.canvas?.processMouseMove);
+    }, true);
+    root.addEventListener("pointerup", (event) => {
+        if (!legacy() || event.button !== 1) return;
+        consume(event, app.canvas?.processMouseUp);
+    }, true);
+}
+
+function hideCompareLabelWidgets(node) {
+    let changed = false;
+    for (const name of ["label_a", "label_b"]) {
+        const item = node.widgets?.find((candidate) => candidate?.name === name);
+        if (!item || item.__novaCompareHidden) continue;
+        item.__novaCompareHidden = true;
+        item.hidden = true;
+        item.options ||= {};
+        item.options.hidden = true;
+        item.computeSize = () => [0, -4];
+        if (item.inputEl instanceof HTMLElement) {
+            item.inputEl.style.setProperty("display", "none", "important");
+        }
+        changed = true;
+    }
+    if (changed && globalThis.LiteGraph?.vueNodesMode) {
+        const items = [...(node.widgets || [])];
+        node.widgets = [];
+        node.widgets = items;
+    }
+}
+
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, Number(value)));
 }
@@ -2206,6 +2255,7 @@ function ensureFullViewer() {
 }
 
 function addCompareWidget(node) {
+    hideCompareLabelWidgets(node);
     if (node.__novaCompareUI?.root?.isConnected) {
         node.__novaCompareUI.refresh?.();
         return;
@@ -2231,6 +2281,7 @@ function addCompareWidget(node) {
         "gap:6px", "box-sizing:border-box", "padding:7px 7px 16px", "overflow:hidden",
         "border-radius:8px", "pointer-events:auto", "background:rgba(0,0,0,.22)"
     ].join(";");
+    installLegacyGraphNavigation(root);
 
     const controls = createControlUI(state, true);
     for (const eventName of ["pointerdown", "pointermove", "pointerup"]) {

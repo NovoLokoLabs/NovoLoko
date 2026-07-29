@@ -80,14 +80,14 @@ class DualFrontendCompatibilityTests(unittest.TestCase):
 
     def test_timer_has_nodes2_dom_controls_exact_once_and_cleanup(self) -> None:
         source = self.source("nova_core_nodes.js")
-        for label in ("Start", "Pause", "Resume", "Reset", "Sound / settings"):
-            self.assertIn(f'makeButton("{label}")', source)
+        self.assertIn("showTimerSettings(node)", source)
+        self.assertIn("nova-timer-nodes2-legacy-v398", source)
+        self.assertIn("nova-timer-host-v397", source)
         self.assertIn("if (timerCompletionHandled) return", source)
         self.assertIn("if (node.__novaCountdownState === \"DONE\") return", source)
         self.assertIn("stopCountdownInterval(this)", source)
         self.assertIn("uninstallTimerEventsIfUnused()", source)
         self.assertIn("api.removeEventListener", source)
-        self.assertIn('runtimeState === "RUNNING" ? "PAUSED"', source)
 
     def test_style_numbers_are_global_and_large_counter_uses_filtered_total(self) -> None:
         source = self.source("nova_style_dropdown.js")
