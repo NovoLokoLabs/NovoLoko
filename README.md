@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v3.9.7
+# ComfyUI-NovoLoko v4.0.0
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -8,7 +8,7 @@ NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML li
 2. Delete or rename any active `ComfyUI-NovaNodes`, `ComfyUI-NovaNodesOriginal`, `ComfyUI-Nova-Essentials-main` and `ComfyUI-Nova-Voice` folders.
 3. Copy `ComfyUI-NovoLoko` into `ComfyUI/custom_nodes/`.
 4. Restart ComfyUI Desktop completely.
-5. Load `workflows/NovoLoko AIO v3.9.7 - Latest Workflow.json`.
+5. Load `workflows/NovoLoko AIO v4.0.0.json`.
 
 Only one NovoLoko package should be active. Running old Nova packages beside this one can create duplicate node registrations and frontend conflicts.
 
@@ -22,10 +22,10 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 ## Included workflows
 
-- `NovoLoko AIO v3.9.7 - Latest Workflow.json` — cleaned current workflow with the full seven-slot prompt stack, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
-- `NovoLoko Compare Studio v3.9.7.json` — minimal image comparison example with theme-aware node chrome.
+- `NovoLoko AIO v4.0.0.json` — the current complete workflow with the seven-slot prompt stack, Power LoRA Stack, Group Controller, presentation banner and cheat sheet, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
+- `NovoLoko Compare Studio v4.0.0.json` — minimal image comparison example with theme-aware node chrome.
 
-The v3.9.7 frontend keeps legacy LiteGraph and Nodes 2.0 behavior aligned while
+The v4.0.0 frontend keeps legacy LiteGraph and Nodes 2.0 behavior aligned while
 preserving serialized node IDs, sockets, widgets, links and prompt text.
 
 ## Main nodes
@@ -74,6 +74,18 @@ are not moved automatically.
 
 Image and utility tools include Preview Pass Through, Save Image Metadata, Image / Compare Studio, Seed Lab, Generation Timer, Memory Manager, Overlay Text Pro and Prompt Logger. Compare Studio keeps node and full-screen Guide/Line settings independent. The Line slider independently controls divider opacity, while Guide On/Off shows or hides only the circular drag handle. Split dragging remains active even when the handle or divider is hidden.
 
+Power LoRA Stack supports independent Model/CLIP strengths, reorderable rows,
+saved trigger words, random LoRA pools, presets, local metadata, CivitAI search,
+model-page links and downloads. Group Controller provides searchable and
+sortable group enable/bypass controls, solo/navigation actions, random group
+selection and configurable group colors. Both nodes support legacy LiteGraph
+and Nodes 2.0.
+
+Workflow Banner and Workflow Cheat Sheet provide resizable presentation
+surfaces with configurable fonts, colors, borders, clickable links, model
+folders and right-click copy actions. The included v4.0.0 workflow uses them for
+the NovoLoko banner, dependency list and workflow usage guide.
+
 Generation Timer includes 498 organized WAV/MP3 completion sounds under
 `data/NovoLokoTimerSounds/`. The timer scans every packaged subfolder and also
 accepts user-added supported sounds there.
@@ -82,20 +94,23 @@ Optional media tools include Voice Prompt, the compact NovoLoko Voice TTS select
 
 ## CSV and YAML library
 
-All supplied libraries are organized under `csv/` and `styles/`. The release removes exact duplicates, obsolete character exports, old pose revisions and superseded 4,000/5,400-entry mega mixes. The current 9,000-entry mega mix remains.
+All supplied libraries are organized under `csv/` and `styles/`. The v4.0.0
+Global Variety Update includes 75 CSV files plus 31 YAML libraries. Superseded
+exports were replaced by expanded current collections, including the 10,000
+entry mega mix.
 
 The included wildcard CSV/YAML pairs contain the latest user-revised prompt text
 for the 397 uploaded medium styles and all eight focused style collections.
 
 The latest workflow uses:
 
-- `styles/novoloko_all_yaml_styles.yaml`
-- `csv/subjects/novoloko_subjects_master_2200.csv`
-- `csv/poses/novoloko_pose_collection_485.csv`
-- `csv/actions/novoloko_actions_1000.csv`
-- `csv/clothing/novoloko_clothing_hair_expanded_4000.csv`
-- `csv/locations/novoloko_locations_expanded_3000.csv`
-- `csv/characters/novoloko_characters_master_1098.csv`
+- `csv/wildcards/novoloko_uploaded_styles_master_397_FINAL.csv`
+- `csv/subjects/novoloko_subjects_master_3600.csv`
+- `csv/poses/novoloko_poses_1500.csv`
+- `csv/actions/novoloko_actions_1500.csv`
+- `csv/clothing/novoloko_clothing_hair_expanded_5800.csv`
+- `csv/locations/novoloko_locations_expanded_global_3846.csv`
+- `csv/characters/novoloko_characters_master_3200.csv`
 
 Prompt Stack AIO now keeps Subject independent from Character and composes in this logical order: Medium, Subject, Pose, Action, Clothing, Location, Character, then Manual Prompt. Focused animal, real-car, fantasy and horror subject libraries are included alongside expanded automotive, animal, fantasy/horror action packs and a 1,500-entry variety location library.
 

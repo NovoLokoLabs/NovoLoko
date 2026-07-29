@@ -121,9 +121,10 @@ function apiUrl(path) {
     return typeof api.apiURL === "function" ? api.apiURL(path) : path;
 }
 
-function audioUrl(filename) {
+function audioUrl(filename, mediaFolder = "Default") {
     const query = new URLSearchParams({
         filename: String(filename || ""),
+        folder: String(mediaFolder || "Default"),
         t: String(Date.now()),
     });
     return apiUrl(`/nova_voice/audio/file?${query.toString()}`);
@@ -986,6 +987,7 @@ function createStudio(viewer) {
             audio.pause();
             audio.removeAttribute("src");
             delete audio.dataset.filename;
+            delete audio.dataset.mediaFolder;
             delete audio.dataset.sourceKind;
             audio.load?.();
             audioDock.style.display = imageOnly ? "none" : "";
@@ -1002,14 +1004,19 @@ function createStudio(viewer) {
 
         audioDock.style.display = "";
 
-        const same = audio.dataset.filename === filename && audio.dataset.sourceKind === "history";
+        const mediaFolder = activeMediaFolder(item);
+        const same =
+            audio.dataset.filename === filename
+            && audio.dataset.mediaFolder === mediaFolder
+            && audio.dataset.sourceKind === "history";
         audioCaption.textContent = `${item.voice_code || item.voice || "Voice"} • ${filename}`;
         if (!same) {
             audio.pause();
             pauseOtherNovaAudio();
             audio.dataset.filename = filename;
+            audio.dataset.mediaFolder = mediaFolder;
             audio.dataset.sourceKind = "history";
-            audio.src = audioUrl(filename);
+            audio.src = audioUrl(filename, mediaFolder);
             audio.load();
             audio.addEventListener("loadedmetadata", () => {
                 if (token !== audioLoadToken) return;
@@ -1064,6 +1071,13 @@ function createStudio(viewer) {
 
     function activeHistoryItem() {
         return activeHistoryNode()?.__novaCurrentHistoryItem || null;
+    }
+
+    function activeMediaFolder(item = activeHistoryItem()) {
+        if (item?.media_folder) return String(item.media_folder);
+        const node = activeHistoryNode();
+        const folderWidget = node?.widgets?.find((entry) => entry.name === "media_folder");
+        return String(folderWidget?.value || "Default").trim() || "Default";
     }
 
     function nextSlideshowIndex() {
@@ -1136,11 +1150,12 @@ function createStudio(viewer) {
     async function folderAction(kind, reveal = false) {
         const item = activeHistoryItem() || {};
         const filename = reveal ? String(item.filename || "") : "";
+        const mediaFolder = activeMediaFolder(item);
         try {
             const response = await api.fetchApi("/nova_voice/open_folder", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ kind, reveal, filename }),
+                body: JSON.stringify({ kind, reveal, filename, mediaFolder }),
             });
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || "Folder could not be opened.");
@@ -1221,7 +1236,10 @@ function createStudio(viewer) {
             const response = await api.fetchApi("/nova_voice/audio/delete", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ filename: item.filename }),
+                body: JSON.stringify({
+                    filename: item.filename,
+                    mediaFolder: activeMediaFolder(item),
+                }),
             });
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || "Delete failed.");
@@ -1251,6 +1269,7 @@ function createStudio(viewer) {
                 body: JSON.stringify({
                     requestId: activeRevoiceRequestId,
                     filename: item.filename,
+                    mediaFolder: activeMediaFolder(item),
                     promptSource: revoicePrompt.value,
                     engine: revoiceEngine.value,
                     voice: revoiceEngine.value === "OmniLoko" ? omniVoice.value : kokoroVoice.value,
@@ -1634,6 +1653,7 @@ function createStudio(viewer) {
         const token = ++audioLoadToken;
         audio.pause();
         audio.dataset.filename = `trigger:${detail.filename || "latest"}`;
+        delete audio.dataset.mediaFolder;
         audio.dataset.sourceKind = "generation";
         audio.src = src;
         audio.load();
@@ -1718,6 +1738,7 @@ function createStudio(viewer) {
                 item.filename
                 && (
                     audio.dataset.filename !== String(item.filename)
+                    || audio.dataset.mediaFolder !== activeMediaFolder(item)
                     || audio.dataset.sourceKind !== "history"
                 )
             )

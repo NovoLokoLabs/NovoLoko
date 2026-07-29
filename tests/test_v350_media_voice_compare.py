@@ -155,8 +155,12 @@ class V350MediaVoiceCompareTests(unittest.TestCase):
     def test_voice_frontend_uses_serializable_supported_hiding_and_refresh(self) -> None:
         source = (ROOT / "web/nova_voice_engine.js").read_text(encoding="utf-8")
         backend = (ROOT / "voice_nodes.py").read_text(encoding="utf-8")
-        self.assertNotIn("item.hidden =", source)
         self.assertIn('item.type = visible ? item.__novaVoiceEngineOriginalType : "hidden"', source)
+        self.assertIn(
+            "item.hidden = visible ? item.__novaVoiceEngineOriginalHidden : true",
+            source,
+        )
+        self.assertIn("item.options.hidden = true", source)
         self.assertIn("Refresh Voices", source)
         self.assertIn("/nova_voice/voices", source)
         self.assertIn("Open OmniLoko", source)

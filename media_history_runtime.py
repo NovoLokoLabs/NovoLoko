@@ -25,11 +25,11 @@ _ORIGINAL_HISTORY_ENTRIES = _voice._audio_history_entries
 _ORIGINAL_SAVE_AND_SHOW = _voice.NovaAudioHistoryPlayer.save_and_show
 
 
-def _history_entries_outside_execution(limit: int = 1000):
+def _history_entries_outside_execution(*args: Any, **kwargs: Any):
     """Skip the redundant full-library scan only while the node is executing."""
     if bool(getattr(_EXECUTION_CONTEXT, "media_studio_save", False)):
         return []
-    return _ORIGINAL_HISTORY_ENTRIES(limit)
+    return _ORIGINAL_HISTORY_ENTRIES(*args, **kwargs)
 
 
 def _save_and_show_without_inline_history(self, *args: Any, **kwargs: Any):

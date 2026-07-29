@@ -12,6 +12,7 @@ import random
 import re
 import secrets
 import time
+from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Tuple
 
 import numpy as np
@@ -30,7 +31,7 @@ except Exception:
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
 
-NOVA_CORE_VERSION = "3.9.7"
+NOVA_CORE_VERSION = "4.0.0"
 SEED_MAX = 0xFFFFFFFFFFFFFFFF
 
 
@@ -497,6 +498,9 @@ PRESET_DETAIL_OVERRIDES = {
 class NovaPromptEnhancer:
     """NovoLoko prompt enhancer built directly on ComfyUI's generative CLIP interface."""
 
+    _fixed_seed_cache: "OrderedDict[tuple[Any, ...], tuple[str, str]]" = OrderedDict()
+    _fixed_seed_cache_limit = 32
+
     DESCRIPTION = (
         "Turns a short idea into one finished image prompt. The node clamps malformed "
         "or migrated widget values on first run, so older workflows cannot fail because "
@@ -676,6 +680,36 @@ class NovaPromptEnhancer:
             f"{rules} {detail} {reference}{custom_block}\n\nRAW IDEA:\n{idea.strip()}"
         )
 
+    @staticmethod
+    def _image_cache_token(image: Any) -> str:
+        if image is None:
+            return ""
+        try:
+            value = image
+            if torch is not None and isinstance(value, torch.Tensor):
+                value = value.detach().to("cpu").contiguous().numpy()
+            else:
+                value = np.ascontiguousarray(value)
+            digest = hashlib.sha256(value.tobytes()).hexdigest()
+            return f"{tuple(value.shape)}:{value.dtype}:{digest}"
+        except Exception:
+            return f"{type(image).__module__}.{type(image).__qualname__}:{id(image)}"
+
+    @staticmethod
+    def _clip_cache_token(clip: Any) -> tuple[Any, ...]:
+        """Identify the loaded text model, not its short-lived CLIP wrapper clone."""
+        model = getattr(clip, "cond_stage_model", None)
+        patcher = getattr(clip, "patcher", None)
+        patches = getattr(patcher, "patches", None)
+        patch_keys = tuple(sorted(str(key) for key in patches)) if isinstance(patches, dict) else ()
+        return (
+            id(model) if model is not None else id(clip),
+            type(model).__module__ if model is not None else type(clip).__module__,
+            type(model).__qualname__ if model is not None else type(clip).__qualname__,
+            getattr(clip, "layer_idx", None),
+            patch_keys,
+        )
+
     def enhance(
         self,
         clip,
@@ -710,6 +744,29 @@ class NovaPromptEnhancer:
             raise RuntimeError(
                 "The connected CLIP does not provide text generation. Connect the same "
                 "generative Qwen/Krea2 CLIP that works with ComfyUI Generate Text."
+            )
+
+        cache_key = (
+            self._clip_cache_token(clip),
+            raw,
+            preset,
+            detail_level,
+            float(creativity),
+            int(max_length),
+            int(seed),
+            bool(thinking),
+            bool(use_default_template),
+            _clean_text(custom_instructions),
+            self._image_cache_token(image),
+        )
+        cached = self._fixed_seed_cache.get(cache_key)
+        if cached is not None:
+            enhanced, cached_status = cached
+            self._fixed_seed_cache.move_to_end(cache_key)
+            return (
+                enhanced or raw,
+                instruction,
+                f"Reused exact fixed-seed prompt. {cached_status}",
             )
 
         tokens = clip.tokenize(
@@ -753,6 +810,10 @@ class NovaPromptEnhancer:
             f"{preset} / {effective_detail}; {custom_state}; creativity {creativity:g}; "
             f"max {max_length}; seed {seed}."
         )
+        self._fixed_seed_cache[cache_key] = (enhanced or raw, status)
+        self._fixed_seed_cache.move_to_end(cache_key)
+        while len(self._fixed_seed_cache) > self._fixed_seed_cache_limit:
+            self._fixed_seed_cache.popitem(last=False)
         return (enhanced or raw, instruction, status)
 
 

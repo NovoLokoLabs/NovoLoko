@@ -12,6 +12,57 @@ let novaImageViewer = null;
 const novaCompletedPromptIds = new Set();
 let novaLastCompletedPrompt = { id: null, at: 0 };
 
+function installLegacyGraphNavigation(...surfaces) {
+    const legacy = () => !globalThis.LiteGraph?.vueNodesMode;
+    const consume = (event, handler) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        handler?.call(app.canvas, event);
+    };
+    for (const surface of surfaces.filter(Boolean)) {
+        if (surface.__novaLegacyGraphNavigationInstalled) continue;
+        surface.__novaLegacyGraphNavigationInstalled = true;
+        let middlePointerId = null;
+
+        surface.addEventListener("wheel", (event) => {
+            if (!legacy()) return;
+            consume(event, app.canvas?.processMouseWheel);
+        }, { passive: false, capture: true });
+        surface.addEventListener("pointerdown", (event) => {
+            if (!legacy() || event.button !== 1) return;
+            middlePointerId = event.pointerId;
+            surface.setPointerCapture?.(event.pointerId);
+            consume(event, app.canvas?.processMouseDown);
+        }, true);
+        surface.addEventListener("pointermove", (event) => {
+            if (
+                !legacy()
+                || middlePointerId == null
+                || event.pointerId !== middlePointerId
+                || (Number(event.buttons || 0) & 4) === 0
+            ) return;
+            consume(event, app.canvas?.processMouseMove);
+        }, true);
+        const finishMiddleDrag = (event) => {
+            if (!legacy() || middlePointerId == null || event.pointerId !== middlePointerId) return;
+            middlePointerId = null;
+            consume(event, app.canvas?.processMouseUp);
+            try {
+                if (surface.hasPointerCapture?.(event.pointerId)) {
+                    surface.releasePointerCapture?.(event.pointerId);
+                }
+            } catch (_) {}
+        };
+        surface.addEventListener("pointerup", finishMiddleDrag, true);
+        surface.addEventListener("pointercancel", finishMiddleDrag, true);
+        surface.addEventListener("auxclick", (event) => {
+            if (!legacy() || event.button !== 1) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }, true);
+    }
+}
+
 function widget(node, name) {
     return node.widgets?.find((item) => item.name === name);
 }
@@ -412,13 +463,25 @@ function novaApiUrl(path) {
     return typeof api.apiURL === "function" ? api.apiURL(path) : path;
 }
 
-function audioFileUrl(filename) {
-    const query = new URLSearchParams({ filename: String(filename || ""), t: String(Date.now()) });
+function mediaFolderForNode(node) {
+    return String(widgetValue(node, "media_folder", "Default") || "Default").trim() || "Default";
+}
+
+function audioFileUrl(filename, mediaFolder = "Default") {
+    const query = new URLSearchParams({
+        filename: String(filename || ""),
+        folder: String(mediaFolder || "Default"),
+        t: String(Date.now()),
+    });
     return novaApiUrl(`/nova_voice/audio/file?${query.toString()}`);
 }
 
-function historyImageUrl(filename) {
-    const query = new URLSearchParams({ filename: String(filename || ""), t: String(Date.now()) });
+function historyImageUrl(filename, mediaFolder = "Default") {
+    const query = new URLSearchParams({
+        filename: String(filename || ""),
+        folder: String(mediaFolder || "Default"),
+        t: String(Date.now()),
+    });
     return novaApiUrl(`/nova_voice/image/file?${query.toString()}`);
 }
 
@@ -441,6 +504,39 @@ function findNativeNovaPreview(node) {
         (candidate?.properties?.nova_audio_player === true ||
          String(candidate?.title || "").includes("NOVOLOKO NATIVE AUDIO PLAYER"))
     ) || null;
+}
+
+function currentSeedForNode(node) {
+    const nodes = node?.graph?._nodes || app.graph?._nodes || [];
+    const seedNodes = nodes.filter((candidate) =>
+        String(candidate?.type || candidate?.comfyClass || "") === "NovaSeedLab"
+    );
+    for (const candidate of seedNodes) {
+        const lastUsed = String(candidate?.properties?.novaLastSeed || "").trim();
+        if (/^\d+$/.test(lastUsed)) return lastUsed;
+    }
+    for (const candidate of seedNodes) {
+        const value = String(widgetValue(candidate, "seed", "") || "").trim();
+        if (/^\d+$/.test(value)) return value;
+    }
+    return "";
+}
+
+function updateCurrentSeedDisplay(node) {
+    const value = currentSeedForNode(node);
+    if (node?.__novaCurrentSeedCaption) {
+        node.__novaCurrentSeedCaption.textContent = value
+            ? `Current seed: ${value}`
+            : "Current seed: unavailable";
+        node.__novaCurrentSeedCaption.title = value
+            ? `Current Seed Lab seed: ${value}`
+            : "No NovoLoko Seed Lab seed is available yet";
+    }
+    if (node?.__novaCopySeedButton) {
+        node.__novaCopySeedButton.disabled = !value;
+        node.__novaCopySeedButton.style.opacity = value ? "1" : ".55";
+    }
+    return value;
 }
 
 function targetAudioElement(node) {
@@ -529,6 +625,7 @@ function updatePromptDisplay(node, item) {
         node.__novaPromptText.scrollLeft = 0;
     }
     updatePromptModeButtons(node);
+    updateCurrentSeedDisplay(node);
 }
 
 function previewImageChoice(node) {
@@ -1825,6 +1922,7 @@ function ensureNovaImageViewer() {
     function setPassChoice(choice, resetView = true, fallbackSrc = "") {
         state.passChoice = String(choice || "Auto - Second if available");
         const item = state.node?.__novaCurrentHistoryItem || {};
+        const mediaFolder = String(item?.media_folder || mediaFolderForNode(state.node));
         const firstFilename = String(
             item?.image_first_filename || item?.image_filename || "",
         ).trim();
@@ -1833,8 +1931,8 @@ function ensureNovaImageViewer() {
         updatePassButtons();
 
         if (state.passChoice === "Compare") {
-            const firstSrc = firstFilename ? historyImageUrl(firstFilename) : "";
-            const secondSrc = secondFilename ? historyImageUrl(secondFilename) : "";
+            const firstSrc = firstFilename ? historyImageUrl(firstFilename, mediaFolder) : "";
+            const secondSrc = secondFilename ? historyImageUrl(secondFilename, mediaFolder) : "";
             if (firstSrc && secondSrc) {
                 setCompareSources(state.node, firstSrc, secondSrc, resetView);
                 return;
@@ -1842,7 +1940,7 @@ function ensureNovaImageViewer() {
 
             const fallbackFilename = secondFilename || firstFilename;
             const singleSrc = fallbackFilename
-                ? historyImageUrl(fallbackFilename)
+                ? historyImageUrl(fallbackFilename, mediaFolder)
                 : fallbackSrc;
             if (singleSrc) {
                 const passName = secondFilename
@@ -1855,7 +1953,7 @@ function ensureNovaImageViewer() {
 
         const selected = historyImageForChoice(item, state.passChoice);
         const src = selected.filename
-            ? historyImageUrl(selected.filename)
+            ? historyImageUrl(selected.filename, mediaFolder)
             : fallbackSrc;
         if (src) {
             setViewerSource(
@@ -2658,7 +2756,10 @@ function setHistoryImage(node, item) {
         return;
     }
 
-    const url = historyImageUrl(filename);
+    const url = historyImageUrl(
+        filename,
+        item?.media_folder || mediaFolderForNode(node),
+    );
     if (image) {
         image.onload = () => {
             image.style.display = "block";
@@ -2769,7 +2870,10 @@ function setAudioSource(node, item, playNow = true) {
         notify("The integrated native audio player has not been created yet.", "error");
         return;
     }
-    const nextUrl = audioFileUrl(item.filename);
+    const nextUrl = audioFileUrl(
+        item.filename,
+        item?.media_folder || mediaFolderForNode(node),
+    );
     node.__novaAudioPlayToken = Number(node.__novaAudioPlayToken || 0) + 1;
     audio.pause();
     audio.src = nextUrl;
@@ -2842,10 +2946,15 @@ async function loadHistoryWidgets(node, playLatest = false, preferredIndex = nul
     const combo = node.__novaHistoryCombo;
     if (!combo) return;
     const limit = Math.max(1, Math.min(Number(widgetValue(node, "history_limit", 1000)) || 1000, 5000));
+    const mediaFolder = mediaFolderForNode(node);
     const currentFilename = node.__novaCurrentHistoryItem?.filename || "";
 
     try {
-        const response = await api.fetchApi(`/nova_voice/audio/history?limit=${limit}`);
+        const query = new URLSearchParams({
+            limit: String(limit),
+            folder: mediaFolder,
+        });
+        const response = await api.fetchApi(`/nova_voice/audio/history?${query.toString()}`);
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || "Unable to load NovoLoko audio history.");
 
@@ -2908,7 +3017,6 @@ function addMediaHistoryWidget(node) {
         "pointer-events:none",
         "--comfy-widget-height:760px", "--comfy-widget-min-height:620px"
     ].join(";");
-
     const studioBanner = document.createElement("div");
     studioBanner.textContent = "NOVOLOKO MEDIA STUDIO — click the image to open the full-screen gallery, audio player and karaoke viewer";
     studioBanner.title = "Open NovoLoko Media Studio";
@@ -3079,7 +3187,7 @@ function addMediaHistoryWidget(node) {
     const copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.textContent = "Copy prompt";
-    copyButton.style.cssText = "margin-left:auto;cursor:pointer;padding:3px 8px";
+    copyButton.style.cssText = "cursor:pointer;padding:3px 8px";
     copyButton.addEventListener("click", async (event) => {
         event.stopPropagation();
         const text = node.__novaPromptText?.value || "";
@@ -3091,8 +3199,41 @@ function addMediaHistoryWidget(node) {
         }
     });
 
+    const seedCaption = document.createElement("span");
+    seedCaption.textContent = "Current seed: unavailable";
+    seedCaption.style.cssText = [
+        "margin-left:auto",
+        "max-width:min(330px,38vw)",
+        "overflow:hidden",
+        "text-overflow:ellipsis",
+        "white-space:nowrap",
+        "font-size:12px",
+        "font-weight:600",
+        "font-variant-numeric:tabular-nums",
+    ].join(";");
+
+    const copySeedButton = document.createElement("button");
+    copySeedButton.type = "button";
+    copySeedButton.textContent = "Copy seed";
+    copySeedButton.title = "Copy the current seed from NovoLoko Seed Lab";
+    copySeedButton.style.cssText = "cursor:pointer;padding:3px 8px";
+    copySeedButton.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        const seed = updateCurrentSeedDisplay(node);
+        if (!seed) {
+            notify("No current Seed Lab seed is available.", "error");
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(seed);
+            notify(`Seed ${seed} copied.`);
+        } catch (_) {
+            notify("The browser blocked clipboard access.", "error");
+        }
+    });
+
     promptHeader.prepend(promptTitle);
-    promptHeader.append(copyButton);
+    promptHeader.append(seedCaption, copySeedButton, copyButton);
 
     const promptText = document.createElement("textarea");
     promptText.value = "No prompt loaded yet.";
@@ -3137,9 +3278,52 @@ function addMediaHistoryWidget(node) {
     for (const delay of [0, 80, 300, 900]) {
         setTimeout(forceMediaPromptPanel, delay);
     }
-    promptText.addEventListener("wheel", (event) => event.stopPropagation(), { passive: true });
-    promptText.addEventListener("pointerdown", (event) => event.stopPropagation());
+    promptText.addEventListener("wheel", (event) => {
+        if (globalThis.LiteGraph?.vueNodesMode) {
+            event.stopPropagation();
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        app.canvas?.processMouseWheel?.(event);
+    }, { passive: false });
+    promptText.addEventListener("pointerdown", (event) => {
+        if (!globalThis.LiteGraph?.vueNodesMode && event.button === 1) {
+            event.preventDefault();
+            event.stopPropagation();
+            app.canvas?.processMouseDown?.(event);
+            return;
+        }
+        event.stopPropagation();
+    });
+    promptText.addEventListener("pointermove", (event) => {
+        if (globalThis.LiteGraph?.vueNodesMode || (Number(event.buttons || 0) & 4) === 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        app.canvas?.processMouseMove?.(event);
+    });
+    promptText.addEventListener("pointerup", (event) => {
+        if (globalThis.LiteGraph?.vueNodesMode || event.button !== 1) return;
+        event.preventDefault();
+        event.stopPropagation();
+        app.canvas?.processMouseUp?.(event);
+    });
     promptText.addEventListener("mousedown", (event) => event.stopPropagation());
+
+    audioHeader.style.pointerEvents = "auto";
+    imageStatus.style.pointerEvents = "auto";
+    voiceCaption.style.pointerEvents = "auto";
+    installLegacyGraphNavigation(
+        studioBanner,
+        audioHeader,
+        audio,
+        imageToolbar,
+        navigation,
+        imageStatus,
+        voiceCaption,
+        promptHeader,
+        promptText,
+    );
 
     imageArea.append(img, placeholder);
     wrapper.append(
@@ -3169,6 +3353,8 @@ function addMediaHistoryWidget(node) {
     node.__novaPromptText = promptText;
     node.__novaPromptMode = "Spoken";
     node.__novaPromptModeButtons = promptModeButtons;
+    node.__novaCurrentSeedCaption = seedCaption;
+    node.__novaCopySeedButton = copySeedButton;
     node.__novaHistoryPreviousButton = previousButton;
     node.__novaHistoryNextButton = nextButton;
     node.__novaHistoryCounter = counter;
@@ -3242,6 +3428,7 @@ function addMediaHistoryWidget(node) {
     }
 
     updatePromptModeButtons(node);
+    updateCurrentSeedDisplay(node);
     updateHistoryNavigation(node);
 }
 
@@ -3283,6 +3470,19 @@ function addHistoryControls(node) {
         previewWidget.callback = function (value) {
             previousPreviewCallback?.apply(this, arguments);
             if (node.__novaCurrentHistoryItem) setHistoryImage(node, node.__novaCurrentHistoryItem);
+        };
+    }
+
+    const mediaFolderWidget = widget(node, "media_folder");
+    if (mediaFolderWidget && !mediaFolderWidget.__novaMediaFolderBound) {
+        mediaFolderWidget.label = "Media folder";
+        mediaFolderWidget.__novaMediaFolderBound = true;
+        const previousFolderCallback = mediaFolderWidget.callback;
+        mediaFolderWidget.callback = function (value) {
+            previousFolderCallback?.apply(this, arguments);
+            node.__novaCurrentHistoryItem = null;
+            node.__novaCurrentHistoryIndex = 0;
+            setTimeout(() => loadHistoryWidgets(node, false, 0), 0);
         };
     }
 

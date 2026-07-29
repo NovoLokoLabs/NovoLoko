@@ -1,32 +1,31 @@
-# NovoLoko CSV Library
+# NovoLoko CSV Global Variety Update v3
 
-Current organized CSV files:
+The broad Mega Mix remains exactly 10,000 entries. This update adds 666 polished
+horror/scary/spooky locations without removing the existing Australian material.
 
-- `csv/actions/novoloko_actions_1000.csv` — 1,000 data rows
-- `csv/camera/camera_composition.csv` — 35 data rows
-- `csv/characters/character_templates.csv` — 40 data rows
-- `csv/characters/novoloko_characters_master_1098.csv` — 1,098 data rows
-- `csv/clothing/female_clothing.csv` — 79 data rows
-- `csv/clothing/novoloko_branded_clothing_1000.csv` — 1,000 data rows
-- `csv/clothing/novoloko_branded_clothing_gendered_2400.csv` — 2,400 data rows
-- `csv/clothing/novoloko_clothing_hair_expanded_4000.csv` — 4,000 data rows
-- `csv/clothing/outfit_styles.csv` — 40 data rows
-- `csv/editing/preserve_original_edits.csv` — 25 data rows
-- `csv/effects/atmosphere_effects.csv` — 35 data rows
-- `csv/environments/backgrounds.csv` — 40 data rows
-- `csv/lighting/lighting_styles.csv` — 40 data rows
-- `csv/locations/novoloko_locations_expanded_3000.csv` — 3,000 data rows
-- `csv/locations/novoloko_real_locations_1000.csv` — 1,000 data rows
-- `csv/mega/novoloko_mega_mix_9000.csv` — 9,000 data rows
-- `csv/poses/adult_glamour_poses.csv` — 55 data rows
-- `csv/poses/adult_glamour_specialty_58.csv` — 58 data rows
-- `csv/poses/general_poses.csv` — 50 data rows
-- `csv/poses/novoloko_pose_collection_485.csv` — 485 data rows
-- `csv/poses/novoloko_poses_1000.csv` — 1,000 data rows
-- `csv/styles/novoloko_krea2_styles_1455.csv` — 1,455 data rows
-- `csv/styles/photography_styles.csv` — 40 data rows
-- `csv/styles/visual_styles.csv` — 51 data rows
-- `csv/templates/character_template.csv` — 1 data rows
-- `csv/templates/style_template.csv` — 1 data rows
+## Primary new location files
 
-Files with different purposes are retained even when their entry counts differ. Exact duplicates and clearly superseded revisions were removed.
+- `csv/locations/novoloko_horror_scary_spooky_locations_666.csv`
+- `csv/locations/novoloko_horror_film_tv_locations_150.csv`
+- `csv/locations/novoloko_horror_game_locations_70.csv`
+- `csv/locations/novoloko_literary_horror_locations_40.csv`
+- `csv/locations/novoloko_real_haunted_locations_135.csv`
+- `csv/locations/novoloko_original_cinematic_horror_locations_268.csv`
+
+## Updated global location masters
+
+- `csv/locations/novoloko_locations_expanded_global_3846.csv`
+- `csv/locations/novoloko_locations_variety_global_2401.csv`
+- `csv/locations/novoloko_real_locations_global_1315.csv`
+
+## Mega Mix
+
+- `csv/mega/novoloko_mega_mix_10000.csv`
+- 610 horror locations included in the location allocation.
+- Existing category balance remains 3,000 clothing, 2,200 locations, 1,500 poses,
+  1,500 actions, 1,000 subjects and 800 characters.
+- All 150 Australian Mega Mix locations remain included.
+
+Compatibility and focused files from v2 are retained. New files use descriptive
+names, environment-first prompts, polished cinematography, coherent architecture
+and restrained negative prompts designed to keep the location as the main subject.

@@ -1,5 +1,23 @@
 # NovoLoko Changelog
 
+## v4.0.0 — Workflow presentation, LoRA tools and dual-frontend parity
+
+- Adds NovoLoko Power LoRA Stack with random pools, presets, trigger words,
+  row ordering, CivitAI browsing, model information and downloads.
+- Adds NovoLoko Group Controller with search, sorting, colors, solo,
+  navigation, random selection and full-row toggles.
+- Adds the resizable Workflow Banner and Workflow Cheat Sheet presentation
+  nodes with clickable links, configurable appearance and copy actions.
+- Aligns Timer, Text Display, Prompt Enhancer, Voice TTS, Compare Studio and
+  Media Studio behavior across legacy LiteGraph and Nodes 2.0.
+- Expands Prompt Stack with a combined all-names output, manual prompt
+  inclusion, subject placement beside Medium and the updated CSV/YAML library
+  pack.
+- Adds Media Studio project folders, filename-prefix handling, current seed
+  display/copying and improved legacy graph navigation.
+- Ships the exact NovoLoko AIO v4.0.0 workflow and the Global Variety library
+  update.
+
 ## v3.9.7 — Nodes 2.0 Timer repair
 
 - Removes the Timer CSS selector that matched ComfyUI's Nodes 2.0 node-body

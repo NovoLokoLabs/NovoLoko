@@ -21,6 +21,8 @@ const DOM_NODE_TYPES = new Set([
     "NovaPromptStackAIO",
     "NovaSeedLab",
     "NovaVoiceEngineTTS",
+    "NovaPowerLoraStack",
+    "NovaGroupController",
 ]);
 const PERSISTED_SIZE_NODE_TYPES = new Set([
     "MarkdownNote",
@@ -28,6 +30,8 @@ const PERSISTED_SIZE_NODE_TYPES = new Set([
     "NovaGenerationTimer",
     "NovaSeedLab",
     "NovaVoiceEngineTTS",
+    "NovaPowerLoraStack",
+    "NovaGroupController",
 ]);
 
 function nodeTypeName(node) {

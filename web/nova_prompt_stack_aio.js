@@ -113,18 +113,24 @@ function applySubjectPresentationOrder(node) {
     if (!node.__novaAIOSerializeWrapped && typeof node.serialize === "function") {
         const originalSerialize = node.serialize;
         node.serialize = function (...args) {
-            const visualWidgets = this.widgets || [];
+            const widgetList = this.widgets || [];
+            const visualWidgets = [...widgetList];
             const releasedOrder = (this.__novaAIOSerializedWidgets || [])
                 .filter((widget) => visualWidgets.includes(widget));
             const laterSerialized = visualWidgets.filter(
                 (widget) => !releasedOrder.includes(widget) && widget.serialize !== false,
             );
-            this.widgets = [...releasedOrder, ...laterSerialized];
+            widgetList.splice(
+                0,
+                widgetList.length,
+                ...releasedOrder,
+                ...laterSerialized,
+            );
             let serialized;
             try {
                 serialized = originalSerialize.apply(this, args);
             } finally {
-                this.widgets = visualWidgets;
+                widgetList.splice(0, widgetList.length, ...visualWidgets);
             }
             // Some ComfyUI extensions retain indices captured from the visual
             // widget order. Rebuild this one array from the released order so
@@ -165,7 +171,7 @@ function applySubjectPresentationOrder(node) {
     const desired = desiredNames.map((name) => getWidget(node, name)).filter(Boolean);
     const desiredSet = new Set(desired);
     const remaining = (node.widgets || []).filter((widget) => !desiredSet.has(widget));
-    node.widgets = [...desired, ...remaining];
+    node.widgets.splice(0, node.widgets.length, ...desired, ...remaining);
 }
 
 function repairMissingSubjectDefaults(node) {
@@ -174,7 +180,7 @@ function repairMissingSubjectDefaults(node) {
     const search = getWidget(node, "subject_search");
     const selection = getWidget(node, "subject_selection");
     if (file && !String(file.value || "").trim()) {
-        file.value = "csv/subjects/novoloko_subjects_master_2200.csv";
+        file.value = "csv/subjects/novoloko_subjects_master_3600.csv";
     }
     if (category && !String(category.value || "").trim()) category.value = "All";
     if (search && search.value == null) search.value = "";
