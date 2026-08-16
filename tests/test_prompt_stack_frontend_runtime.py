@@ -37,6 +37,20 @@ class PromptStackFrontendRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
+    def test_dom_height_hotfix_rejects_feedback_and_repairs_corrupt_sizes(self) -> None:
+        result = subprocess.run(
+            [
+                "node",
+                str(ROOT / "tests/js/nova_prompt_stack_height_hotfix.test.mjs"),
+                str(ROOT / "web/nova_prompt_stack_height_hotfix.js"),
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
