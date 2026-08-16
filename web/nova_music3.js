@@ -338,10 +338,23 @@ function installFlexibleControlsPanel(node, dom, root, allocated = null) {
 
 function installAdaptiveControlsBody(root, ideaPanel, ideaInput, list, fixedElements = []) {
     let frame = 0;
+    let lastRenderableHeight = 0;
     const allocate = () => {
         frame = 0;
         if (!root.isConnected || !list.isConnected) return;
         const rootHeight = Number(root.getBoundingClientRect?.().height || root.clientHeight || 0);
+        const rootWidth = Number(root.getBoundingClientRect?.().width || root.clientWidth || 0);
+        // ComfyUI may keep a DOM node connected while culling it completely
+        // offscreen. Those roots report a zero box. Never replace a known-good
+        // category allocation with 0px while hidden; the visibility observer
+        // below schedules a fresh measurement when the node re-enters.
+        if (!(rootHeight > 1 && rootWidth > 1)) {
+            root.dataset.measurementDeferred = "offscreen-zero-size";
+            return;
+        }
+        lastRenderableHeight = rootHeight;
+        root.dataset.lastRenderableHeight = String(Math.round(lastRenderableHeight));
+        delete root.dataset.measurementDeferred;
         const compactHeight = rootHeight > 0 && rootHeight < 400;
         root.dataset.compactHeight = compactHeight ? "true" : "false";
         // The stage timing strip is supplementary. At the deliberately tiny
@@ -414,10 +427,25 @@ function installAdaptiveControlsBody(root, ideaPanel, ideaInput, list, fixedElem
     const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
     observer?.observe(root);
     observer?.observe(list);
+    const visibilityObserver = typeof IntersectionObserver === "function"
+        ? new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry?.isIntersecting || Number(entry?.intersectionRatio || 0) > 0)) {
+                schedule();
+                requestAnimationFrame(schedule);
+            }
+        }, { root: null, threshold: [0, 0.001] })
+        : null;
+    visibilityObserver?.observe(root);
     schedule();
     setTimeout(schedule, 0);
     setTimeout(schedule, 120);
-    return { schedule, disconnect: () => observer?.disconnect?.() };
+    return {
+        schedule,
+        disconnect: () => {
+            observer?.disconnect?.();
+            visibilityObserver?.disconnect?.();
+        },
+    };
 }
 
 
@@ -702,7 +730,9 @@ function installMusicControls(node) {
     seedInput.step = "1";
     seedInput.value = String(Number(native.seed?.value || 0));
     seedInput.style.cssText = "min-width:0;width:100%;box-sizing:border-box;border:1px solid #335873;border-radius:5px;background:#0c1c29;color:#ecf7ff;padding:4px;font:11px system-ui";
-    seedLabel.append(document.createTextNode("Seed"), seedInput);
+    const seedCaption = document.createElement("span");
+    seedCaption.textContent = "Seed";
+    seedLabel.append(seedCaption, seedInput);
     const afterRunLabel = document.createElement("label");
     afterRunLabel.style.cssText = "display:grid;grid-template-columns:auto minmax(100px,1fr);align-items:center;gap:6px;white-space:nowrap";
     const afterRun = makeSelect();
@@ -759,7 +789,11 @@ function installMusicControls(node) {
         const policy = value === "Randomize Seed" ? "Randomize Seed" : "Fixed";
         afterRun.value = policy;
         setWidgetValue(node, native.seed_after_run, policy);
-        setWidgetValue(node, native.control_after_generate, policy === "Randomize Seed" ? "randomize" : "fixed");
+        setWidgetValue(
+            node,
+            native.control_after_generate,
+            externalSeedActive ? "fixed" : (policy === "Randomize Seed" ? "randomize" : "fixed"),
+        );
         if (announce) {
             setStatus(policy === "Randomize Seed"
                 ? "Current run uses the current seed. After completion, the displayed seed is ready for the very next run; all 19 controls stay unchanged."
@@ -767,7 +801,63 @@ function installMusicControls(node) {
         }
     }
 
+    function linkedSeedSource() {
+        const input = (node.inputs || []).find((item) => item?.name === "seed");
+        const linkId = input?.link;
+        if (linkId === undefined || linkId === null) return null;
+        const link = node.graph?.links?.[linkId] || node.graph?._links?.[linkId];
+        const originId = link?.origin_id ?? link?.originId;
+        const origin = node.graph?._nodes_by_id?.[originId]
+            || (node.graph?._nodes || []).find((item) => item?.id === originId);
+        return {
+            linkId,
+            seedLab: origin?.type === "NovaSeedLab",
+            title: String(origin?.title || origin?.type || "linked INT source"),
+        };
+    }
+
+    let externalSeedActive = false;
+    function syncExternalSeedState(announce = false) {
+        const source = linkedSeedSource();
+        externalSeedActive = Boolean(source);
+        seedInput.disabled = externalSeedActive;
+        afterRun.disabled = externalSeedActive;
+        afterRunLabel.style.opacity = externalSeedActive ? ".55" : "1";
+        seedLabel.title = externalSeedActive
+            ? "The upstream seed source owns this value. Disconnect it to edit the internal seed again."
+            : "Internal deterministic seed.";
+        if (externalSeedActive) {
+            seedCaption.textContent = source.seedLab
+                ? "External seed — NovoLoko Seed Lab"
+                : `External seed — ${source.title}`;
+            setWidgetValue(node, native.control_after_generate, "fixed");
+            if (announce) setStatus("External seed is linked. Internal seed editing and after-run randomization are suppressed.");
+        } else {
+            seedCaption.textContent = "Seed";
+            setWidgetValue(
+                node,
+                native.control_after_generate,
+                comboValue(native.seed_after_run, "Fixed") === "Randomize Seed" ? "randomize" : "fixed",
+            );
+            if (announce) setStatus("Internal Music Controls seed is active again.");
+        }
+    }
+
+    const previousConnectionsChange = node.onConnectionsChange;
+    node.onConnectionsChange = function (...args) {
+        const result = previousConnectionsChange?.apply(this, args);
+        requestAnimationFrame(() => syncExternalSeedState(true));
+        return result;
+    };
+    node.__novaMusic3SyncExternalSeed = syncExternalSeedState;
+    requestAnimationFrame(() => syncExternalSeedState(false));
+
     node.__novaMusic3RunFinished = () => {
+        syncExternalSeedState(false);
+        if (externalSeedActive) {
+            setStatus("External seed source completed this run and already owns the next seed; no dummy run is needed.");
+            return;
+        }
         const nextSeed = Number(native.seed?.value || 0);
         seedInput.value = String(nextSeed);
         if (comboValue(native.seed_after_run, "Fixed") === "Randomize Seed") {

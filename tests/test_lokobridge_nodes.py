@@ -809,6 +809,7 @@ class LokoBridgeNodeTests(unittest.TestCase):
                 "NovaMusicIdea",
                 "NovaMusicControls",
                 "NovaMusicWriterOllamaLoader",
+                "NovaMusicWriterBackendSelector",
                 "NovaMusicLyricEnhancer",
                 "NovaMusicLyricsGenerator",
                 "NovaMusicCaptionEnhancer",
@@ -962,7 +963,7 @@ class LokoBridgeNodeTests(unittest.TestCase):
             post = next(item for item in context.host.requests if item["path"].endswith("/jobs/speech"))
             request = json.loads(post["body"])
             self.assertEqual("NovoLoko", request["clientName"])
-            self.assertEqual("4.6.3", request["clientVersion"])
+            self.assertEqual("4.6.4", request["clientVersion"])
             self.assertEqual({"kind": "profile-current"}, request["voice"])
             self.assertFalse(request["normalizeLoudness"])
             self.assertEqual("hello bridge", spoken)

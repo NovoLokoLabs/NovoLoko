@@ -111,6 +111,27 @@ class Music3NodeTests(unittest.TestCase):
         self.assertEqual("LOCAL — qwen3.5:9b", labels["qwen3.5:9b"])
         self.assertEqual(["BALANCED", "GEMMA"], catalog["missing_recommended"])
 
+    def test_main_writer_backend_selector_is_lazy_explicit_and_portable(self):
+        selector = music3.NovaMusicWriterBackendSelector()
+        schema = selector.INPUT_TYPES()
+        self.assertEqual(selector.OLLAMA, schema["required"]["backend"][1]["default"])
+        self.assertTrue(schema["optional"]["ollama_writer"][1]["lazy"])
+        self.assertTrue(schema["optional"]["comfy_writer"][1]["lazy"])
+        self.assertEqual(["ollama_writer"], selector.check_lazy_status(selector.OLLAMA))
+        self.assertEqual(["comfy_writer"], selector.check_lazy_status(selector.COMFY))
+        ollama = type("Writer", (), {"model": "portable-local-model"})()
+        comfy = object()
+        selected, status = selector.select_writer(selector.OLLAMA, ollama_writer=ollama)
+        self.assertIs(ollama, selected)
+        self.assertIn("portable-local-model", status)
+        selected, status = selector.select_writer(selector.COMFY, comfy_writer=comfy)
+        self.assertIs(comfy, selected)
+        self.assertIn("qwen3VLInstruct4bHeretic_v10", status)
+        with self.assertRaisesRegex(RuntimeError, "no Ollama writer"):
+            selector.select_writer(selector.OLLAMA)
+        with self.assertRaisesRegex(RuntimeError, "no Comfy writer"):
+            selector.select_writer(selector.COMFY)
+
     def tearDown(self):
         self.user_data_patch.stop()
         self.user_data.cleanup()
@@ -132,8 +153,30 @@ class Music3NodeTests(unittest.TestCase):
                 "What Did I Generate",
             }.issubset(presets),
         )
-        self.assertGreaterEqual(sum(len(rows) for rows in catalog.values()), 765)
-        self.assertGreaterEqual(len(presets), 366)
+        expected_counts = {
+            "genre": 107,
+            "subgenre_era": 386,
+            "mood": 65,
+            "vocal_delivery": 109,
+            "vocal_gender_type": 79,
+            "instruments": 132,
+            "production_style": 120,
+            "bpm_tempo": 44,
+            "song_structure": 53,
+            "hook_style": 58,
+            "themes": 83,
+            "explicitness": 14,
+            "aggression": 24,
+            "darkness": 24,
+            "rhyme_density": 24,
+            "wordplay": 29,
+            "storytelling": 30,
+            "adlibs": 30,
+            "song_length": 18,
+        }
+        self.assertEqual(expected_counts, {key: len(rows) for key, rows in catalog.items()})
+        self.assertEqual(1429, sum(len(rows) for rows in catalog.values()))
+        self.assertEqual(1197, len(presets))
         self.assertEqual(list(music3.CATEGORY_SPECS), list(catalog))
         theme_names = {row["name"] for row in catalog["themes"]}
         self.assertTrue(
@@ -176,9 +219,13 @@ class Music3NodeTests(unittest.TestCase):
         self.assertEqual("Clone", pearl_jam["reference_mode"])
         self.assertIn("grunge", pearl_jam["keywords"])
         artist_rows = [item for item in presets.values() if item["reference"] and not item["hidden"]]
-        self.assertEqual(204, len(artist_rows))
+        self.assertEqual(754, len(artist_rows))
+        self.assertEqual(377, len({item["reference"] for item in artist_rows}))
         self.assertEqual({"Clone", "Like"}, {item["reference_mode"] for item in artist_rows})
-        for artist in ("Måneskin", "Counting Crows"):
+        for artist in (
+            "Måneskin", "Counting Crows", "BLACKPINK", "Destiny's Child",
+            "Florence + The Machine", "Evanescence", "Chappell Roan", "TWICE",
+        ):
             for mode in music3.REFERENCE_MODES:
                 item = presets[f"{artist} — {mode}"]
                 self.assertEqual(artist, item["reference"])
@@ -461,6 +508,18 @@ class Music3NodeTests(unittest.TestCase):
         self.assertEqual("Rock", music3.load_music_presets()[preset_name]["genre"])
         self.assertIn(f"Random preset scope: Genre / Rock -> {preset_name}", first[3])
 
+    def test_random_named_presets_favor_practical_music_over_preserved_novelty(self):
+        practical = {"name": "Practical Rock Song", "genre": "Rock"}
+        novelty = {"name": "CUDA Out of Memory", "genre": "Experimental"}
+        self.assertEqual(12.0, music3._preset_random_weight(practical))
+        self.assertEqual(1.0, music3._preset_random_weight(novelty))
+        rows = [
+            {"name": "practical", "_random_weight": 12.0},
+            {"name": "novelty", "_random_weight": 1.0},
+        ]
+        results = [music3._seeded_choice(seed, "weighted-preset", rows)["name"] for seed in range(400)]
+        self.assertGreater(results.count("practical"), results.count("novelty") * 6)
+
     def test_none_custom_and_random_rules_are_optional_safe_and_transparent(self):
         node = music3.NovaMusicControls()
         none = node.build(
@@ -600,6 +659,7 @@ class Music3NodeTests(unittest.TestCase):
                 "NovaMusicIdea",
                 "NovaMusicControls",
                 "NovaMusicWriterOllamaLoader",
+                "NovaMusicWriterBackendSelector",
                 "NovaMusicLyricEnhancer",
                 "NovaMusicLyricsGenerator",
                 "NovaMusicCaptionEnhancer",
@@ -611,15 +671,32 @@ class Music3NodeTests(unittest.TestCase):
         self.assertFalse(any("V1" in name or "V2" in name or "Legacy" in name for name in music3.NODE_CLASS_MAPPINGS))
 
     def test_example_workflow_keeps_caption_and_lyrics_on_separate_inputs(self):
-        path = ROOT / "workflows" / "NovoLoko MiniMax Music 3 - Lab v4.6.3.json"
+        path = ROOT / "workflows" / "NovoLoko MiniMax Music 3 - Lab v4.6.4.json"
         workflow = json.loads(path.read_text(encoding="utf-8"))
         nodes = {node["id"]: node for node in workflow["nodes"]}
         types = {node["type"] for node in workflow["nodes"]}
         self.assertTrue(
-            (set(music3.NODE_CLASS_MAPPINGS) - {"NovaMusicIdea", "NovaMusicWriterOllamaLoader"}).issubset(types)
+            (set(music3.NODE_CLASS_MAPPINGS) - {"NovaMusicIdea"}).issubset(types)
         )
         self.assertNotIn("NovaMusicIdea", types)
         self.assertIn("MiniMaxMusic3TextEncode", {n["type"] for n in workflow["definitions"]["subgraphs"][0]["nodes"]})
+
+        selector = next(node for node in workflow["nodes"] if node["type"] == "NovaMusicWriterBackendSelector")
+        ollama = next(node for node in workflow["nodes"] if node["type"] == "NovaMusicWriterOllamaLoader")
+        fallback = nodes[3]
+        seed_lab = next(node for node in workflow["nodes"] if node["type"] == "NovaSeedLab")
+        controls = next(node for node in workflow["nodes"] if node["type"] == "NovaMusicControls")
+        self.assertEqual("FAST / BALANCED / Gemma / Other installed local models (Ollama GGUF)", selector["widgets_values"][0])
+        self.assertEqual("novoloko-music-fast", ollama["widgets_values"][0])
+        self.assertEqual("CLIPLoader", fallback["type"])
+        self.assertEqual(48, len(controls["widgets_values"]))
+        links_by_id = {link[0]: link for link in workflow["links"]}
+        self.assertEqual(ollama["id"], links_by_id[selector["inputs"][1]["link"]][1])
+        self.assertEqual(fallback["id"], links_by_id[selector["inputs"][2]["link"]][1])
+        self.assertEqual(seed_lab["id"], links_by_id[controls["inputs"][2]["link"]][1])
+        for node_type in ("NovaMusicLyricEnhancer", "NovaMusicLyricsGenerator", "NovaMusicCaptionEnhancer"):
+            writer = next(node for node in workflow["nodes"] if node["type"] == node_type)
+            self.assertEqual(selector["id"], links_by_id[writer["inputs"][0]["link"]][1])
 
         links = {link[0]: link for link in workflow["links"]}
         generator = nodes[10]

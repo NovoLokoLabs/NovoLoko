@@ -7,7 +7,7 @@
 3. Make sure no older `ComfyUI-NovaNodes` or duplicate NovoLoko package is active.
 4. Copy this folder to `ComfyUI/custom_nodes/ComfyUI-NovoLoko`.
 5. Restart ComfyUI, then load
-`workflows/NovoLoko MiniMax Music 3 - Lab v4.6.3.json`.
+`workflows/NovoLoko MiniMax Music 3 - Lab v4.6.4.json`.
 
 The workflow expects the current ComfyUI MiniMax Music 3 core nodes and model
 files. Its defaults match the user's installed files:
@@ -30,7 +30,7 @@ MiniMax Music 3 text encoder.
    **NovoLoko IDEA + CSV CONTROLS**, for example
    `heavy rap with cash and guns`.
 2. Browse the preset folders or search by genre, instrument, descriptive
-   keyword, or familiar artist/band/group/DJ reference. There are 270 current
+   keyword, or familiar artist/band/group/DJ reference. There are 820 current
    built-in presets. Every suitable artist reference has paired **Clone** and
    **Like** choices. Reference names are discovery/audit aids; generated lyric
    and music briefs use descriptive musical traits instead of the artist name.
@@ -41,7 +41,10 @@ MiniMax Music 3 text encoder.
    **Random named preset** can instead pick one complete preset from **All
    Presets**, one **Preset Folder**, or one **Genre**, deterministically from
    the same seed.
-   **Next run seed: Keep fixed / Randomize after each run** is independent. Run
+   **Next run seed: Keep fixed / Randomize after each run** is independent when
+   the seed is internal. The included optional NovoLoko Seed Lab is linked in
+   the v4.6.4 example: while linked, Controls names the external source, disables
+   stale internal seed editing and suppresses its internal after-run policy. Run
    N uses the displayed seed; after successful completion the field reports the
    new seed for run N+1. It never changes the 19 control policies and needs no
    dummy run. **Randomize all 19** remains the deliberate settings action. Both
@@ -95,7 +98,10 @@ or another integer source to the Controls seed for reproducible or varying
 batches. The eight target choices span about 1:30 to 5:00. The five-minute
 choice also asks the writers for at least ten substantial sections and more
 instrumental breathing room, but it is a target rather than a promise: MiniMax
-may end a musically complete result early.
+may end a musically complete result early. The v4.6.4 acceptance run passed
+`max_duration = 300.0` and produced 241.232 seconds (about 4:01), confirming the
+wiring and the model's early-ending tendency without claiming an exact five
+minutes.
 
 ## Matched audio and metadata
 
@@ -144,7 +150,7 @@ table, and the artist-reference preset table. CSV entries can be edited in
 place; keep each `name` unique and retain
 the `name,prompt` columns. Song length also uses a numeric `seconds` column.
 
-The 270 current visible built-in presets span drill, boom bap, rage, G-funk, R&B, neo-soul, pop,
+The 820 current visible built-in presets span drill, boom bap, rage, G-funk, R&B, neo-soul, pop,
 alt rock, metal, metalcore, punk, techno, melodic techno, house, trance, DnB,
 jungle, dubstep, phonk, ambient, horror score, jazz, funk, blues, country, folk,
 reggae/dancehall, reggaeton/Latin, Afrobeat, gospel, lo-fi, vaporwave, shoegaze,
@@ -166,7 +172,8 @@ overrides only that matching DNA trait. The exact-options report lists the mode,
 locked/influenced traits and overrides. The artist name remains a search/audit
 label and is not sent to the lyric or music-caption generator. True audio-
 reference conditioning would still require a model or adapter that accepts
-reference audio. The current library contains 102 named artists, including
+reference audio. The current library contains 377 named artists / 754 visible
+Clone/Like variants, including
 searchable Måneskin and Counting Crows Clone/Like pairs.
 
 The 19 controls use plain-English labels and show a one-line explanation for the

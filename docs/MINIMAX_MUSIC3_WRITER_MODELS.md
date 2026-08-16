@@ -33,13 +33,27 @@ standalone autoregressive generation node with tokenizer loading, chat-template
 application, KV-cache decoding and a `generate`/token-decode interface suitable
 for stages 3A, 3B and 3C.
 
-Consequently, there was no valid like-for-like direct-GGUF backend to benchmark
-or ship. Adding a combo that merely loads one of those encoder objects would
-fail at execution or offload poorly, so v4.6.2 keeps Ollama as the supported
-fast path. This finding applies to the installed loaders inspected for this
-release; a future ComfyUI causal-LLM extension could be integrated behind the
-same writer connection once it supplies the missing runtime contract. The
-MiniMax Music 3 native int8-convrot text encoder remains untouched.
+v4.6.4 also found and audited the installed `multimodal-llm-comfyui-node`. Unlike
+the encoder-only GGUF packages, it contains a genuine text-only causal path:
+`llama_cpp.Llama`, `create_chat_completion`, chat-template forwarding, streaming
+token decode, seed forwarding and `run_gguf_plain_text_chat`. That is the right
+architecture for a fair direct test.
+
+The installed runtime cannot execute it. Importing `llama_cpp` with the exact
+embedded ComfyUI Python fails in 0.104 seconds, before a model or tokenizer is
+loaded:
+
+```text
+RuntimeError: Failed to load 'ggml' ... ggml.dll: Could not find module ...
+(or one of its dependencies)
+```
+
+The Qwen3 4B GGUF chosen for the test is 2,497,280,448 bytes and belongs to the
+same FAST model family used by Ollama. Because the failure occurs in the native
+loader, 3A/3B/3C, formatting, and VRAM residency are correctly recorded as not
+run rather than invented. v4.6.4 therefore keeps Ollama as the supported default
+and exposes the existing Comfy Qwen safetensors writer as the main-workflow
+fallback. The MiniMax Music 3 native int8-convrot text encoder remains untouched.
 
 ## Installed benchmark aliases
 
@@ -81,6 +95,22 @@ speed comparison because no compatible direct backend was present.
 The benchmark report records the aliases used; `ollama show --modelfile <alias>`
 and the Ollama manifests identify the exact installed blob after download.
 
+## v4.6.4 production-length acceptance result
+
+The release candidate reran FAST with the same seed `424242`, thinking Off and
+the full 2,048 / 4,096 / 2,048 caps used by stages 3A / 3B / 3C.
+
+| Backend | Load | 3A | 3B | 3C | Writer total | Residency | Formatting |
+|---|---:|---:|---:|---:|---:|---|---|
+| Ollama `novoloko-music-fast` | 5.346 s | 6.782 s | 6.750 s | 3.748 s | 22.626 s | 3.3 GB, 100% GPU, 8K context | Required lyric tags passed; 3C safely returned the valid CSV brief when its generated headings were incomplete. |
+| Direct Comfy llama.cpp GGUF | failed at import (0.104 s) | not run | not run | not run | not available | no model residency | no output; dependency loader failed before generation |
+
+At the Ollama residency snapshot the RTX 3090 reported 5,310 MiB used and
+19,017 MiB free overall. This result supports FAST as the default: it is fast,
+format-safe through the existing fallback checks, and leaves substantial VRAM
+headroom. BALANCED and Gemma remain first-class friendly choices; every other
+installed local Ollama model remains discoverable.
+
 ## Run the comparison
 
 Start local Ollama, then run from the package root:
@@ -98,11 +128,12 @@ only one optional writer occupies VRAM; this does not unload ComfyUI models. Use
 the quick pass to reject weak candidates;
 use the production-length pass before making the final FAST/BALANCED choice.
 
-To use a result in ComfyUI, replace only the workflow's `TEXT WRITER CLIP` node
-with `NovoLoko Music Writer Loader (Ollama GGUF)`, choose the discovered model, and
-connect its `writer` output to the existing three writer nodes. Do not change the
-MiniMax Music 3 native text encoder inside the generation subgraph.
+In the v4.6.4 main workflow, choose the backend explicitly. Keep **Ollama GGUF**
+for FAST/BALANCED/Gemma/other installed local models, or choose **Comfy
+safetensors fallback** to use the existing Qwen3-VL writer. Both feed the same
+three writer stages. Do not change the MiniMax Music 3 native text encoder
+inside the generation subgraph.
 
-The package includes the already-wired separate copy
-`workflows/NovoLoko MiniMax Music 3 - Writer A-B v4.6.1.json`; the normal v4.6.0
-workflow remains on its original compatible Qwen3-VL safetensors path.
+The package retains the older separate A/B workflow for historical comparisons;
+`workflows/NovoLoko MiniMax Music 3 - Lab v4.6.4.json` is now the supported main
+workflow with both writer choices visible.

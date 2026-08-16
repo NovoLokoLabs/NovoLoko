@@ -15,8 +15,12 @@ from pathlib import Path
 from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST_PATH = ROOT / "NovoLoko_v4.6.3_manifest.json"
-PYTHON_FILES = sorted(p for p in ROOT.rglob("*.py") if "__pycache__" not in p.parts)
+MANIFEST_PATH = ROOT / "NovoLoko_v4.6.4_manifest.json"
+IGNORED_PARTS = {".git", "__pycache__", "work"}
+PYTHON_FILES = sorted(
+    p for p in ROOT.rglob("*.py")
+    if not any(part in IGNORED_PARTS for part in p.relative_to(ROOT).parts)
+)
 JAVASCRIPT_FILES = sorted(ROOT.joinpath("web").rglob("*.js"))
 WORKFLOW_FILES = sorted(ROOT.joinpath("workflows").glob("*.json"))
 
@@ -162,7 +166,7 @@ def validate_javascript(result: Result) -> None:
 def validate_json(result: Result) -> dict[Path, object]:
     parsed: dict[Path, object] = {}
     for path in sorted(ROOT.rglob("*.json")):
-        if any(part in {".git", "__pycache__"} for part in path.parts):
+        if any(part in IGNORED_PARTS for part in path.relative_to(ROOT).parts):
             continue
         try:
             parsed[path] = json.loads(path.read_text(encoding="utf-8"))
@@ -279,7 +283,11 @@ def validate_license(result: Result) -> None:
 def validate_absolute_windows_paths(result: Result) -> None:
     pattern = re.compile(r"(?i)(?:^|[\"'])\s*[a-z]:\\")
     allowed_suffixes = {".py", ".js", ".md", ".json", ".bat", ".txt", ".yaml", ".yml"}
-    for path in sorted(p for p in ROOT.rglob("*") if p.is_file() and p.suffix.lower() in allowed_suffixes):
+    for path in sorted(
+        p for p in ROOT.rglob("*")
+        if p.is_file() and p.suffix.lower() in allowed_suffixes
+        and not any(part in IGNORED_PARTS for part in p.relative_to(ROOT).parts)
+    ):
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError as exc:

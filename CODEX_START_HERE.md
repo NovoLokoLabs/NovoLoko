@@ -1,6 +1,6 @@
 # Start Here — NovoLoko Project
 
-This repository contains the complete **ComfyUI-NovoLoko v4.6.3** custom-node package.
+This repository contains the complete **ComfyUI-NovoLoko v4.6.4** custom-node package.
 
 ## Project goal
 
@@ -40,7 +40,7 @@ Audit the project without changing working behavior. Run the validator, identify
 Static checks cannot replace a real ComfyUI launch. A release candidate should also be tested for:
 
 - clean startup with only `ComfyUI-NovoLoko` installed;
-- all 47 nodes appearing once under the NovoLoko menus;
+- all 48 nodes appearing once under the NovoLoko menus;
 - current AIO workflow loading without missing nodes or shifted links;
 - Prompt Enhancer fixed-seed repeatability;
 - CSV/YAML dropdown refresh and favourites;
@@ -49,6 +49,7 @@ Static checks cannot replace a real ComfyUI launch. A release candidate should a
 - optional voice package absent and present;
 - full ComfyUI Desktop restart after frontend changes.
 - Music Controls classic and Nodes 2.0 at compact/default/tall/very-tall sizes,
-  tab switch, collapse/expand and serialize/reload;
+  tab switch, offscreen/viewport re-entry, collapse/expand and serialize/reload;
 - seed-only after-run behavior, old/new recipe restore, favorites persistence,
-  explicitness prompt direction and saver One-off/Batch lifecycle modes.
+  external Seed Lab ownership, explicitness prompt/output proof and saver
+  One-off/Batch lifecycle modes.

@@ -1,5 +1,31 @@
 # NovoLoko Changelog
 
+## v4.6.4 - Music Lab reference expansion and backend/seed lifecycle - 2026-08-17
+
+- Added 275 useful named artists while preserving the prior 102 and every
+  migration alias: 377 named artists, 754 visible Clone/Like variants and 820
+  visible built-in presets.
+- Expanded Genre from 45 to 107 and Style/Era from 148 to 386. Expanded every
+  other control library for a final 1,429 choices across all 19 controls, with
+  especially large Singer Performance, Lead Voice, instruments, production,
+  mood, hook, theme and arrangement passes.
+- Added an explicit main-workflow writer backend selector. Ollama's dynamic
+  local model picker remains the FAST default with BALANCED, Gemma and every
+  other installed local model; the existing Comfy safetensors writer remains a
+  selectable fallback.
+- Audited a true direct Comfy llama.cpp GGUF causal path. Its installed
+  `llama-cpp-python` failed before model load because `ggml.dll` or a dependency
+  could not load, so it is documented rather than exposed as a broken backend.
+- Added optional external NovoLoko Seed Lab awareness without changing the 48
+  serialized widget values. Linked state disables stale seed/policy controls;
+  disconnect restores the internal policy and no dummy run is introduced.
+- Guarded offscreen zero-size DOM measurements and remeasured on viewport
+  re-entry while preserving manual node size, category/idea allocation, widgets
+  and graph links in Classic and Nodes 2.0.
+- Retained active Uncensored/Very Explicit clean-idea override and real writer
+  output proof, native MiniMax duration wiring, separate lyric/caption paths,
+  saver/player behavior, recipe restoration and final Memory Manager ordering.
+
 ## v4.6.3 - MiniMax Music 3 corrective hotfix - 2026-08-17
 
 - Replaced intrinsic/flex inference with real DOM-widget allocated height in

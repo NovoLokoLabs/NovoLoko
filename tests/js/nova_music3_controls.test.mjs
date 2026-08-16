@@ -81,6 +81,12 @@ globalThis.ResizeObserver = class {
     observe(target) { this.targets.push(target); }
     disconnect() { this.disconnected = true; }
 };
+const intersectionObservers = [];
+globalThis.IntersectionObserver = class {
+    constructor(callback) { this.callback = callback; this.targets = []; this.disconnected = false; intersectionObservers.push(this); }
+    observe(target) { this.targets.push(target); }
+    disconnect() { this.disconnected = true; }
+};
 
 const categories = Array.from({ length: 19 }, (_, index) => ({
     key: "category_" + index,
@@ -147,7 +153,8 @@ function makeNode(nodes2, size = [620, 760]) {
     const node = {
         widgets: backendWidgets(),
         size: [...size],
-        graph: {},
+        inputs: [{ name: "seed", link: null }],
+        graph: { links: {}, _nodes_by_id: {} },
         properties: { novaMusicControlsPanelHeight: 99999999 },
         setSize(next) { this.size = [...next]; },
         setDirtyCanvas() {},
@@ -178,6 +185,20 @@ for (const nodes2 of [false, true]) {
     assert.equal(dom.element.style.minHeight, "0");
     assert.deepEqual(node.size, [620, 760], "the compact default is preserved");
     assert.deepEqual(node.min_size, [420, 480], "manual resize has sensible, compact minimums");
+
+    const preservedSize = [...node.size];
+    const preservedBasis = dom.element.children.at(-1).style.flexBasis;
+    dom.element.style.height = "0px";
+    dom.element._height = 0;
+    node.__novaMusic3AllocateControlsBody();
+    assert.equal(dom.element.dataset.measurementDeferred, "offscreen-zero-size", "offscreen zero-size layout is deferred");
+    assert.equal(dom.element.children.at(-1).style.flexBasis, preservedBasis, "offscreen measurement preserves the last category allocation");
+    assert.deepEqual(node.size, preservedSize, "offscreen measurement never mutates the serialized node size");
+    dom.element.style.height = "720px";
+    dom.element._height = 720;
+    intersectionObservers.at(-1).callback([{ target: dom.element, isIntersecting: true }]);
+    assert.equal(dom.element.dataset.measurementDeferred, undefined, "viewport re-entry forces a valid remeasurement");
+    assert.deepEqual(node.size, preservedSize, "viewport re-entry preserves the user's node size");
 
     const list = dom.element.children.at(-1);
     assert.equal(list.style.minHeight, "0");
@@ -259,6 +280,27 @@ for (const nodes2 of [false, true]) {
     await node.__novaMusic3ApplyRecipe({ seed: 99, seed_after_run: "Randomize Seed", selections: {}, custom_values: {} });
     assert.equal(backend.find((item) => item.name === "control_after_generate").value, "randomize");
     assert.equal(backend.find((item) => item.name === "seed_after_run").value, "Randomize Seed");
+
+    const seedLinkId = 900 + Number(nodes2);
+    const seedSourceId = 950 + Number(nodes2);
+    node.inputs[0].link = seedLinkId;
+    node.graph.links[seedLinkId] = { origin_id: seedSourceId };
+    node.graph._nodes_by_id[seedSourceId] = { id: seedSourceId, type: "NovaSeedLab", title: "NovoLoko Seed Lab" };
+    node.onConnectionsChange?.();
+    const randomLine = dom.element.children[4];
+    const seedInput = randomLine.children[1].children[1];
+    const afterRunSelect = randomLine.children[2].children[1];
+    assert.match(randomLine.children[1].children[0].textContent, /External seed — NovoLoko Seed Lab/);
+    assert.equal(seedInput.disabled, true, "linked Seed Lab disables stale internal seed editing");
+    assert.equal(afterRunSelect.disabled, true, "linked Seed Lab suppresses the internal after-run policy");
+    assert.equal(backend.find((item) => item.name === "control_after_generate").value, "fixed");
+    apiListeners.get("execution_success")();
+    assert.match(dom.element.children[5].textContent, /External seed source.*owns the next seed/);
+    node.inputs[0].link = null;
+    node.onConnectionsChange?.();
+    assert.equal(seedInput.disabled, false, "disconnect restores internal seed editing");
+    assert.equal(afterRunSelect.disabled, false, "disconnect restores internal after-run behavior");
+    assert.equal(backend.find((item) => item.name === "control_after_generate").value, "randomize");
     const categorySnapshot = backend.filter((item) => item.name.startsWith("category_")).map((item) => item.value);
     backend.find((item) => item.name === "seed").value = 123456;
     apiListeners.get("execution_success")();
@@ -275,6 +317,7 @@ for (const nodes2 of [false, true]) {
     assert.deepEqual(repaired.size, [620, 760], "corrupt saved height is clamped on reload");
     node.onRemoved?.();
     assert.equal(node.__novaMusic3ControlsResizeObserver, undefined, "resize observer is cleaned up with the node");
+    assert.equal(node.__novaMusic3ControlsIntersectionObserver, undefined, "intersection observer is cleaned up with the node");
     assert.equal(node.__novaMusic3AllocateControlsBody, undefined, "adaptive body allocator is cleaned up with the node");
 }
 `;

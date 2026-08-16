@@ -9,8 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class RepositoryTests(unittest.TestCase):
     def test_manifest_brand_and_package(self) -> None:
-        manifest = json.loads((ROOT / "NovoLoko_v4.6.3_manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["version"], "4.6.3")
+        manifest = json.loads((ROOT / "NovoLoko_v4.6.4_manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["version"], "4.6.4")
         self.assertEqual(manifest["brand"], "NovoLoko")
         self.assertEqual(manifest["package"], "ComfyUI-NovoLoko")
         self.assertEqual(manifest["registered_node_count"], len(manifest["registered_nodes"]))

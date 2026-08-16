@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v4.6.3
+# ComfyUI-NovoLoko v4.6.4
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -24,10 +24,10 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 - `NovoLoko AIO v4.0.0.json` — the current complete workflow with the seven-slot prompt stack, Power LoRA Stack, Group Controller, presentation banner and cheat sheet, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
 - `NovoLoko Compare Studio v4.0.0.json` — minimal image comparison example with theme-aware node chrome.
-- `NovoLoko MiniMax Music 3 - Lab v4.6.3.json` — the current unified Music Lab hotfix with responsive classic/Nodes 2.0 controls, exact artist names, next-run seed status and enforced explicitness.
+- `NovoLoko MiniMax Music 3 - Lab v4.6.4.json` — the current Music Lab with 377 paired artist references, 1,429 control choices, FAST/BALANCED/Gemma/other-local writer selection, Comfy fallback, optional external Seed Lab and offscreen-safe Classic/Nodes 2.0 controls.
 - `NovoLoko MiniMax Music 3 - Writer A-B v4.6.1.json` — a separate Music Lab copy using the optional local Ollama/GGUF writer loader; change only its FAST/BALANCED/GEMMA alias for controlled comparisons.
 
-The v4.6.3 corrective patch keeps the 620x760 default and 420x480 minimum while
+The v4.6.4 lifecycle pass keeps the 620x760 default and 420x480 minimum while
 using the DOM widget's actual allocated body height in legacy/classic and Nodes
 2.0. The category list gains room as the node grows, drops its scrollbar when
 all rows fit, then grows SONG IDEA to its useful cap. A content-height ceiling
@@ -47,7 +47,7 @@ another installation has them.
 
 ## MiniMax Music 3 Lab
 
-Load `workflows/NovoLoko MiniMax Music 3 - Lab v4.6.3.json` for the
+Load `workflows/NovoLoko MiniMax Music 3 - Lab v4.6.4.json` for the
 complete example. The Music Lab keeps MiniMax Music 3's two text inputs
 deliberately separate. `NovoLoko Lyrics Generator` produces structured tagged
 lyrics, while `NovoLoko Music Caption Enhancer` produces only the three-part
@@ -55,7 +55,7 @@ music caption. They join only at ComfyUI's `MiniMaxMusic3TextEncode` node.
 
 `NovoLoko MiniMax Music 3 Controls` now combines the editable song idea with 19
 independent CSV categories and
-765 choices from `csv/music3/`. The preset browser groups 270 current visible built-in presets
+1,429 choices from `csv/music3/`. The preset browser groups 820 current visible built-in presets
 into understandable folders and searches descriptive or artist-reference tags.
 Every category supports a built-in
 choice, **None / No preference**, deterministic **Random**, or **Custom...**
@@ -85,7 +85,7 @@ resolved control through the lyric enhancer. If the first writer draft is still
 clean, it is retried once with the selected language policy; cleaner levels
 remain distinct and fictional-content safeguards stay intact.
 
-The 102 named artists each expose exact `Artist — Clone` and `Artist — Like`
+The 377 named artists each expose exact `Artist — Clone` and `Artist — Like`
 selector names, including Måneskin and Counting Crows. Search matches the artist
 name while generated lyric/caption prompts continue to receive descriptive DNA,
 not artist names.

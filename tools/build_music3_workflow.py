@@ -1,4 +1,4 @@
-"""Build the unified IDEA + CSV Controls NovoLoko Music Lab v4.6.3 workflow."""
+"""Build the accepted NovoLoko MiniMax Music 3 Lab v4.6.4 workflow."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE = ROOT / "workflows" / "NovoLoko MiniMax Music 3 - Lab v4.5.1.json"
-DEFAULT_WORKFLOW = ROOT / "workflows" / "NovoLoko MiniMax Music 3 - Lab v4.6.3.json"
-VERSION = "4.6.3"
+DEFAULT_SOURCE = ROOT / "workflows" / "NovoLoko MiniMax Music 3 - Lab v4.6.3.json"
+DEFAULT_WORKFLOW = ROOT / "workflows" / "NovoLoko MiniMax Music 3 - Lab v4.6.4.json"
+VERSION = "4.6.4"
 
 WRITER_DEFAULTS = {
     "NovaMusicLyricEnhancer": (0.85, 2048),
@@ -73,8 +73,23 @@ def _normalise_control_values(control, idea):
     # Strip only that known legacy shape; do not reinterpret arbitrary data.
     if len(values) == expected_old_count + 1 and str(values[3]).lower() == "randomize":
         values.pop(3)
-    widget_names = [item["name"] for item in old_inputs if item.get("widget")]
-    mapped = dict(zip(widget_names, values))
+    current_serialized_names = [
+        "preset", "randomize_all", "seed", "control_after_generate",
+        *CATEGORY_NAMES,
+        *[f"custom_{key}" for key in CATEGORY_NAMES],
+        "allow_random_none", "random_preset_scope", "random_preset_filter",
+        "idea", "control_overrides_json", "seed_after_run",
+    ]
+    # ComfyUI serializes the seed widget's control_after_generate companion even
+    # though it is not represented in node.inputs. Map the already-unified
+    # v4.6.3 shape explicitly so every value after seed stays in its exact slot.
+    if len(values) == len(current_serialized_names) and any(
+        item.get("name") == "seed_after_run" for item in old_inputs
+    ):
+        mapped = dict(zip(current_serialized_names, values))
+    else:
+        widget_names = [item["name"] for item in old_inputs if item.get("widget")]
+        mapped = dict(zip(widget_names, values))
     if not mapped and len(values) >= expected_old_count:
         mapped = dict(zip(["preset", "randomize_all", "seed", *CATEGORY_NAMES], values[:expected_old_count]))
     defaults = {
@@ -105,7 +120,8 @@ def _normalise_control_values(control, idea):
         _input("seed_after_run", "COMBO", widget=True),
     ]
     control["widgets_values"] = [
-        resolved["preset"], resolved["randomize_all"], resolved["seed"], "fixed",
+        resolved["preset"], resolved["randomize_all"], resolved["seed"],
+        mapped.get("control_after_generate", "fixed"),
         *[resolved[key] for key in CATEGORY_NAMES],
         *[mapped.get(f"custom_{key}", "") for key in CATEGORY_NAMES],
         bool(mapped.get("allow_random_none", False)),
@@ -155,9 +171,13 @@ def build(source: Path, destination: Path) -> None:
     workflow = json.loads(source.read_text(encoding="utf-8"))
     nodes = {node["id"]: node for node in workflow["nodes"]}
 
-    idea_node = _node(nodes, "NovaMusicIdea")
-    idea = str((idea_node.get("widgets_values") or [""])[0] or "")
     control = _node(nodes, "NovaMusicControls")
+    idea_node = next((node for node in nodes.values() if node["type"] == "NovaMusicIdea"), None)
+    if idea_node is not None:
+        idea = str((idea_node.get("widgets_values") or [""])[0] or "")
+    else:
+        existing_values = list(control.get("widgets_values") or [])
+        idea = str(existing_values[-3] if len(existing_values) >= 3 else "")
     _normalise_control_values(control, idea)
     control["outputs"] = [
         _output("music_style_brief", "STRING"),
@@ -169,8 +189,73 @@ def build(source: Path, destination: Path) -> None:
         _output("music_idea", "STRING"),
         _output("controls_recipe_json", "STRING"),
     ]
-    workflow["nodes"] = [node for node in workflow["nodes"] if node["id"] != idea_node["id"]]
-    nodes.pop(idea_node["id"])
+
+    # Keep the existing validated Comfy CLIPLoader (node 3) as a lazy fallback,
+    # while making Ollama FAST the portable main-workflow default. The selector
+    # evaluates only the chosen writer input, so the unused backend does not
+    # consume VRAM. Node IDs are new and all pre-v4.6.4 IDs remain untouched.
+    ollama_id, selector_id, seed_lab_id = 51, 52, 53
+    workflow["nodes"] = [
+        node for node in workflow["nodes"]
+        if node["id"] not in {ollama_id, selector_id, seed_lab_id}
+    ]
+    ollama = {
+        "id": ollama_id,
+        "type": "NovaMusicWriterOllamaLoader",
+        "pos": [-1510, -1060],
+        "size": [500, 250],
+        "flags": {}, "order": 0, "mode": 0,
+        "inputs": [
+            _input("model", "STRING", widget=True),
+            _input("keep_alive", "COMBO", widget=True),
+            _input("context_length", "INT", widget=True),
+            _input("timeout_seconds", "INT", widget=True),
+        ],
+        "outputs": [_output("writer", "CLIP"), _output("load_status", "STRING")],
+        "title": "TEXT WRITER MODEL — FAST / BALANCED / GEMMA / OTHER LOCAL",
+        "properties": {"Node name for S&R": "NovaMusicWriterOllamaLoader", "cnr_id": "ComfyUI-NovoLoko", "ver": VERSION},
+        "widgets_values": ["novoloko-music-fast", "30m", 8192, 600],
+    }
+    selector = {
+        "id": selector_id,
+        "type": "NovaMusicWriterBackendSelector",
+        "pos": [-920, -1010],
+        "size": [530, 210],
+        "flags": {}, "order": 1, "mode": 0,
+        "inputs": [
+            _input("backend", "COMBO", widget=True),
+            _input("ollama_writer", "CLIP", 76),
+            _input("comfy_writer", "CLIP", 77),
+        ],
+        "outputs": [_output("writer", "CLIP"), _output("backend_status", "STRING")],
+        "title": "TEXT WRITER BACKEND — OLLAMA FAST DEFAULT / COMFY FALLBACK",
+        "properties": {"Node name for S&R": "NovaMusicWriterBackendSelector", "cnr_id": "ComfyUI-NovoLoko", "ver": VERSION},
+        "widgets_values": ["FAST / BALANCED / Gemma / Other installed local models (Ollama GGUF)"],
+    }
+    seed_lab = {
+        "id": seed_lab_id,
+        "type": "NovaSeedLab",
+        "pos": [-2140, 150],
+        "size": [360, 300],
+        "flags": {"collapsed": False}, "order": 3, "mode": 0,
+        "inputs": [
+            _input("mode", "COMBO", widget=True),
+            _input("seed", "INT", widget=True),
+            _input("digits", "INT", widget=True),
+        ],
+        "outputs": [_output("seed", "INT"), _output("status", "STRING")],
+        "title": "OPTIONAL EXTERNAL SEED — NOVOLOKO SEED LAB",
+        "properties": {
+            "Node name for S&R": "NovaSeedLab", "cnr_id": "ComfyUI-NovoLoko", "ver": VERSION,
+            "novaSavedManualSize": [360, 300],
+        },
+        "widgets_values": ["Random Every Queue", 0, "randomize", 16, ""],
+    }
+    workflow["nodes"].extend([ollama, selector, seed_lab])
+    nodes.update({ollama_id: ollama, selector_id: selector, seed_lab_id: seed_lab})
+    if idea_node is not None:
+        workflow["nodes"] = [node for node in workflow["nodes"] if node["id"] != idea_node["id"]]
+        nodes.pop(idea_node["id"])
 
     for node_type, (creativity, max_length) in WRITER_DEFAULTS.items():
         node = _node(nodes, node_type)
@@ -285,8 +370,10 @@ def build(source: Path, destination: Path) -> None:
     )
 
     for link in workflow["links"]:
-        if link[1] == idea_node["id"] and link[2] == 0:
+        if idea_node is not None and link[1] == idea_node["id"] and link[2] == 0:
             link[1], link[2] = control["id"], 6
+        if link[0] in {14, 15, 16}:
+            link[1], link[2] = selector_id, 0
     workflow["links"] = [link for link in workflow["links"] if link[0] < 64]
     workflow["links"].extend(
         [
@@ -302,6 +389,9 @@ def build(source: Path, destination: Path) -> None:
             [73, saver["id"], 0, memory["id"], 0, "AUDIO"],
             [74, saver["id"], 1, player["id"], 0, "STRING"],
             [75, control["id"], 7, saver["id"], 15, "STRING"],
+            [76, ollama_id, 0, selector_id, 1, "CLIP"],
+            [77, 3, 0, selector_id, 2, "CLIP"],
+            [78, seed_lab_id, 0, control["id"], 2, "INT"],
         ]
     )
 
@@ -325,13 +415,14 @@ def build(source: Path, destination: Path) -> None:
         guide["title"] = "START HERE - COMPLETE MUSIC 3 WORKFLOW GUIDE"
         guide["size"] = [640, 720]
         guide["widgets_values"] = [
-        "# NovoLoko MiniMax Music 3 Lab v4.6.3\n\n"
+        "# NovoLoko MiniMax Music 3 Lab v4.6.4\n\n"
             "## Quick start\n"
-            "1. In **1 - IDEA + CSV CONTROLS**, type the song concept, then choose a preset or fine-tune all 19 plain-language controls. Every selected value now shows a one-line explanation. None adds no preference, Custom uses your text, and Random is seed-stable and auditable.\n"
-            "2. Queue the workflow. 2A creates a lyric brief, 2B writes tagged MiniMax lyrics, and 2C creates a music-only caption. Thinking defaults Off for speed but remains user-toggleable.\n"
-            "3. Read **Last run stage timing** in the unified Controls panel to see enhancer/model load, lyric, lyrics, caption, MiniMax, save and cleanup durations.\n\n"
+            "1. Choose the writer backend. **Ollama GGUF** is the FAST default; its model picker shows FAST, BALANCED, Gemma and every other installed local model. **Comfy safetensors fallback** keeps the validated Qwen3-VL path.\n"
+            "2. In **1 - IDEA + CSV CONTROLS**, type the song concept, then choose a preset or fine-tune all 19 plain-language controls. None adds no preference, Custom uses your text, and Random is seed-stable and auditable.\n"
+            "3. Queue the workflow. 2A creates a lyric brief, 2B writes tagged MiniMax lyrics, and 2C creates a music-only caption. Thinking defaults Off for speed but remains user-toggleable.\n"
+            "4. Read **Last run stage timing** in the unified Controls panel to see enhancer/model load, lyric, lyrics, caption, MiniMax, save and cleanup durations.\n\n"
             "## Seed-only randomization\n"
-            "Choose **Next run seed: Randomize after each run** when wanted. Run N uses the seed currently displayed; after successful completion the field shows the new seed that run N+1 will use, with no dummy run. **Randomize all 19** is separate and seed-only mode never changes the 19 control policies.\n\n"
+            "The included Seed Lab is linked to Controls as an optional external source. While linked, Controls says **External seed — NovoLoko Seed Lab**, disables its stale internal seed editor and suppresses its internal after-run policy. Disconnect Seed Lab to use the internal fixed/randomize-after-run behavior. Run N uses A and run N+1 uses B with no dummy run.\n\n"
             "## Artist references: Clone vs Like\n"
             "Search an artist name—including Måneskin or Counting Crows—then choose **Artist — Clone** for very strong descriptive DNA or **Artist — Like** for a recognisable but more flexible lane. The artist name is only a search/audit label; generation receives era, vocal, instruments, drum feel, tones, tempo, arrangement, dynamics, hook and mix traits instead. Changing one of the 19 controls overrides only that matching DNA trait.\n\n"
             "## Explicitness\n"
@@ -353,8 +444,8 @@ def build(source: Path, destination: Path) -> None:
         ]
 
     _rebuild_link_state(workflow)
-    workflow["last_node_id"] = max(int(workflow.get("last_node_id", 0)), player["id"])
-    workflow["last_link_id"] = 75
+    workflow["last_node_id"] = max(int(workflow.get("last_node_id", 0)), seed_lab_id)
+    workflow["last_link_id"] = 78
     workflow["revision"] = int(workflow.get("revision", 0)) + 1
     workflow.setdefault("extra", {})["novolokoMusicLabVersion"] = VERSION
     destination.parent.mkdir(parents=True, exist_ok=True)

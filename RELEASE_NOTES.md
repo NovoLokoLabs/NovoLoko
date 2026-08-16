@@ -1,4 +1,43 @@
-# NovoLoko v4.6.3
+# NovoLoko v4.6.4
+
+NovoLoko v4.6.4 is the locked MiniMax Music 3 Lab library, writer-backend,
+external-seed and viewport-lifecycle release. It adds 275 named artists while
+preserving all 102 existing artists and migration aliases. The final library
+contains 377 named artists, 754 visible Clone/Like variants, 107 Genre values,
+386 Style/Era values, 820 visible built-in presets and 1,429 choices across the
+19 independent control libraries.
+
+Every control received a practical editorial expansion. The largest passes are
+Singer Performance (58 to 109), Lead Voice Type (39 to 79), production/mix
+(73 to 120), instruments (92 to 132), themes (52 to 83), mood (40 to 65),
+hooks (34 to 58) and song layouts (33 to 53). Stored values, recipe v2, the 48
+serialized widgets, node IDs, socket order and separate lyric/caption paths are
+unchanged.
+
+The main workflow now makes the writer backend explicit. Ollama GGUF is the
+default and its live model picker exposes friendly FAST, BALANCED and Gemma
+choices plus all other installed local models. The existing Comfy safetensors
+Qwen writer remains a selectable fallback. A real direct Comfy GGUF causal node
+was found and inspected, but the installed `llama-cpp-python` runtime fails
+before model load because `ggml.dll` or one of its dependencies cannot load;
+v4.6.4 therefore does not misrepresent that path as supported. The native
+MiniMax Music 3 int8-convrot text encoder is untouched.
+
+An optional linked NovoLoko Seed Lab now owns the Controls seed cleanly. While
+linked, the UI names the external source, disables stale internal seed editing
+and suppresses the internal after-run policy. Disconnecting restores the prior
+fixed/randomize behavior. The custom Controls body also defers zero-size
+offscreen measurements and forces a fresh allocation when it re-enters the
+viewport in Classic or Nodes 2.0.
+
+Very Explicit/Uncensored still overrides a clean song idea with an active
+fictional-song language requirement and one too-clean-draft retry. Duration
+choices still send the literal requested maximum to MiniMax and describe long
+targets honestly: in the v4.6.4 RTX 3090 acceptance run, a requested 300.0-second
+maximum produced 241.232 seconds of audio. The model ended 58.768 seconds early,
+so **Target ~5:00 — MiniMax may finish earlier** remains deliberate wording.
+
+## Previous release: v4.6.3
 
 NovoLoko v4.6.3 is a focused corrective patch for the MiniMax Music 3 Controls
 regressions. Legacy/classic and Nodes 2.0 now size the custom body from the DOM

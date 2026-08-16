@@ -758,7 +758,20 @@ def _row_map(rows: List[Dict[str, str]]) -> Dict[str, Dict[str, str]]:
 def _seeded_choice(seed: int, key: str, rows: List[Dict[str, str]]) -> Dict[str, str]:
     digest = hashlib.sha256(f"NovoLoko Music 3|{seed}|{key}".encode("utf-8")).digest()
     chooser = random.Random(int.from_bytes(digest[:8], "big"))
+    weights = [_safe_float(row.get("_random_weight", 1.0), 1.0, 0.0, 1000.0) for row in rows]
+    if any(weight != 1.0 for weight in weights) and sum(weights) > 0:
+        return chooser.choices(rows, weights=weights, k=1)[0]
     return rows[chooser.randrange(len(rows))]
+
+
+def _preset_random_weight(row: Mapping[str, Any]) -> float:
+    """Keep preserved novelty presets possible, but make practical music the norm."""
+    folder = _default_preset_folder(row).casefold()
+    name = _clean_text(row.get("name") or row.get("__name")).casefold()
+    novelty = "fun hybrids & experiments" in folder or any(
+        marker in name for marker in ("cuda out of memory", "what did i generate", "gregorian drill opera")
+    )
+    return 1.0 if novelty else 12.0
 
 
 def _none_selection(choice: str = NONE_OPTION) -> Dict[str, str]:
@@ -1889,6 +1902,52 @@ class NovaMusicWriterOllamaLoader:
         )
 
 
+class NovaMusicWriterBackendSelector:
+    """Lazily choose Ollama GGUF or the existing Comfy safetensors writer."""
+
+    OLLAMA = "FAST / BALANCED / Gemma / Other installed local models (Ollama GGUF)"
+    COMFY = "Comfy safetensors fallback"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "backend": ([cls.OLLAMA, cls.COMFY], {"default": cls.OLLAMA}),
+            },
+            "optional": {
+                "ollama_writer": ("CLIP", {"lazy": True}),
+                "comfy_writer": ("CLIP", {"lazy": True}),
+            },
+        }
+
+    RETURN_TYPES = ("CLIP", "STRING")
+    RETURN_NAMES = ("writer", "backend_status")
+    FUNCTION = "select_writer"
+    CATEGORY = "NovoLoko/Music/MiniMax Music 3"
+    DESCRIPTION = (
+        "Main-workflow writer selector. Ollama is the supported FAST default and its loader discovers FAST, "
+        "BALANCED, Gemma and other installed local models. Comfy safetensors keeps the validated Qwen3-VL "
+        "fallback. Lazy inputs prevent the unused backend from loading."
+    )
+
+    @classmethod
+    def check_lazy_status(cls, backend=OLLAMA, ollama_writer=None, comfy_writer=None):
+        selected = "comfy_writer" if backend == cls.COMFY else "ollama_writer"
+        if (comfy_writer if selected == "comfy_writer" else ollama_writer) is None:
+            return [selected]
+        return []
+
+    def select_writer(self, backend=OLLAMA, ollama_writer=None, comfy_writer=None):
+        if backend == self.COMFY:
+            if comfy_writer is None:
+                raise RuntimeError("Comfy safetensors fallback is selected but no Comfy writer is connected.")
+            return (comfy_writer, "Comfy safetensors fallback selected: qwen3VLInstruct4bHeretic_v10 / krea2.")
+        if ollama_writer is None:
+            raise RuntimeError("Ollama GGUF is selected but no Ollama writer is connected.")
+        model = _clean_text(getattr(ollama_writer, "model", "local model"))
+        return (ollama_writer, f"Ollama GGUF selected: {model}. Thinking remains controlled by stages 3A/3B/3C.")
+
+
 class NovaMusicIdea:
     """Small dedicated idea source so a workflow starts with plain language."""
 
@@ -2081,7 +2140,10 @@ class NovaMusicControls:
                     continue
                 if random_scope == "Genre" and random_filter and _clean_text(row.get("genre")) != random_filter:
                     continue
-                candidates.append({"name": name})
+                candidates.append({
+                    "name": name,
+                    "_random_weight": _preset_random_weight({**row, "name": name}),
+                })
             if candidates:
                 preset_name = _seeded_choice(seed, f"preset:{random_scope}:{random_filter}", candidates)["name"]
         preset_row = presets.get(preset_name)
@@ -3151,6 +3213,7 @@ NODE_CLASS_MAPPINGS = {
     "NovaMusicIdea": NovaMusicIdea,
     "NovaMusicControls": NovaMusicControls,
     "NovaMusicWriterOllamaLoader": NovaMusicWriterOllamaLoader,
+    "NovaMusicWriterBackendSelector": NovaMusicWriterBackendSelector,
     "NovaMusicLyricEnhancer": NovaMusicLyricEnhancer,
     "NovaMusicLyricsGenerator": NovaMusicLyricsGenerator,
     "NovaMusicCaptionEnhancer": NovaMusicCaptionEnhancer,
@@ -3162,6 +3225,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "NovaMusicIdea": "NovoLoko Music Idea",
     "NovaMusicControls": "NovoLoko MiniMax Music 3 Controls",
     "NovaMusicWriterOllamaLoader": "NovoLoko Music Writer Loader (Ollama GGUF)",
+    "NovaMusicWriterBackendSelector": "NovoLoko Music Writer Backend / Model Selector",
     "NovaMusicLyricEnhancer": "NovoLoko Lyric Enhancer",
     "NovaMusicLyricsGenerator": "NovoLoko Lyrics Generator",
     "NovaMusicCaptionEnhancer": "NovoLoko Music Caption Enhancer",

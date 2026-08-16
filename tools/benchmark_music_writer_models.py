@@ -6,6 +6,7 @@ import argparse
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import subprocess
 import sys
 import time
 
@@ -44,6 +45,19 @@ def elapsed_call(function, *args, **kwargs):
     started = time.perf_counter()
     result = function(*args, **kwargs)
     return result, time.perf_counter() - started
+
+
+def command_snapshot(command: list[str]) -> dict[str, object]:
+    try:
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=20, check=False)
+        return {
+            "command": command,
+            "returncode": completed.returncode,
+            "stdout": completed.stdout.strip(),
+            "stderr": completed.stderr.strip(),
+        }
+    except Exception as error:
+        return {"command": command, "error": f"{type(error).__name__}: {error}"}
 
 
 def quality_checks(brief: str, lyrics: str, caption: str) -> dict[str, object]:
@@ -101,6 +115,13 @@ def benchmark_model(model: str, idea: str, seed: int, quick: bool) -> dict[str, 
             thinking=False,
             use_default_template=True,
         )
+        residency = {
+            "ollama_ps": command_snapshot(["ollama", "ps"]),
+            "nvidia_smi": command_snapshot([
+                "nvidia-smi", "--query-gpu=name,memory.total,memory.used,memory.free",
+                "--format=csv,noheader,nounits",
+            ]),
+        }
         result = {
         "model": model,
         "thinking": False,
@@ -120,6 +141,7 @@ def benchmark_model(model: str, idea: str, seed: int, quick: bool) -> dict[str, 
             "3C": caption_result[2],
         },
         "quality_checks": quality_checks(lyric_result[0], lyrics_result[0], caption_result[0]),
+        "residency": residency,
         "outputs": {
             "3A_lyric_brief": lyric_result[0],
             "3B_lyrics": lyrics_result[0],
