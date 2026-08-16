@@ -1,0 +1,6 @@
+index,name,prompt,negative_prompt,category,weight,favorite
+31,Gentle High-Angle Portrait,"gentle high-angle portrait, face lifted naturally, balanced shoulders, minimal distortion","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",High Angle,1.00,false
+32,High-Angle Full Body,"high-angle full body composition, complete silhouette, natural head-to-body scale","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",High Angle,1.00,false
+33,High-Angle Seated,"high-angle seated fashion frame, hands knees and face clearly separated","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",High Angle,1.00,false
+34,High-Angle Fashion Geometry,"graphic high-angle fashion composition, deliberate limb shapes, outfit remains fully legible","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",High Angle,1.00,false
+35,High-Angle Face Focus,"high-angle portrait with eyes tack sharp and facial features preserved, body softly secondary","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",High Angle,1.00,false

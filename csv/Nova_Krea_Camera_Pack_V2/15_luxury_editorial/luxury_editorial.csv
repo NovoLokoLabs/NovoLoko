@@ -1,0 +1,6 @@
+index,name,prompt,negative_prompt,category,weight,favorite
+71,Luxury Full-Length,"luxury editorial full-length portrait, poised stance, refined materials, elegant spatial depth","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Luxury Editorial,1.00,false
+72,Luxury Seated,"luxury seated editorial pose, controlled limbs, visible hands, premium interior atmosphere","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Luxury Editorial,1.00,false
+73,Luxury Beauty,"luxury beauty portrait, precise skin and jewelry detail, soft sculpted light, calm expression","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Luxury Editorial,1.00,false
+74,Luxury Fabric Motion,"luxury editorial with graceful fabric motion, body silhouette and face remain clear","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Luxury Editorial,1.00,false
+75,Luxury Architectural Frame,"luxury fashion portrait framed by architecture, clean symmetry, natural scale, full outfit readable","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Luxury Editorial,1.00,false

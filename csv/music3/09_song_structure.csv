@@ -1,0 +1,34 @@
+index,name,prompt
+1,Rap Anthem,[Intro] -> [Verse 1] -> [Pre-Chorus] -> [Chorus] -> [Verse 2] -> [Chorus] -> [Bridge] -> [Final Chorus] -> [Outro].
+2,Drill Direct,[Intro] -> [Verse 1] -> [Chorus] -> [Verse 2] -> [Breakdown] -> [Final Chorus] -> [Outro].
+3,Hook First,[Intro] -> [Chorus] -> [Verse 1] -> [Chorus] -> [Verse 2] -> [Bridge] -> [Final Chorus] -> [Outro].
+4,Pop Classic,[Intro] -> [Verse 1] -> [Pre-Chorus] -> [Chorus] -> [Verse 2] -> [Pre-Chorus] -> [Chorus] -> [Bridge] -> [Final Chorus] -> [Outro].
+5,Story Ballad,[Intro] -> [Verse 1] -> [Verse 2] -> [Chorus] -> [Verse 3] -> [Bridge] -> [Final Chorus] -> [Outro].
+6,EDM Vocal Journey,[Intro] -> [Verse 1] -> [Pre-Chorus] -> [Chorus] -> [Instrumental] -> [Verse 2] -> [Chorus] -> [Breakdown] -> [Final Chorus] -> [Outro].
+7,Rock Escalation,[Intro] -> [Verse 1] -> [Chorus] -> [Verse 2] -> [Chorus] -> [Solo] -> [Bridge] -> [Final Chorus] -> [Outro].
+8,Cinematic Instrumental,[Intro] -> [Instrumental] -> [Interlude] -> [Instrumental] -> [Breakdown] -> [Final Chorus] -> [Outro].
+9,Short Viral,[Intro] -> [Chorus] -> [Verse 1] -> [Chorus] -> [Outro].
+10,Progressive Long Form,[Intro] -> [Verse 1] -> [Instrumental] -> [Verse 2] -> [Pre-Chorus] -> [Chorus] -> [Interlude] -> [Bridge] -> [Solo] -> [Final Chorus] -> [Outro].
+11,Short Viral Hook,[Hook] -> [Verse 1] -> [Hook] -> [Outro].
+12,Boom Bap Three Verse,[Intro] -> [Verse 1] -> [Chorus] -> [Verse 2] -> [Chorus] -> [Verse 3] -> [Outro].
+13,R&B Slow Jam,[Intro] -> [Verse 1] -> [Pre-Chorus] -> [Chorus] -> [Verse 2] -> [Chorus] -> [Bridge] -> [Final Chorus] -> [Outro].
+14,Pop Immediate Chorus,[Chorus] -> [Verse 1] -> [Pre-Chorus] -> [Chorus] -> [Verse 2] -> [Bridge] -> [Final Chorus].
+15,Rock Quiet Loud,[Intro] -> [Verse 1] -> [Chorus] -> [Verse 2] -> [Chorus] -> [Breakdown] -> [Solo] -> [Final Chorus] -> [Outro].
+16,Metalcore Breakdown,[Intro] -> [Verse 1] -> [Pre-Chorus] -> [Chorus] -> [Verse 2] -> [Breakdown] -> [Final Chorus] -> [Outro].
+17,Punk Two Minute,[Intro] -> [Verse 1] -> [Chorus] -> [Verse 2] -> [Chorus] -> [Bridge] -> [Final Chorus].
+18,EDM Build and Drop,[Intro] -> [Verse 1] -> [Build] -> [Drop] -> [Verse 2] -> [Build] -> [Final Drop] -> [Outro].
+19,Techno Progressive,[Intro] -> [Groove A] -> [Build] -> [Peak] -> [Breakdown] -> [Peak Return] -> [Outro].
+20,Trance Journey,[Intro] -> [Theme] -> [Build] -> [Breakdown] -> [Uplift] -> [Climax] -> [Outro].
+21,DnB Vocal Journey,[Intro] -> [Verse 1] -> [Build] -> [Drop] -> [Verse 2] -> [Drop] -> [Breakdown] -> [Final Drop].
+22,Jazz Head Solos Head,[Intro] -> [Head] -> [Solo 1] -> [Solo 2] -> [Head Return] -> [Outro].
+23,Country Story Arc,[Intro] -> [Verse 1] -> [Chorus] -> [Verse 2] -> [Chorus] -> [Bridge] -> [Final Chorus] -> [Outro].
+24,Gospel Testimony,[Intro] -> [Verse 1] -> [Choir Response] -> [Verse 2] -> [Choir Response] -> [Bridge] -> [Final Choir] -> [Outro].
+25,Ambient Evolution,[Opening Texture] -> [Slow Development] -> [Central Bloom] -> [Dissolution].
+26,Cinematic Three Act,[Act I] -> [Rising Conflict] -> [Act II Climax] -> [Quiet Turn] -> [Act III Finale] -> [Resolution].
+27,Continuous Spoken Monologue,"One continuous spoken monologue with no sung chorus; shape emotional movement through pacing, silence, paragraph turns, and a decisive closing line."
+28,Spoken Cold Open and Build,"Begin with exposed spoken voice, introduce a restrained underscore gradually, intensify around the central message, then finish on an isolated final sentence."
+29,Spoken Refrain Structure,"Use spoken sections with a short repeated spoken refrain, never sung, returning with changed emotional emphasis each time."
+30,Dialogue Scene,"Alternate two spoken voices in a clear dialogue scene with distinct turns, interruptions used sparingly, and a meaningful final exchange."
+31,Broadcast Bulletin,"Open with a station or signal cue, deliver concise spoken bulletin sections, repeat essential information, and end with a clear sign-off or warning."
+32,Guided Meditation Arc,"Welcome and grounding, breath guidance, slow visualization, quiet integration, then a gentle spoken return; no sung section."
+33,Sermon Rise and Release,"Opening declaration, expanding spoken argument, call-and-response peak, reflective pause, and a final spoken benediction; no singing."

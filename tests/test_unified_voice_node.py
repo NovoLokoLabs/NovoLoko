@@ -159,7 +159,7 @@ class UnifiedVoiceNodeTests(unittest.TestCase):
             }.issubset(package.NODE_CLASS_MAPPINGS)
         )
         self.assertEqual("NovoLoko Voice TTS", package.NODE_DISPLAY_NAME_MAPPINGS["NovaVoiceEngineTTS"])
-        self.assertEqual(38, len(package.NODE_CLASS_MAPPINGS))
+        self.assertEqual(47, len(package.NODE_CLASS_MAPPINGS))
         control = package.NODE_CLASS_MAPPINGS["NovaControlPanelSwitch"]
         self.assertEqual(
             ["tts_enabled", "enhancer_enabled"],

@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import re
@@ -7,7 +8,6 @@ from typing import Dict, List, Tuple
 from .nodes import (
     DEFAULT_CSV,
     _candidate_csv_paths,
-    _filter_styles,
     _is_no_style_name,
     _node_dir,
     _read_styles,
@@ -16,6 +16,11 @@ from .nodes import (
     _trigger_from_name,
     _weighted_choice,
 )
+
+SEARCH_HELP_TEXT = 'Search: word or "exact phrase" | Exclude: -word or -"exact phrase"'
+ALL_FOLDERS = "All folders"
+_LIBRARY_FILES_CACHE = []
+_LIBRARY_FILES_CACHE_AT = 0.0
 
 LEGACY_SLOTS = ("medium", "pose", "action", "clothing", "location", "character")
 SLOTS = ("medium", "subject", "pose", "action", "clothing", "location", "character")
@@ -128,6 +133,66 @@ def _usable_random_records(records: List[Dict]) -> List[Dict]:
     return out
 
 
+def _parse_search_terms(search: str) -> Tuple[List[str], List[str]]:
+    includes = []
+    excludes = []
+    text = str(search or "")
+    index = 0
+    length = len(text)
+
+    while index < length:
+        while index < length and text[index].isspace():
+            index += 1
+        if index >= length:
+            break
+
+        excluded = text[index] == "-"
+        if excluded:
+            index += 1
+            if index >= length or text[index].isspace():
+                continue
+
+        if text[index] == '"':
+            index += 1
+            end = text.find('"', index)
+            if end < 0:
+                term = text[index:]
+                index = length
+            else:
+                term = text[index:end]
+                index = end + 1
+        else:
+            end = index
+            while end < length and not text[end].isspace():
+                end += 1
+            term = text[index:end]
+            index = end
+
+        term = term.strip().casefold()
+        if not term:
+            continue
+        (excludes if excluded else includes).append(term)
+
+    return includes, excludes
+
+
+def _matches_search(record: Dict, search: str) -> bool:
+    includes, excludes = _parse_search_terms(search)
+    if not includes and not excludes:
+        return True
+
+    haystack = "\n".join(
+        str(record.get(field, "") or "")
+        for field in ("name", "prompt", "category", "negative", "negative_prompt")
+    ).casefold()
+    # Multiple positive terms narrow the result together; quoted phrases remain
+    # one term. This keeps searches such as "Ferrari F40" precise after large
+    # libraries add many other Ferrari entries.
+    includes_match = not includes or all(term in haystack for term in includes)
+    excludes_match = not any(term in haystack for term in excludes)
+    return includes_match and excludes_match
+
+
 def _filtered_records(records: List[Dict], category: str = "All", search: str = "") -> List[Dict]:
     category = _restore_menu_value(category) or "All"
     search = str(search or "").strip()
@@ -147,15 +212,9 @@ def _filtered_records(records: List[Dict], category: str = "All", search: str = 
                 or _restore_menu_value(record.get("category", "")).startswith(broad + "/")
             )
         ]
-    # Work on shallow copies because the shared helper can mark favorite state.
-    return _filter_styles(
-        candidates,
-        "All",
-        search,
-        False,
-        "",
-        saved_favorites=[],
-    )
+    if search:
+        candidates = [record for record in candidates if _matches_search(record, search)]
+    return candidates
 
 
 def _pick_record(
@@ -331,6 +390,177 @@ def _build_stack(
     )
 
 
+def _as_enabled(value, default=True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return bool(default)
+    return str(value).strip().lower() not in {"0", "false", "no", "off", "disabled"}
+
+
+def _normalise_dynamic_slots(slots_json):
+    """Return a validated dynamic slot list, or None when legacy fields should be used."""
+    text = str(slots_json or "").strip()
+    if not text:
+        return None
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+
+    raw_slots = payload.get("slots") if isinstance(payload, dict) else payload
+    if not isinstance(raw_slots, list):
+        return None
+
+    slots = []
+    for index, raw in enumerate(raw_slots):
+        if not isinstance(raw, dict):
+            continue
+        legacy_key = str(raw.get("legacy_key", "")).strip().lower()
+        default_file = DEFAULT_FILES.get(legacy_key, DEFAULT_CSV)
+        try:
+            seed_offset = int(raw.get("seed_offset", index))
+        except (TypeError, ValueError):
+            seed_offset = index
+        slots.append({
+            "id": str(raw.get("id", f"slot-{index + 1}")),
+            "label": str(raw.get("label", f"Slot {index + 1}")).strip() or f"Slot {index + 1}",
+            "legacy_key": legacy_key,
+            "enabled": _as_enabled(raw.get("enabled"), True),
+            "file_path": str(raw.get("file_path", default_file)).strip() or default_file,
+            # Frontend-only navigation state is accepted here so old and new
+            # slots_json payloads can use the same versioned transport. Folder
+            # selection never changes how an already-selected file executes.
+            "folder": str(raw.get("folder", ALL_FOLDERS)).strip() or ALL_FOLDERS,
+            "folder_search": str(raw.get("folder_search", "")),
+            "category": str(raw.get("category", "All")).strip() or "All",
+            "search": str(raw.get("search", "")),
+            "selection": str(raw.get("selection", "none")).strip() or "none",
+            "seed_offset": max(0, seed_offset),
+        })
+    return slots
+
+
+def _legacy_dynamic_slots(kwargs):
+    slots = []
+    for index, slot in enumerate(SLOTS):
+        slots.append({
+            "id": f"legacy-{slot}",
+            "label": SLOT_LABELS[slot],
+            "legacy_key": slot,
+            "enabled": True,
+            "file_path": kwargs.get(f"{slot}_file_path", DEFAULT_FILES[slot]),
+            "folder": ALL_FOLDERS,
+            "folder_search": "",
+            "category": kwargs.get(f"{slot}_category", "All"),
+            "search": kwargs.get(f"{slot}_search", ""),
+            "selection": kwargs.get(
+                f"{slot}_selection",
+                "none" if slot == "subject" else "random",
+            ),
+            # Keep v4.0.0 seeded choices identical after migration.
+            "seed_offset": SEED_SLOT_INDEX.get(slot, index),
+        })
+    return slots
+
+
+def _build_dynamic_stack(
+    dynamic_slots,
+    random_mode="Random Every Queue",
+    seed=0,
+    delimiter=", ",
+    manual_prompt="",
+    extra_positive="",
+    extra_negative="",
+    all_slots_enabled=True,
+    manual_prompt_input=None,
+):
+    delimiter = str(delimiter if delimiter is not None else ", ") or ", "
+    base_manual = (
+        str(manual_prompt_input).strip()
+        if manual_prompt_input is not None and str(manual_prompt_input).strip()
+        else str(manual_prompt or "").strip()
+    )
+    extra_positive = str(extra_positive or "").strip()
+    current = delimiter.join(part for part in (base_manual, extra_positive) if part)
+    base_seed = int(seed)
+    master_enabled = bool(all_slots_enabled)
+    selected = []
+    negatives = []
+
+    for index, slot in enumerate(dynamic_slots):
+        enabled = master_enabled and _as_enabled(slot.get("enabled"), True)
+        if not enabled:
+            selected.append({
+                "slot": slot,
+                "record": {"name": "off", "prompt": "", "negative": ""},
+                "resolved": "BYPASSED",
+                "enabled": False,
+            })
+            continue
+
+        offset = max(0, int(slot.get("seed_offset", index)))
+        if str(random_mode) == "Random Every Queue":
+            rng = random.Random(time.time_ns() ^ (offset * 0x9E3779B97F4A7C15))
+        else:
+            rng = random.Random(base_seed + offset * 1000003)
+        record, resolved_path = _pick_record(
+            slot["file_path"],
+            slot["selection"],
+            rng,
+            slot.get("category", "All"),
+            slot.get("search", ""),
+        )
+        selected.append({
+            "slot": slot,
+            "record": record,
+            "resolved": resolved_path,
+            "enabled": True,
+        })
+        negative = str(record.get("negative", "")).strip()
+        if negative:
+            negatives.append(negative)
+
+    for item in reversed(selected):
+        if item["enabled"]:
+            current = _apply_template(item["record"].get("prompt", ""), current, delimiter)
+
+    if extra_negative:
+        negatives.append(str(extra_negative).strip())
+    combined_negative = _dedupe_negative(negatives, delimiter)
+
+    summary_lines = [
+        "NovoLoko Prompt Stack AIO Pro - Dynamic Slots",
+        f"ALL SLOTS: {'ON' if master_enabled else 'OFF - selections preserved'}",
+        "Order: " + (
+            " > ".join(str(item["slot"]["label"]) for item in selected) + " > Manual Prompt"
+            if selected else "Manual Prompt"
+        ),
+    ]
+    clean_names = []
+    for item in selected:
+        slot = item["slot"]
+        record = item["record"]
+        name = str(record.get("name", "none")).strip() or "none"
+        filter_bits = []
+        if str(slot.get("category", "All")) != "All":
+            filter_bits.append(f"category={slot.get('category')}")
+        if str(slot.get("search", "")).strip():
+            filter_bits.append(f"search={slot.get('search')}")
+        filters = f" | {'; '.join(filter_bits)}" if filter_bits else ""
+        state = "ON" if item["enabled"] else "OFF"
+        summary_lines.append(
+            f"{slot['label']} [{state}]: {name} | {os.path.basename(item['resolved'])}{filters}"
+        )
+        if item["enabled"] and not _is_none_name(name) and not _is_random_name(name):
+            clean_names.append(name)
+    summary_lines.append(f"Manual prompt: {base_manual if base_manual else 'EMPTY'}")
+    summary_lines.append(f"Combined prompt: {current if current else 'EMPTY'}")
+
+    # all_names is intentionally newline-only and contains no UI or prompt metadata.
+    return current, combined_negative, "\n".join(summary_lines), "\n".join(clean_names)
+
+
 class NovaPromptStackAIOV1:
     """Compatibility version used by v2.6 workflows."""
 
@@ -499,7 +729,7 @@ class NovaPromptStackAIOV2:
             )
             required[f"{slot}_search"] = (
                 "STRING",
-                {"default": "", "multiline": False},
+                {"default": "", "multiline": False, "tooltip": SEARCH_HELP_TEXT},
             )
             required[f"{slot}_selection"] = (
                 "STRING",
@@ -664,7 +894,7 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
             )
             required[f"{slot}_search"] = (
                 "STRING",
-                {"default": "", "multiline": False},
+                {"default": "", "multiline": False, "tooltip": SEARCH_HELP_TEXT},
             )
             required[f"{slot}_selection"] = (
                 ["none", "random"],
@@ -703,11 +933,18 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
                 "subject_category": (["All"], {"default": "All"}),
                 "subject_search": (
                     "STRING",
-                    {"default": "", "multiline": False},
+                    {"default": "", "multiline": False, "tooltip": SEARCH_HELP_TEXT},
                 ),
                 "subject_selection": (
                     ["none", "random"],
                     {"default": "none"},
+                ),
+                # Appended after every released widget so legacy workflow arrays
+                # keep their exact meaning. The frontend hides this transport
+                # value and presents it as a repeatable, reorderable slot list.
+                "slots_json": (
+                    "STRING",
+                    {"default": "", "multiline": False},
                 ),
             }
         )
@@ -735,15 +972,21 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
     def IS_CHANGED(cls, **kwargs):
         random_mode = str(kwargs.get("random_mode", "Random Every Queue"))
         all_slots_enabled = bool(kwargs.get("all_slots_enabled", True))
+        dynamic_slots = _normalise_dynamic_slots(kwargs.get("slots_json"))
+        slots = dynamic_slots if dynamic_slots is not None else _legacy_dynamic_slots(kwargs)
         any_random = all_slots_enabled and any(
-            _is_random_name(kwargs.get(f"{slot}_selection", "")) for slot in SLOTS
+            _as_enabled(slot.get("enabled"), True)
+            and _is_random_name(slot.get("selection", ""))
+            for slot in slots
         )
         if any_random and random_mode == "Random Every Queue":
             return time.time_ns()
         mtimes = []
         if all_slots_enabled:
-            for slot in SLOTS:
-                value = kwargs.get(f"{slot}_file_path", DEFAULT_FILES[slot])
+            for slot in slots:
+                if not _as_enabled(slot.get("enabled"), True):
+                    continue
+                value = slot.get("file_path", DEFAULT_CSV)
                 try:
                     resolved = _resolve_csv_path(value)
                     mtimes.append((resolved, os.path.getmtime(resolved)))
@@ -755,12 +998,17 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
             tuple(mtimes),
             tuple(
                 (
-                    kwargs.get(f"{slot}_category", "All"),
-                    kwargs.get(f"{slot}_search", ""),
-                    kwargs.get(f"{slot}_selection", "none" if slot == "subject" else "random"),
+                    slot.get("id"),
+                    slot.get("label"),
+                    slot.get("enabled"),
+                    slot.get("category", "All"),
+                    slot.get("search", ""),
+                    slot.get("selection", "none"),
+                    slot.get("seed_offset"),
                 )
-                for slot in SLOTS
+                for slot in slots
             ),
+            kwargs.get("slots_json"),
             kwargs.get("all_slots_enabled", True),
             kwargs.get("random_mode"),
             kwargs.get("seed"),
@@ -809,6 +1057,7 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
         subject_category="All",
         subject_search="",
         subject_selection="none",
+        slots_json="",
     ):
         local_values = locals()
         slot_values = {
@@ -820,6 +1069,20 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
             }
             for slot in SLOTS
         }
+        dynamic_slots = _normalise_dynamic_slots(slots_json)
+        if dynamic_slots is not None:
+            return _build_dynamic_stack(
+                dynamic_slots,
+                random_mode,
+                seed,
+                delimiter,
+                manual_prompt,
+                extra_positive,
+                extra_negative,
+                all_slots_enabled,
+                manual_prompt_input,
+            )
+
         outputs = _build_stack(
             slot_values,
             random_mode,
@@ -832,16 +1095,12 @@ class NovaPromptStackAIOV3(NovaPromptStackAIOV2):
             manual_prompt_input,
             slots=SLOTS,
         )
-        joiner = str(delimiter if delimiter is not None else ", ") or ", "
-        effective_manual_prompt = (
-            str(manual_prompt_input).strip()
-            if manual_prompt_input is not None and str(manual_prompt_input).strip()
-            else str(manual_prompt or "").strip()
-        )
-        all_names = joiner.join(
-            name
-            for name in (*outputs[3:], effective_manual_prompt)
-            if str(name).strip().lower() not in {"", "none", "off"}
+        names_by_slot = dict(zip(OUTPUT_SLOTS, outputs[3:]))
+        all_names = "\n".join(
+            str(names_by_slot.get(slot, "")).strip()
+            for slot in SLOTS
+            if not _is_none_name(names_by_slot.get(slot, ""))
+            and not _is_random_name(names_by_slot.get(slot, ""))
         )
         return (*outputs[:3], all_names)
 
@@ -856,35 +1115,76 @@ def _display_path(path: str) -> str:
     return real.replace("\\", "/")
 
 
-def _slot_file_candidates(slot: str) -> List[str]:
+def _library_files(force_refresh: bool = False) -> List[str]:
+    """Return every packaged CSV/YAML library below the public library roots."""
+    global _LIBRARY_FILES_CACHE, _LIBRARY_FILES_CACHE_AT
+    now = time.monotonic()
+    # Refreshing all dynamic slots issues several near-simultaneous requests.
+    # Share the same short-lived scan without making the explicit Refresh button
+    # stale for a meaningful amount of time.
+    if not force_refresh and _LIBRARY_FILES_CACHE and now - _LIBRARY_FILES_CACHE_AT < 0.25:
+        return list(_LIBRARY_FILES_CACHE)
+    root = _node_dir()
+    paths = []
+    for root_name in ("csv", "styles"):
+        base = os.path.join(root, root_name)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            # Keep discovery deterministic across Windows/filesystem variants.
+            dirnames.sort(key=str.casefold)
+            for filename in sorted(filenames, key=str.casefold):
+                if filename.lower().endswith((".csv", ".yaml", ".yml")):
+                    paths.append(os.path.join(dirpath, filename))
+    _LIBRARY_FILES_CACHE = paths
+    _LIBRARY_FILES_CACHE_AT = time.monotonic()
+    return list(paths)
+
+
+def _folder_for_file(file_path: str) -> str:
+    display = str(file_path or "").replace("\\", "/").strip("/")
+    return display.rsplit("/", 1)[0] if "/" in display else ""
+
+
+def _normalise_folder(value: str) -> str:
+    folder = str(value or "").replace("\\", "/").strip().strip("/")
+    if not folder or folder.casefold() == ALL_FOLDERS.casefold():
+        return ALL_FOLDERS
+    return folder
+
+
+def _slot_folder_candidates(folder_search: str = "", library_files=None) -> List[str]:
+    source_files = library_files if library_files is not None else _library_files()
+    displays = [_display_path(path) for path in source_files]
+    folders = sorted(
+        {
+            _folder_for_file(path)
+            for path in displays
+            if _folder_for_file(path)
+        },
+        key=str.casefold,
+    )
+    query = str(folder_search or "").strip().casefold()
+    if query:
+        terms = [term for term in query.split() if term]
+        folders = [folder for folder in folders if all(term in folder.casefold() for term in terms)]
+    return [ALL_FOLDERS, *folders]
+
+
+def _slot_file_candidates(slot: str, folder: str = ALL_FOLDERS, library_files=None) -> List[str]:
     slot = str(slot or "medium").strip().lower()
     kind = "characters" if slot == "character" else "styles"
     paths = _candidate_csv_paths(DEFAULT_FILES.get(slot, DEFAULT_CSV), kind=kind)
 
-    # Always include every packaged CSV/YAML file compatible with the slot.
-    root = _node_dir()
-    for base in (root, os.path.join(root, "csv"), os.path.join(root, "styles")):
-        if not os.path.isdir(base):
-            continue
-        for dirpath, _, filenames in os.walk(base):
-            for filename in filenames:
-                if filename.lower().endswith((".csv", ".yaml", ".yml")):
-                    paths.append(os.path.join(dirpath, filename))
+    # Every Prompt Stack slot can use any packaged CSV/YAML library. Preferred
+    # slot-specific files still sort first, but are not the only valid choices.
+    paths.extend(library_files if library_files is not None else _library_files())
 
     seen = set()
     unique = []
     for path in paths:
         real = os.path.abspath(path)
         if not os.path.isfile(real) or real in seen:
-            continue
-        lower = real.lower().replace("\\", "/")
-        is_character = "character" in os.path.basename(lower) or "/characters/" in lower
-        is_subject = "subject" in os.path.basename(lower) or "/subjects/" in lower
-        if slot == "character" and not is_character:
-            continue
-        if slot != "character" and is_character:
-            continue
-        if slot == "subject" and not is_subject:
             continue
         seen.add(real)
         unique.append(real)
@@ -907,7 +1207,37 @@ def _slot_file_candidates(slot: str) -> List[str]:
         default_first = 0 if display == DEFAULT_FILES.get(slot) else 1
         return (default_first, preferred, display.lower())
 
-    return [_display_path(path) for path in sorted(unique, key=sort_key)]
+    display_paths = [_display_path(path) for path in sorted(unique, key=sort_key)]
+    selected_folder = _normalise_folder(folder)
+    if selected_folder != ALL_FOLDERS:
+        display_paths = [
+            path for path in display_paths
+            if _folder_for_file(path).casefold() == selected_folder.casefold()
+        ]
+    return display_paths
+
+
+def _slot_file_items(slot: str, folder: str = ALL_FOLDERS, library_files=None) -> List[Dict[str, str]]:
+    files = _slot_file_candidates(slot, folder, library_files)
+    basename_counts = {}
+    for path in files:
+        basename = path.replace("\\", "/").rsplit("/", 1)[-1]
+        basename_counts[basename.casefold()] = basename_counts.get(basename.casefold(), 0) + 1
+
+    items = []
+    for path in files:
+        basename = path.replace("\\", "/").rsplit("/", 1)[-1]
+        parent = _folder_for_file(path)
+        label = basename
+        if basename_counts.get(basename.casefold(), 0) > 1:
+            label = f"{basename} - {parent}"
+        items.append({
+            "value": path,
+            "label": label,
+            "folder": parent,
+            "relative_path": path,
+        })
+    return items
 
 
 # Live frontend endpoints. They mirror the simple iTools experience: pick a file,
@@ -919,13 +1249,23 @@ try:
     @PromptServer.instance.routes.get("/nova_prompt_stack/files")
     async def nova_prompt_stack_files(request):
         slot = request.query.get("slot", "medium")
+        folder = _normalise_folder(request.query.get("folder", ALL_FOLDERS))
+        folder_search = request.query.get("folder_search", "")
         try:
-            files = _slot_file_candidates(slot)
-            default = DEFAULT_FILES.get(str(slot).lower(), files[0] if files else "")
+            force_refresh = request.query.get("refresh", "0") == "1"
+            library_files = _library_files(force_refresh)
+            file_items = _slot_file_items(slot, folder, library_files)
+            files = [item["value"] for item in file_items]
+            preferred_default = DEFAULT_FILES.get(str(slot).lower(), "")
+            default = preferred_default if preferred_default in files else (files[0] if files else "")
             return web.json_response({
                 "ok": True,
                 "slot": slot,
+                "folder": folder,
+                "folders": _slot_folder_candidates(folder_search, library_files),
+                "folder_search": folder_search,
                 "files": files,
+                "file_items": file_items,
                 "default": default,
                 "count": len(files),
             })

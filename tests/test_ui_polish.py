@@ -112,14 +112,66 @@ class UiPolishTests(unittest.TestCase):
         self.assertIn(payload["default"], [item["path"] for item in payload["libraries"]])
         self.assertEqual(default, resolved)
 
-    def test_prompt_stack_restores_saved_manual_size(self) -> None:
+    def test_prompt_stack_uses_a_fixed_internal_scroll_panel_without_slot_growth(self) -> None:
         source = (ROOT / "web/nova_prompt_stack_aio.js").read_text(encoding="utf-8")
 
-        self.assertIn("function configureProNode(node, newNode = false)", source)
-        self.assertIn("if (newNode && !node.__novaAIOInitialSizeApplied)", source)
-        self.assertEqual(1, source.count("node.setSize?.([820, 1580])"))
+        self.assertIn("function installDynamicNode(node, newNode = false)", source)
+        self.assertIn("if (newNode && (!Array.isArray(node.size) || node.size[0] < 420))", source)
+        self.assertIn("overflow-y:scroll", source)
+        self.assertIn("scrollbar-gutter:stable", source)
+        self.assertIn("getHeight: () => panelHeight(node) + PANEL_WIDGET_GAP", source)
+        self.assertIn("installPanelResizeTracking(node)", source)
+        self.assertIn("The slot canvas follows the node height", source)
+        self.assertIn("getMinHeight: () => PANEL_MIN_HEIGHT + PANEL_WIDGET_GAP", source)
+        self.assertIn("compact: 450", source)
+        self.assertIn("comfortable: 520", source)
+        self.assertIn("roomy: 600", source)
         self.assertNotIn("Math.max(Number(oldSize[0])", source)
         self.assertNotIn("Math.max(Number(node.size?.[0])", source)
+
+    def test_prompt_stack_exposes_repeatable_reorderable_slot_controls(self) -> None:
+        source = (ROOT / "web/nova_prompt_stack_aio.js").read_text(encoding="utf-8")
+
+        for marker in (
+            '"+ Add Slot"',
+            '"Collapse All"',
+            '"Expand All"',
+            '"Refresh Folders + Files + Categories + Entries"',
+            '"Clear Searches"',
+            '"Browse Medium Styles"',
+            '"file_path"',
+            '"category"',
+            '"search"',
+            '"selection"',
+            '"Up"',
+            '"Down"',
+            '"Copy"',
+            '"Remove"',
+            'widget(node, "slots_json")',
+            "preserveBackendWidgetOrder(node)",
+            "legacyState(node)",
+            'const ALL_FOLDERS = "All folders"',
+            "folder_search",
+            "setFileOptions",
+            "selectionSummary(slot)",
+            "container-type:inline-size",
+            'node.__novoAIORenderer === "native"',
+            'addNativeControl(node, "combo"',
+            "onConfigure",
+            "onGraphConfigured",
+        ):
+            self.assertIn(marker, source)
+
+        self.assertIn('item.options.serialize = false', source)
+        self.assertIn('node.__novoAIORenderer ||= typeof node.addDOMWidget === "function" ? "dom" : "native"', source)
+
+    def test_prompt_stack_persists_collapse_and_panel_size_in_slots_transport(self) -> None:
+        source = (ROOT / "web/nova_prompt_stack_aio.js").read_text(encoding="utf-8")
+
+        self.assertIn("version: 2", source)
+        self.assertIn("ui: { panel_size:", source)
+        self.assertIn('collapsed: Object.prototype.hasOwnProperty.call', source)
+        self.assertIn('collapsed: false', source)  # Newly added slots start expanded.
 
     def test_memory_manager_width_is_capped_after_comfy_size_calculation(self) -> None:
         source = (ROOT / "web/memory_manager_compact.js").read_text(encoding="utf-8")

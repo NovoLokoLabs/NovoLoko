@@ -1,0 +1,13 @@
+index,name,prompt
+1,Clean,Use radio-clean language with no profanity while preserving intensity through imagery and rhythm.
+2,Mostly Clean,Allow mild language sparingly but keep the lyric broadly radio-safe.
+3,Moderate,Use occasional strong language only where it improves character and impact.
+4,Explicit,"Actively use natural strong profanity and raw slang at several high-impact moments when the genre and character support it; do not merely permit or imply explicit language."
+5,Very Explicit,"Require frequent natural profanity, sexual or adult language, and unmistakably explicit phrasing throughout the fictional lyric when stylistically appropriate; keep it purposeful rather than filler swearing."
+6,Family Friendly,Apply a Family Friendly language policy consistently while keeping the requested emotional and genre intensity.
+7,Clean but Intense,Apply a Clean but Intense language policy consistently while keeping the requested emotional and genre intensity.
+8,Radio Edit,Apply a Radio Edit language policy consistently while keeping the requested emotional and genre intensity.
+9,Uncensored,"Write without radio-edit restraint: actively use frequent natural profanity, sexual or adult language, raw slang, and explicit phrasing that fits the fictional voice even when the short idea contains no profanity."
+10,Comedic Explicit,"Actively use bold profanity, bawdy adult humour, outrageous double meanings, and explicit punchlines while keeping the jokes coherent and character-driven."
+11,Dark Mature,"Use mature adult language, disturbing emotional detail, and occasional strong profanity where it deepens the fictional story; prioritise gravity over shock-for-shock's-sake."
+12,Instrumental,Use no lyrical words or vocal phrases; the lyrics path should emit only [Instrumental] if it remains enabled.

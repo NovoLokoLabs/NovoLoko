@@ -1,0 +1,10 @@
+name,prompt
+Locked Tripod Shot,"Use a locked tripod camera with no pan, tilt, zoom, roll, shake, reframing, or focal-length change."
+Slow Cinematic Push In,"Move the camera in one slow smooth push toward <Subject 1>, keeping the horizon level and the subject centred without acceleration."
+Slow Pull Back Reveal,"Move the camera in one smooth pull back that gradually reveals the environment while preserving perspective and screen direction."
+Full 360 Degree Orbit,"Perform one smooth full 360-degree orbit around <Subject 1> at constant radius, speed, height, and focal length."
+Gentle 180 Degree Arc,"Move through one gentle 180-degree arc around <Subject 1> with constant distance, level horizon, and continuous screen direction."
+Side Tracking Shot,"Track beside <Subject 1> at matching speed with stable framing, constant camera height, and no unwanted orbit or zoom."
+Low-to-Eye-Level Rise,"Raise the camera smoothly from a restrained low angle to eye level without tilting the horizon or changing subject identity."
+Handheld Documentary Light,"Use restrained documentary-style handheld movement with subtle human drift only, avoiding harsh shake, rolling shutter, or sudden reframing."
+Macro Detail to Medium,"Begin on a clearly defined close detail and pull focus and framing smoothly to a stable medium shot without a jump cut."

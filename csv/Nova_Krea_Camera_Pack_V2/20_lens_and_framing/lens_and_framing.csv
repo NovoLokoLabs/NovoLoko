@@ -1,0 +1,6 @@
+index,name,prompt,negative_prompt,category,weight,favorite
+96,24mm Environmental,"24mm environmental framing, subject integrated with scene, restrained edge distortion","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark, fisheye distortion, stretched face",Lens and Framing,1.00,false
+97,35mm Full-Body,"35mm natural full-body perspective, comfortable edge clearance, coherent environment","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark, cropped feet",Lens and Framing,1.10,true
+98,50mm Natural,"50mm natural perspective, balanced subject and background, lifelike facial proportions","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Lens and Framing,1.00,false
+99,85mm Beauty,"85mm beauty portrait compression, flattering face geometry, soft clean background","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark, flat featureless face",Lens and Framing,1.00,false
+100,100mm Macro,"100mm macro-style detail framing, precise texture, narrow controlled focus plane","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Lens and Framing,1.00,false

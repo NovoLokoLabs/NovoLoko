@@ -29,6 +29,8 @@ const DEFAULTS = Object.freeze({
     subtitleY: 76,
     loop: false,
     slideshow: false,
+    imageSlideshow: false,
+    imageSlideInterval: 5,
     shuffle: false,
     slideDelay: 0,
     playbackRate: 1,
@@ -128,6 +130,15 @@ function audioUrl(filename, mediaFolder = "Default") {
         t: String(Date.now()),
     });
     return apiUrl(`/nova_voice/audio/file?${query.toString()}`);
+}
+
+function imageUrl(filename, mediaFolder = "Default") {
+    const query = new URLSearchParams({
+        filename: String(filename || ""),
+        folder: String(mediaFolder || "Default"),
+        t: String(Date.now()),
+    });
+    return apiUrl(`/nova_voice/image/file?${query.toString()}`);
 }
 
 function notify(message, severity = "info") {
@@ -250,6 +261,7 @@ function createStudio(viewer) {
     let attachedNode = null;
     let attachedOriginalAudio = null;
     let silentSlideTimer = 0;
+    let imageSlideshowTimer = 0;
     let pendingGeneration = null;
 
     const options = document.createElement("div");
@@ -426,6 +438,19 @@ function createStudio(viewer) {
 
     const loopButton = makeButton("Loop", "Repeat the current voice entry");
     const slideshowButton = makeButton("Slideshow", "Advance through history. With Autoplay Off it advances silently.");
+    const imageSlideshowButton = makeButton(
+        `Image Slideshow ${state.imageSlideshow ? "On" : "Off"}`,
+        "Advance through images at a fixed interval without playing audio",
+    );
+    const imageIntervalSelect = makeSelect(
+        ["2 sec", "3 sec", "5 sec", "10 sec", "15 sec", "30 sec"],
+        `${Number(state.imageSlideInterval || 5)} sec`,
+        "Image-only slideshow interval",
+    );
+    if (![...imageIntervalSelect.options].some((entry) => entry.value === imageIntervalSelect.value)) {
+        imageIntervalSelect.value = "5 sec";
+        state.imageSlideInterval = 5;
+    }
     const shuffleButton = makeButton("Shuffle", "Choose a random history entry during slideshow and when using Next / Previous");
     const speedSelect = makeSelect(["0.75×", "1×", "1.25×", "1.5×", "2×"], `${Number(state.playbackRate || 1)}×`, "Playback speed");
     if (![...speedSelect.options].some((entry) => entry.value === speedSelect.value)) speedSelect.value = "1×";
@@ -436,6 +461,8 @@ function createStudio(viewer) {
     const openAudio = makeButton("Audio Folder", "Open NovoLokoVoice/Audio");
     const openImages = makeButton("Image Folder", "Open NovoLokoVoice/Audio/Images");
     const revealCurrent = makeButton("Reveal Current", "Reveal the current audio file in Explorer/Finder");
+    const copyCurrentImageButton = makeButton("Copy Current Image", "Copy the currently displayed history image to the clipboard");
+    const revealCurrentImageButton = makeButton("Open Current Image in Folder", "Reveal the currently displayed history image in Explorer/Finder");
     const revoiceCurrent = makeButton("Revoice Current", "Create new speech while reusing the exact stored images and prompt");
     const deleteCurrent = makeButton("Delete Current", "Delete the selected Media Studio entry and unshared managed files");
 
@@ -445,6 +472,8 @@ function createStudio(viewer) {
         timeLabel,
         loopButton,
         slideshowButton,
+        imageSlideshowButton,
+        compactLabel("Image interval", imageIntervalSelect),
         shuffleButton,
         speedSelect,
         delaySelect,
@@ -454,6 +483,8 @@ function createStudio(viewer) {
         openAudio,
         openImages,
         revealCurrent,
+        copyCurrentImageButton,
+        revealCurrentImageButton,
         revoiceCurrent,
         deleteCurrent,
     );
@@ -672,10 +703,12 @@ function createStudio(viewer) {
         setButtonState(subtitleStyleButton, subtitleStylePanel.style.display !== "none");
         setButtonState(loopButton, state.loop);
         setButtonState(slideshowButton, state.slideshow);
+        setButtonState(imageSlideshowButton, state.imageSlideshow);
         setButtonState(shuffleButton, state.shuffle);
         setButtonState(autoplayButton, state.autoplayEnabled);
         setButtonState(followNewButton, state.followNewGeneration);
         autoplayButton.textContent = `Autoplay ${state.autoplayEnabled ? "On" : "Off"}`;
+        imageSlideshowButton.textContent = `Image Slideshow ${state.imageSlideshow ? "On" : "Off"}`;
         followNewButton.textContent = `Follow New Runs ${state.followNewGeneration ? "On" : "Off"}`;
         autoplayAfter.disabled = !state.autoplayEnabled;
         autoplayAfter.style.opacity = state.autoplayEnabled ? "1" : ".48";
@@ -904,7 +937,7 @@ function createStudio(viewer) {
     }
 
     async function playAudio(showNotice = true) {
-        if (!audio.src) return;
+        if (state.imageSlideshow || !audio.src) return;
         pauseOtherNovaAudio();
         try {
             await audio.play();
@@ -917,14 +950,16 @@ function createStudio(viewer) {
     }
 
     function updateAudioButtons() {
-        audio.loop = Boolean(state.loop && !state.slideshow);
+        audio.loop = Boolean(state.loop && !state.slideshow && !state.imageSlideshow);
         audio.playbackRate = Number(state.playbackRate || 1);
         setButtonState(loopButton, state.loop);
         setButtonState(slideshowButton, state.slideshow);
+        setButtonState(imageSlideshowButton, state.imageSlideshow);
         setButtonState(shuffleButton, state.shuffle);
         setButtonState(autoplayButton, state.autoplayEnabled);
         setButtonState(followNewButton, state.followNewGeneration);
         autoplayButton.textContent = `Autoplay ${state.autoplayEnabled ? "On" : "Off"}`;
+        imageSlideshowButton.textContent = `Image Slideshow ${state.imageSlideshow ? "On" : "Off"}`;
         followNewButton.textContent = `Follow New Runs ${state.followNewGeneration ? "On" : "Off"}`;
         autoplayAfter.disabled = !state.autoplayEnabled;
         autoplayAfter.style.opacity = state.autoplayEnabled ? "1" : ".48";
@@ -976,6 +1011,20 @@ function createStudio(viewer) {
         }, (displaySeconds + Math.max(0, Number(state.slideDelay || 0))) * 1000);
     }
 
+    function scheduleImageSlide() {
+        clearTimeout(imageSlideshowTimer);
+        if (!state.imageSlideshow) return;
+        const node = activeHistoryNode();
+        const items = node?.__novaHistoryItems || [];
+        if (items.length < 2) return;
+        const seconds = Math.max(1, Number(state.imageSlideInterval || 5));
+        imageSlideshowTimer = setTimeout(() => {
+            if (!state.imageSlideshow) return;
+            const nextIndex = nextSlideshowIndex();
+            if (nextIndex >= 0) navigateToIndex(nextIndex, false);
+        }, seconds * 1000);
+    }
+
     function loadItemAudio(item, playNow = false, carryTime = 0) {
         const filename = String(item?.filename || "").trim();
         const imageOnly = Boolean(item?.media_only || item?.has_audio === false);
@@ -990,7 +1039,7 @@ function createStudio(viewer) {
             delete audio.dataset.mediaFolder;
             delete audio.dataset.sourceKind;
             audio.load?.();
-            audioDock.style.display = imageOnly ? "none" : "";
+            audioDock.style.display = "";
             audioCaption.textContent = imageOnly
                 ? "Image-only gallery entry"
                 : "No audio stored for this entry";
@@ -1080,6 +1129,17 @@ function createStudio(viewer) {
         return String(folderWidget?.value || "Default").trim() || "Default";
     }
 
+    function activeHistoryImage(item = activeHistoryItem()) {
+        const first = String(item?.image_first_filename || "").trim();
+        const second = String(item?.image_second_filename || "").trim();
+        const savedSelection = String(item?.image_filename || "").trim();
+        const passChoice = String(viewer.state?.passChoice || item?.preview_image || "").toLowerCase();
+
+        if (passChoice.startsWith("first")) return first || second || savedSelection;
+        if (passChoice.startsWith("second")) return second || first || savedSelection;
+        return savedSelection || second || first;
+    }
+
     function nextSlideshowIndex() {
         const node = activeHistoryNode();
         const items = node?.__novaHistoryItems || [];
@@ -1147,9 +1207,9 @@ function createStudio(viewer) {
         navigateToIndex(index, Boolean(state.autoplayEnabled));
     }, true);
 
-    async function folderAction(kind, reveal = false) {
+    async function folderAction(kind, reveal = false, filenameOverride = "") {
         const item = activeHistoryItem() || {};
-        const filename = reveal ? String(item.filename || "") : "";
+        const filename = reveal ? String(filenameOverride || item.filename || "") : "";
         const mediaFolder = activeMediaFolder(item);
         try {
             const response = await api.fetchApi("/nova_voice/open_folder", {
@@ -1161,6 +1221,44 @@ function createStudio(viewer) {
             if (!response.ok || !data.ok) throw new Error(data.error || "Folder could not be opened.");
         } catch (error) {
             notify(error?.message || String(error), "error");
+        }
+    }
+
+    async function copyCurrentImage() {
+        const item = activeHistoryItem() || {};
+        const filename = activeHistoryImage(item);
+        if (!filename) {
+            notify("No image is stored for the current history entry.", "error");
+            return;
+        }
+        if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+            notify("Image clipboard access is not available in this frontend.", "error");
+            return;
+        }
+
+        try {
+            const response = await fetch(imageUrl(filename, activeMediaFolder(item)), { cache: "no-store" });
+            if (!response.ok) throw new Error("The current image could not be loaded.");
+            const sourceBlob = await response.blob();
+            let pngBlob = sourceBlob;
+            if (sourceBlob.type !== "image/png") {
+                const bitmap = await createImageBitmap(sourceBlob);
+                const canvas = document.createElement("canvas");
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+                bitmap.close?.();
+                pngBlob = await new Promise((resolve, reject) => {
+                    canvas.toBlob(
+                        (blob) => blob ? resolve(blob) : reject(new Error("The current image could not be converted for the clipboard.")),
+                        "image/png",
+                    );
+                });
+            }
+            await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
+            notify("Current image copied.");
+        } catch (error) {
+            notify(error?.message || "The current image could not be copied.", "error");
         }
     }
 
@@ -1322,6 +1420,9 @@ function createStudio(viewer) {
     }
 
     function resetStudio() {
+        clearTimeout(slideshowTimer);
+        clearTimeout(silentSlideTimer);
+        clearTimeout(imageSlideshowTimer);
         Object.assign(state, { ...DEFAULTS });
         themeSelect.value = state.theme;
         backgroundSelect.value = state.background;
@@ -1332,6 +1433,7 @@ function createStudio(viewer) {
         promptMode.value = state.promptMode;
         speedSelect.value = "1×";
         delaySelect.value = "0 sec";
+        imageIntervalSelect.value = `${state.imageSlideInterval} sec`;
         autoplayAfter.value = state.autoplayAfter;
         audio.volume = 1;
         setPromptVisible(false, false);
@@ -1454,20 +1556,49 @@ function createStudio(viewer) {
 
     loopButton.addEventListener("click", () => {
         state.loop = !state.loop;
-        if (state.loop) state.slideshow = false;
+        if (state.loop) {
+            state.slideshow = false;
+            state.imageSlideshow = false;
+            clearTimeout(imageSlideshowTimer);
+        }
         syncNodeLoop();
         persist();
         updateAudioButtons();
     });
     slideshowButton.addEventListener("click", () => {
         state.slideshow = !state.slideshow;
-        if (state.slideshow) state.loop = false;
+        if (state.slideshow) {
+            state.loop = false;
+            state.imageSlideshow = false;
+            clearTimeout(imageSlideshowTimer);
+        }
         clearTimeout(slideshowTimer);
         clearTimeout(silentSlideTimer);
         syncNodeLoop();
         persist();
         updateAudioButtons();
         if (state.slideshow && audio.paused) scheduleSilentSlide(activeHistoryItem());
+    });
+    imageSlideshowButton.addEventListener("click", () => {
+        state.imageSlideshow = !state.imageSlideshow;
+        clearTimeout(imageSlideshowTimer);
+        if (state.imageSlideshow) {
+            state.loop = false;
+            state.slideshow = false;
+            clearTimeout(slideshowTimer);
+            clearTimeout(silentSlideTimer);
+            audio.pause();
+            pauseOtherNovaAudio();
+        }
+        syncNodeLoop();
+        persist();
+        updateAudioButtons();
+        scheduleImageSlide();
+    });
+    imageIntervalSelect.addEventListener("change", () => {
+        state.imageSlideInterval = Number(imageIntervalSelect.value.replace(" sec", "")) || 5;
+        persist();
+        scheduleImageSlide();
     });
     shuffleButton.addEventListener("click", () => {
         state.shuffle = !state.shuffle;
@@ -1515,6 +1646,15 @@ function createStudio(viewer) {
     openAudio.addEventListener("click", () => folderAction("audio", false));
     openImages.addEventListener("click", () => folderAction("images", false));
     revealCurrent.addEventListener("click", () => folderAction("audio", true));
+    copyCurrentImageButton.addEventListener("click", copyCurrentImage);
+    revealCurrentImageButton.addEventListener("click", () => {
+        const filename = activeHistoryImage();
+        if (!filename) {
+            notify("No image is stored for the current history entry.", "error");
+            return;
+        }
+        folderAction("images", true, filename);
+    });
     deleteCurrent.addEventListener("click", deleteCurrentEntry);
     revoiceCurrent.addEventListener("click", openRevoicePanel);
     revoiceEngine.addEventListener("change", updateRevoiceFields);
@@ -1522,7 +1662,13 @@ function createStudio(viewer) {
     generateRevoice.addEventListener("click", generateRevoiceEntry);
     cancelRevoice.addEventListener("click", cancelRevoiceEntry);
 
-    audio.addEventListener("play", pauseOtherNovaAudio);
+    audio.addEventListener("play", () => {
+        if (state.imageSlideshow) {
+            audio.pause();
+            return;
+        }
+        pauseOtherNovaAudio();
+    });
     audio.addEventListener("volumechange", () => {
         state.volume = audio.volume;
         saveSettings(state);
@@ -1619,6 +1765,7 @@ function createStudio(viewer) {
         // Master Autoplay Off also applies to manual history changes.
         // Manual browsing may select audio, but it must remain paused.
         loadItemAudio(detail.item, Boolean(detail.playNow && state.autoplayEnabled));
+        scheduleImageSlide();
         queueMicrotask(() => {
             updatePrompt();
             if (overlay.style.display !== "none") updateLayout(false);
@@ -1644,7 +1791,11 @@ function createStudio(viewer) {
         pendingGeneration = null;
         clearTimeout(slideshowTimer);
         clearTimeout(silentSlideTimer);
-        if (state.followNewGeneration) state.slideshow = false;
+        clearTimeout(imageSlideshowTimer);
+        if (state.followNewGeneration) {
+            state.slideshow = false;
+            state.imageSlideshow = false;
+        }
         updateAudioButtons();
         persist();
         stopNodeAudio();
@@ -1678,6 +1829,7 @@ function createStudio(viewer) {
         const key = event.key.toLowerCase();
         if (event.code === "Space") {
             event.preventDefault();
+            if (state.imageSlideshow) return;
             if (audio.paused) playAudio(false);
             else audio.pause();
         } else if (key === "q") {
@@ -1752,6 +1904,7 @@ function createStudio(viewer) {
         updatePrompt();
         applyTheme();
         updateAudioButtons();
+        scheduleImageSlide();
         updateLayout(true);
         cancelAnimationFrame(subtitleFrame);
         subtitleFrame = requestAnimationFrame(subtitleTick);

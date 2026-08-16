@@ -1,0 +1,9 @@
+﻿index,name,prompt,negative_prompt,category,weight,favorite
+1,No Dialogue,No dialogue or narration.,,Audio,1,
+2,Quiet Room Tone,Use subtle room tone only with no prominent diegetic sounds.,,Audio,1,
+3,Fashion Electronic,Use a polished electronic fashion soundtrack with clean rhythm and restrained energy.,,Audio,1,
+4,Cinematic Ambient,Use a cinematic ambient score with soft textures and slow emotional movement.,,Audio,1,
+5,Neo-Classical Electronica,"Use neo-classical electronica with elegant strings, airy synth textures, and refined rhythm.",,Audio,1,
+6,Deep Atmospheric Bass,Use deep atmospheric bass with smooth cinematic pulse and restrained luxurious tone.,,Audio,1,
+7,Epic Orchestral,Use an epic orchestral film score with sweeping cinematic emotion and powerful momentum.,,Audio,1,
+8,Music Timed to Visual Beats,"Synchronize the music accents to important visual changes, reveals, or camera landmarks.",,Audio,1,

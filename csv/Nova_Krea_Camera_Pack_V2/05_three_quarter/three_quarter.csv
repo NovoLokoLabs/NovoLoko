@@ -1,0 +1,6 @@
+index,name,prompt,negative_prompt,category,weight,favorite
+21,Classic Knee-Up,"classic knee-up three-quarter framing, hands visible, face sharp, outfit readable from head to knee","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Three-Quarter,1.00,false
+22,Long Three-Quarter Fashion,"long three-quarter fashion framing from head to mid-calf, flattering proportions, clear garment shape","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Three-Quarter,1.00,false
+23,Three-Quarter Turn,"three-quarter body turn, face toward camera, shoulders and hips clearly articulated","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Three-Quarter,1.00,false
+24,Seated Three-Quarter,"seated three-quarter portrait, knees and hands included, clean pose readability","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Three-Quarter,1.00,false
+25,Three-Quarter Face Priority,"three-quarter body composition with face as sharp visual anchor, body and outfit remain readable","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark, soft eyes",Three-Quarter,1.10,true

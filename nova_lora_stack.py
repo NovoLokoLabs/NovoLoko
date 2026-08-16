@@ -195,7 +195,7 @@ class NovaGroupController:
 def _headers() -> dict[str, str]:
     headers = {
         "Accept": "application/json",
-        "User-Agent": "NovoLoko/4.0.0",
+            "User-Agent": "NovoLoko/4.4.0",
     }
     token = os.environ.get("CIVITAI_API_TOKEN", "").strip()
     if token:

@@ -40,7 +40,7 @@ except ImportError:
         style_key as _preview_style_key,
     )
 
-NOVA_VERSION = "4.0.0"
+NOVA_VERSION = "4.6.3"
 
 try:
     import folder_paths

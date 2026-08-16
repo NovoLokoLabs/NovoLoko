@@ -61,7 +61,7 @@ const DEFAULT_GUIDE_BODY = `NOVOLOKO AIO WORKFLOW GUIDE
 - Prompt Stack AIO Pro combines Medium, Subject, Pose, Action, Clothing, Location and Character.
 - Each Prompt Stack slot has its own file, category, search and selection control.
 - all_slots_enabled turns the complete stack on or off without disconnecting it.
-- all_names includes the manual prompt and selected entry names for notes or display.
+- all_names includes only selected entry names, one per line, in visible enabled-slot order.
 - Browse Medium styles visually opens the style viewer. CSV and YAML files can be refreshed.
 - Prompt Source chooses Manual, Enhanced, Stack, or Stack + Enhanced for the generation.
 
@@ -95,6 +95,7 @@ const DEFAULT_GUIDE_BODY = `NOVOLOKO AIO WORKFLOW GUIDE
 - Use Image Folder or the configured media folder to organise different projects.
 - filename_prefix controls the generated filename inside the selected media folder.
 - Copy prompt and Copy seed reproduce the selected history item more easily.
+- Set A and Set B mark an audio segment; A-B On repeats only that segment until cleared or another entry is selected.
 - Autoplay, slideshow, shuffle and Follow New Runs control how new results are presented.
 
 11. VOICE AND OMNILOKO

@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v4.0.0
+# ComfyUI-NovoLoko v4.6.3
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -24,9 +24,106 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 
 - `NovoLoko AIO v4.0.0.json` — the current complete workflow with the seven-slot prompt stack, Power LoRA Stack, Group Controller, presentation banner and cheat sheet, unified voice selector, enhancer, two-pass generation, Compare Studio, metadata, Media Studio, timer and memory tools.
 - `NovoLoko Compare Studio v4.0.0.json` — minimal image comparison example with theme-aware node chrome.
+- `NovoLoko MiniMax Music 3 - Lab v4.6.3.json` — the current unified Music Lab hotfix with responsive classic/Nodes 2.0 controls, exact artist names, next-run seed status and enforced explicitness.
+- `NovoLoko MiniMax Music 3 - Writer A-B v4.6.1.json` — a separate Music Lab copy using the optional local Ollama/GGUF writer loader; change only its FAST/BALANCED/GEMMA alias for controlled comparisons.
 
-The v4.0.0 frontend keeps legacy LiteGraph and Nodes 2.0 behavior aligned while
-preserving serialized node IDs, sockets, widgets, links and prompt text.
+The v4.6.3 corrective patch keeps the 620x760 default and 420x480 minimum while
+using the DOM widget's actual allocated body height in legacy/classic and Nodes
+2.0. The category list gains room as the node grows, drops its scrollbar when
+all rows fit, then grows SONG IDEA to its useful cap. A content-height ceiling
+prevents very tall manual resizing from producing a giant empty region.
+Serialized node IDs, sockets, existing widget order, links and prompt text stay
+compatible.
+
+The MiniMax Music 3 Controls panel is now one growable DOM body in both
+frontends. Its 19-category list scrolls internally, all preserved stock widgets
+are hidden through both visibility systems, and manual node sizes survive tab
+changes, collapse/expand and reload. v4.6.1 also adds an optional local
+Ollama/GGUF writer loader and repeatable 3A/3B/3C A/B benchmark; the existing
+Qwen3-VL path and native MiniMax encoder remain unchanged. The Ollama writer
+now discovers local models automatically, displays friendly FAST/BALANCED/GEMMA
+labels with actual aliases, and reports missing recommendations without assuming
+another installation has them.
+
+## MiniMax Music 3 Lab
+
+Load `workflows/NovoLoko MiniMax Music 3 - Lab v4.6.3.json` for the
+complete example. The Music Lab keeps MiniMax Music 3's two text inputs
+deliberately separate. `NovoLoko Lyrics Generator` produces structured tagged
+lyrics, while `NovoLoko Music Caption Enhancer` produces only the three-part
+music caption. They join only at ComfyUI's `MiniMaxMusic3TextEncode` node.
+
+`NovoLoko MiniMax Music 3 Controls` now combines the editable song idea with 19
+independent CSV categories and
+765 choices from `csv/music3/`. The preset browser groups 270 current visible built-in presets
+into understandable folders and searches descriptive or artist-reference tags.
+Every category supports a built-in
+choice, **None / No preference**, deterministic **Random**, or **Custom...**
+with its own text field. The compact panel keeps all 19 categories discoverable
+without making the node thousands of pixels tall. The 270 current visible built-in presets
+cover rap, R&B, rock, metal, dance music, bass music, country, folk, reggae,
+Latin, Afrobeat, gospel, jazz, cinematic and experimental styles. User presets
+are saved separately under `ComfyUI/user/novoloko/music3/`, so package updates
+do not erase them. The
+`selected_options` output records the effective preset, seed and every resolved
+choice—including None, Custom and Random resolution—so batched songs remain
+transparent and reproducible. See
+`README_MINIMAX_MUSIC3.md` for the short workflow guide.
+
+Every suitable artist reference appears as `Artist — Clone` and
+`Artist — Like`. Clone strongly locks descriptive era, vocal, instrument/tone,
+drum, tempo, arrangement, dynamics, hook and mix DNA; Like preserves the broad
+recognisable lane with more freedom. Artist names are search/audit labels only
+and are not sent in lyric or music-caption generation prompts. Changing one of
+the 19 controls records a targeted override instead of flattening the rest of
+the reference; the batch report shows mode, strength, traits and overrides.
+
+The panel uses plain-English control labels and gives every selected value a
+one-line explanation, including every control below the original visible fold.
+Very Explicit and Uncensored carry a non-negotiable prompt instruction from the
+resolved control through the lyric enhancer. If the first writer draft is still
+clean, it is retried once with the selected language policy; cleaner levels
+remain distinct and fictional-content safeguards stay intact.
+
+The 102 named artists each expose exact `Artist — Clone` and `Artist — Like`
+selector names, including Måneskin and Counting Crows. Search matches the artist
+name while generated lyric/caption prompts continue to receive descriptive DNA,
+not artist names.
+
+The preset randomizer can choose one complete named preset from all presets,
+one preset folder, or one genre, using the Controls seed. The saver supports
+24-bit WAV plus FFmpeg-backed FLAC, 320 kbps MP3 and OGG.
+**Next run seed: Randomize after each run** means run N uses the current seed;
+after successful completion the field reports the new seed that run N+1 will
+use. No dummy run is needed, the 19 settings are untouched, and recipe v2
+records the compatible `Randomize Seed` policy. Duration targets step from about 1:30 through
+5:00; the long target expands the writer section plan while acknowledging that
+MiniMax may finish early.
+
+`NovoLoko Save Audio + Prompt Metadata` is the terminal Music 3 output node. It
+saves duplicate-safe matched 24-bit WAV/TXT/JSON sets under
+`output/audio/NovoLoko/`, sanitizes Windows filenames, embeds compact WAV tags,
+and records the actual connected idea, selection report, lyrics, caption,
+models, seeds and generation settings for each batch item. Optional model/CUDA
+cleanup runs only after the complete save-node batch and is off by default.
+
+`NovoLoko Audio Library / Player` refreshes after the saver and defaults to
+`output/audio/NovoLoko/`. It provides auto-play-new, play/pause, previous/next,
+10-second skips, seek/time, volume/mute, repeat off/one/all, shuffle, search,
+sort, folder browsing, format/duration/sample-rate/size details, and MP3/WAV/
+FLAC/OGG playback. Paired rename keeps `.txt` and `.json` sidecars aligned;
+delete confirmation moves the set into a recoverable `NovoLoko_Trash` folder.
+Favorites use a small persistent sidecar index rather than audio mutation, with
+Favorites Only and Favorites First views. Lyrics height is adjustable. One-off
+and Batch lifecycle modes make cleanup-versus-reuse intent explicit while old
+cleanup widgets remain compatible.
+Tracks with matched NovoLoko JSON sidecars also expose **Load Track Recipe**,
+which restores the original idea, exact saved 19-category choices, None/Custom
+resolutions, random policy and integer seed into the nearest unified Music
+Controls node without queuing a run. **Show Lyrics**
+loads the matched final lyrics, while **Estimated Karaoke** highlights lines by
+track progress when real word timestamps are unavailable. Resizing the node or
+starting a new generation no longer stops an active visualizer loop.
 
 ## Main nodes
 
@@ -88,7 +185,9 @@ the NovoLoko banner, dependency list and workflow usage guide.
 
 Generation Timer includes 498 organized WAV/MP3 completion sounds under
 `data/NovoLokoTimerSounds/`. The timer scans every packaged subfolder and also
-accepts user-added supported sounds there.
+accepts user-added supported sounds there. Fresh nodes default to Full Stats,
+5 px corners, 20-run averages, all status/stat fields visible, glow off, and the
+packaged `008 - Cash.mp3` sound at volume 35.
 
 Optional media tools include Voice Prompt, the compact NovoLoko Voice TTS selector, individual Kokoro and OmniLoko TTS compatibility nodes, Autoplay Trigger, Media Studio and Kokoro Text Bridge.
 
@@ -112,7 +211,19 @@ The latest workflow uses:
 - `csv/locations/novoloko_locations_expanded_global_3846.csv`
 - `csv/characters/novoloko_characters_master_3200.csv`
 
-Prompt Stack AIO now keeps Subject independent from Character and composes in this logical order: Medium, Subject, Pose, Action, Clothing, Location, Character, then Manual Prompt. Focused animal, real-car, fantasy and horror subject libraries are included alongside expanded automotive, animal, fantasy/horror action packs and a 1,500-entry variety location library.
+Prompt Stack AIO Pro now uses a repeatable slot list. Use **+ Add Slot** for as
+many library selections as needed, then move, copy, remove, disable, rename or
+collapse individual slots. **Collapse All** and **Expand All** operate inside a
+fixed 450/520/600 px scroll panel, so adding 8, 20 or more slots does not grow
+the outer node. Each slot has recursive folder search, a folder-filtered file
+menu, category, entry search and selection controls. Current legacy/classic and
+Nodes 2.0 frontends share the slot-card panel; older frontends without DOM-widget
+support receive native controls backed by the same saved state. Slot order is
+the prompt order. Existing fixed Medium,
+Subject, Pose, Action, Clothing, Location and Character workflow values migrate
+into cards automatically. `all_names` contains only resolved selected entry
+names, one name per line; it never includes manual prompt text or slot metadata.
+See `README_DYNAMIC_PROMPT_STACK.md` for the short workflow guide.
 
 ## Repeatable Prompt Enhancer output
 

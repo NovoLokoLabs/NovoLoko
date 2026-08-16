@@ -10,6 +10,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class TextDisplayFrontendRuntimeTests(unittest.TestCase):
+    def test_selected_text_scrolls_internally_and_unselected_wheel_reaches_canvas(self) -> None:
+        source = (ROOT / "web" / "nova_core_nodes.js").read_text(encoding="utf-8")
+        start = source.index("function installTextDisplayDOM(node)")
+        end = source.index("function installTextDisplay(node)", start)
+        display_dom = source[start:end]
+
+        self.assertIn(
+            "installLegacyGraphNavigation(root, { nativeWheelWhen: textOwnsWheel });",
+            display_dom,
+        )
+        self.assertIn('content.addEventListener("wheel"', display_dom)
+        self.assertIn("if (!textOwnsWheel()) return;", display_dom)
+        self.assertIn("content.scrollTop += delta;", display_dom)
+        self.assertIn("event.preventDefault();", display_dom)
+        self.assertIn("event.stopImmediatePropagation();", display_dom)
+        self.assertIn("{ passive: false, signal: controller.signal }", display_dom)
+        self.assertNotIn("installTextWheelCapture", source)
+        self.assertIn('"overflow-y:scroll"', display_dom)
+        self.assertIn('"scrollbar-gutter:stable"', display_dom)
+        self.assertIn('"user-select:text"', display_dom)
+        self.assertIn("event.button === 1", display_dom)
+
     def test_nodes2_mount_restore_and_counter_state_execute_in_node(self) -> None:
         node = shutil.which("node")
         self.assertIsNotNone(

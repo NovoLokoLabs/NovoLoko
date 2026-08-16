@@ -1,0 +1,11 @@
+﻿index,name,prompt,negative_prompt,category,weight,favorite
+1,Static Locked Camera,"Use a static locked camera with no drift, no shake, and no reframing.",,Safe Camera,1,
+2,Slow Push In,Use a slow smooth push-in toward <Subject 1> with stable motion and clear readable framing.,,Safe Camera,1,
+3,Slow Pull Out,Use a slow smooth pull-out from <Subject 1> with stable motion and clear readable framing.,,Safe Camera,1,
+4,Arc Left,Use a slow smooth arc to the left around <Subject 1> while keeping the subject centered and readable.,,Safe Camera,1,
+5,Arc Right,Use a slow smooth arc to the right around <Subject 1> while keeping the subject centered and readable.,,Safe Camera,1,
+6,Full 360 Orbit,Use a slow smooth continuous full 360-degree orbit around <Subject 1> and return to the starting angle.,,Safe Camera,1,
+7,Tilt Up,Use a slow upward tilt from the lower body toward the head while keeping <Subject 1> as the focus.,,Safe Camera,1,
+8,Tilt Down,Use a slow downward tilt from the head toward the lower body while keeping <Subject 1> as the focus.,,Safe Camera,1,
+9,Tracking Forward,Use a slow forward tracking move that follows <Subject 1> with stable framing.,,Safe Camera,1,
+10,Handheld Light,"Use very subtle handheld micro-movement only, keeping the shot stable and readable.",,Safe Camera,1,

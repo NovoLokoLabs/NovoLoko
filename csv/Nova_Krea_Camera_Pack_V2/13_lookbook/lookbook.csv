@@ -1,0 +1,6 @@
+index,name,prompt,negative_prompt,category,weight,favorite
+61,Clean Front Lookbook,"clean front-view lookbook image, full outfit visible, neutral stance, accurate proportions","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark, dramatic pose, occluded garment",Lookbook,1.10,true
+62,Clean Back Lookbook,"clean back-view lookbook image, hairstyle and garment back details fully visible","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Lookbook,1.00,false
+63,Lookbook Side View,"clean side-view lookbook frame, profile posture, full outfit silhouette and footwear","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Lookbook,1.00,false
+64,Lookbook Three-Quarter,"three-quarter lookbook pose, face clear, garment construction readable, neutral background","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Lookbook,1.00,false
+65,Lookbook Detail and Full Fit,full-fit lookbook framing with key garment details crisp from neckline to shoes,"distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Lookbook,1.00,false
