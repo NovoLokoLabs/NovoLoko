@@ -1,0 +1,9 @@
+name,prompt
+Preserve Source Audio,"Preserve the timing, ambience, dialogue, music, and spatial character of the supplied source audio without unrelated additions."
+Cinematic Ambient Score,"Add a restrained cinematic ambient score with a gradual emotional build, clean dynamics, and no vocals."
+Neo-Classical Electronica,"Add neo-classical electronica with soft piano, warm strings, restrained pulses, and a smooth cinematic progression."
+Deep Atmospheric Pulse,"Add a deep atmospheric pulse with subtle low percussion, evolving texture, and controlled intensity matched to the visual movement."
+Elegant Fashion Soundtrack,"Add a polished fashion-film soundtrack with refined electronic rhythm, clean transitions, and understated energy."
+Natural Location Ambience,"Use realistic location ambience matched to the environment, with coherent distance, perspective, and no distracting foreground sounds."
+Subtle Foley Only,"Use restrained realistic foley for visible movement and contact while keeping the background quiet and free from music."
+No Added Audio,"Generate no new dialogue, music, sound effects, or ambience; keep the visual direction independent of audio."

@@ -1,6 +1,6 @@
 # Start Here — NovoLoko Project
 
-This repository contains the complete **ComfyUI-NovoLoko v4.0.0** custom-node package.
+This repository contains the complete **ComfyUI-NovoLoko v4.6.4** custom-node package.
 
 ## Project goal
 
@@ -22,7 +22,9 @@ Make large ComfyUI workflows easier to build, understand, reproduce, compare, na
 - `nova_core_nodes.py` — enhancer, seed lab, timer, previews, text display, memory manager and concatenate.
 - `nova_workflow.py` — prompt styling, source switching and metadata workflow nodes.
 - `nova_compare.py` — Compare Studio backend.
+- `music3_nodes.py` — MiniMax Music 3 controls, writers, paired saver and Audio Library.
 - `voice_nodes.py` — speech-to-text, Kokoro TTS and Media Studio backend.
+- `docs/MINIMAX_MUSIC3_WRITER_MODELS.md` — Ollama model discovery, benchmark and installed ComfyUI-GGUF findings.
 - `web/` — ComfyUI frontend extensions.
 - `csv/` and `styles/` — included prompt libraries.
 - `workflows/` — current example workflows.
@@ -38,7 +40,7 @@ Audit the project without changing working behavior. Run the validator, identify
 Static checks cannot replace a real ComfyUI launch. A release candidate should also be tested for:
 
 - clean startup with only `ComfyUI-NovoLoko` installed;
-- all 34 nodes appearing once under the NovoLoko menus;
+- all 48 nodes appearing once under the NovoLoko menus;
 - current AIO workflow loading without missing nodes or shifted links;
 - Prompt Enhancer fixed-seed repeatability;
 - CSV/YAML dropdown refresh and favourites;
@@ -46,3 +48,8 @@ Static checks cannot replace a real ComfyUI launch. A release candidate should a
 - Media Studio history and image output;
 - optional voice package absent and present;
 - full ComfyUI Desktop restart after frontend changes.
+- Music Controls classic and Nodes 2.0 at compact/default/tall/very-tall sizes,
+  tab switch, offscreen/viewport re-entry, collapse/expand and serialize/reload;
+- seed-only after-run behavior, old/new recipe restore, favorites persistence,
+  external Seed Lab ownership, explicitness prompt/output proof and saver
+  One-off/Batch lifecycle modes.

@@ -31,7 +31,7 @@ except Exception:
 from .nova_metadata import build_metadata_fields, build_pnginfo
 
 
-NOVA_CORE_VERSION = "4.0.0"
+NOVA_CORE_VERSION = "4.6.4"
 SEED_MAX = 0xFFFFFFFFFFFFFFFF
 
 
@@ -340,7 +340,13 @@ class NovaMemoryManager:
         return {
             "required": {
                 "anything": (ANY,),
-                "mode": (["Light", "Balanced", "Deep", "Custom"], {"default": "Balanced"}),
+                "mode": (
+                    ["Light", "Balanced", "Deep", "Custom", "Fast Batch / Reuse"],
+                    {
+                        "default": "Balanced",
+                        "tooltip": "Fast Batch / Reuse keeps models and caches resident between songs. Switch to Balanced once at the end of the batch.",
+                    },
+                ),
                 "unload_models": ("BOOLEAN", {"default": True}),
                 "clear_vram": ("BOOLEAN", {"default": True}),
                 "collect_python": ("BOOLEAN", {"default": True}),
@@ -391,7 +397,10 @@ class NovaMemoryManager:
         trim_current_process=True,
     ):
         preset = str(mode or "Balanced")
-        if preset == "Light":
+        started = time.perf_counter()
+        if preset == "Fast Batch / Reuse":
+            unload_models, clear_vram, collect_python, trim_current_process = False, False, False, False
+        elif preset == "Light":
             unload_models, clear_vram, collect_python, trim_current_process = False, True, True, False
         elif preset == "Balanced":
             unload_models, clear_vram, collect_python, trim_current_process = True, True, True, False
@@ -433,9 +442,12 @@ class NovaMemoryManager:
 
         after = self._rss_mb()
         freed = max(0.0, before - after) if before and after else 0.0
+        if not notes:
+            notes.append("models and caches kept resident for consecutive songs")
         status = f"NovoLoko Memory {preset}: " + "; ".join(notes)
         if before and after:
             status += f"; RSS {before:.0f} → {after:.0f} MB"
+        status += f"; cleanup stage {time.perf_counter() - started:.3f}s"
         return (anything, status, float(freed))
 
 
@@ -495,6 +507,59 @@ PRESET_DETAIL_OVERRIDES = {
 }
 
 
+PROMPT_TASK_MODES = (
+    "Auto",
+    "Krea2 / Image",
+    "MiniMax H3 Standard",
+    "MiniMax H3 Full Reference",
+    "MiniMax H3 Director",
+)
+
+# Values from the first H3-capable release remain accepted so workflows saved
+# during that release continue to queue even before the frontend migrates them.
+PROMPT_TASK_MODE_ALIASES = {
+    "Auto": "Auto",
+    "Image": "Krea2 / Image",
+    "Krea2 / Image": "Krea2 / Image",
+    "H3 Standard": "MiniMax H3 Standard",
+    "MiniMax H3 Standard": "MiniMax H3 Standard",
+    "H3 Full Reference": "MiniMax H3 Full Reference",
+    "MiniMax H3 Full Reference": "MiniMax H3 Full Reference",
+    "H3 Director": "MiniMax H3 Director",
+    "MiniMax H3 Director": "MiniMax H3 Director",
+}
+
+PROMPT_TASK_MODE_TARGETS = {
+    "Krea2 / Image": "Image",
+    "MiniMax H3 Standard": "H3 Standard",
+    "MiniMax H3 Full Reference": "H3 Full Reference",
+    "MiniMax H3 Director": "H3 Director",
+}
+
+H3_LENGTH_BEHAVIORS: Dict[str, str] = {
+    "Preserve": (
+        "Preserve the source prompt's overall length and level of detail. Do not summarise, "
+        "truncate, collapse, or pad the prompt."
+    ),
+    "Compact": (
+        "Make the prompt more compact only by removing repetition and tightening wording. "
+        "Keep every field, heading, reference label, selected instruction, timing cue, "
+        "continuity requirement, and audio instruction."
+    ),
+    "Detailed": (
+        "Add useful production detail inside the existing structure where it improves clarity, "
+        "chronology, camera language, physical coherence, continuity, or audio direction. "
+        "Do not invent a conflicting subject, event, reference, or story beat."
+    ),
+}
+
+H3_MODE_LABELS = {
+    "H3 Standard": "H3 STANDARD",
+    "H3 Full Reference": "H3 FULL REFERENCE",
+    "H3 Director": "H3 DIRECTOR",
+}
+
+
 class NovaPromptEnhancer:
     """NovoLoko prompt enhancer built directly on ComfyUI's generative CLIP interface."""
 
@@ -502,9 +567,9 @@ class NovaPromptEnhancer:
     _fixed_seed_cache_limit = 32
 
     DESCRIPTION = (
-        "Turns a short idea into one finished image prompt. The node clamps malformed "
-        "or migrated widget values on first run, so older workflows cannot fail because "
-        "creativity, length, seed, or Boolean values loaded outside the current range."
+        "Enhances image prompts and structured MiniMax H3 video prompts. Auto detects H3 "
+        "Standard, Full Reference, or Director prompts and never mixes the image core into "
+        "an H3 request. Older workflow values are still sanitised on first run."
     )
 
     @classmethod
@@ -639,8 +704,33 @@ class NovaPromptEnhancer:
                         "default": "",
                         "multiline": True,
                         "tooltip": (
-                            "Used only when Preset is Custom. The text is saved while another "
-                            "preset is active, but it is not sent to the model until Custom is selected."
+                            "In Image mode this is used only with the Custom preset. In H3 mode "
+                            "it is appended after the H3 preservation core."
+                        ),
+                    },
+                ),
+                # Keep new widget inputs after custom_instructions. This preserves the
+                # serialized widget order used by existing NovoLoko workflows.
+                "task_mode": (
+                    list(PROMPT_TASK_MODES),
+                    {
+                        # Old AIO workflows predate this widget. Default them to
+                        # the original Krea2/image core instead of auto-detecting.
+                        "default": "Krea2 / Image",
+                        "tooltip": (
+                            "Select the model/prompt format being enhanced. Auto detects MiniMax "
+                            "H3 structures; Krea2 / Image preserves the original image core."
+                        ),
+                    },
+                ),
+                "h3_length_behavior": (
+                    list(H3_LENGTH_BEHAVIORS.keys()),
+                    {
+                        "default": "Preserve",
+                        "tooltip": (
+                            "H3 only: Preserve keeps the source length, Compact removes "
+                            "repetition, and Detailed adds useful production detail. Image "
+                            "mode continues to use Length Preset."
                         ),
                     },
                 ),
@@ -659,7 +749,7 @@ class NovaPromptEnhancer:
         return True
 
     @staticmethod
-    def _instruction(idea: str, preset: str, detail_level: str, image_connected: bool, custom: str) -> str:
+    def _image_instruction(idea: str, preset: str, detail_level: str, image_connected: bool, custom: str) -> str:
         rules = PROMPT_PRESETS.get(preset, PROMPT_PRESETS["Faithful Rich Image"])
         effective_detail = PRESET_DETAIL_OVERRIDES.get(preset, detail_level)
         detail = DETAIL_TARGETS.get(effective_detail, DETAIL_TARGETS["Rich"])
@@ -674,11 +764,276 @@ class NovaPromptEnhancer:
             if custom_text else ""
         )
         return (
+            "MODE: IMAGE\n"
             "You are NovoLoko Prompt Enhancer. Produce exactly ONE finished image-generation prompt in flowing natural English. "
             "Output only the prompt: no headings, analysis, bullets, quotes, alternatives or commentary. "
             "Keep the result visually concrete and easy for an image model to parse. "
             f"{rules} {detail} {reference}{custom_block}\n\nRAW IDEA:\n{idea.strip()}"
         )
+
+    @staticmethod
+    def _detect_h3_mode(idea: str) -> str:
+        """Return the most specific H3 mode detected from structural field markers."""
+        text = str(idea or "")
+        director_markers = (
+            r"^\s*SCENE\s+1\b",
+            r"^\s*HANDOFF\s+TO\s+NEXT\s+SCENE\b",
+            r"^\s*CONTINUE\s+FROM\s+PREVIOUS\s+SCENE\b",
+            r"^\s*FINAL\s+SHOT\b",
+        )
+        full_reference_markers = (
+            r"^\s*subject_definitions\s*:",
+            r"^\s*retention_analysis\s*:",
+            r"^\s*detailed_description\s*:",
+        )
+        standard_markers = (
+            r"^\s*integrated_multimodal_description\s*:",
+            r"^\s*overall_soundscape\s*:",
+            r"^\s*non_diegetic_music\s*:",
+        )
+        flags = re.IGNORECASE | re.MULTILINE
+        if any(re.search(pattern, text, flags=flags) for pattern in director_markers):
+            return "H3 Director"
+        if any(re.search(pattern, text, flags=flags) for pattern in full_reference_markers):
+            return "H3 Full Reference"
+        if any(re.search(pattern, text, flags=flags) for pattern in standard_markers):
+            return "H3 Standard"
+        return "Image"
+
+    @classmethod
+    def _resolve_task_mode(cls, idea: str, task_mode: str) -> str:
+        requested = PROMPT_TASK_MODE_ALIASES.get(
+            str(task_mode or "Krea2 / Image"),
+            "Krea2 / Image",
+        )
+        if requested == "Auto":
+            return cls._detect_h3_mode(idea)
+        return PROMPT_TASK_MODE_TARGETS.get(requested, "Image")
+
+    @staticmethod
+    def _h3_instruction(
+        idea: str,
+        resolved_mode: str,
+        h3_length_behavior: str,
+        custom: str,
+    ) -> str:
+        mode_label = H3_MODE_LABELS.get(resolved_mode, "H3 STANDARD")
+        mode_rules = {
+            "H3 Standard": (
+                "Treat this as an H3 Standard prompt. Preserve structured fields such as "
+                "integrated_multimodal_description, overall_soundscape, and non_diegetic_music."
+            ),
+            "H3 Full Reference": (
+                "Treat this as an H3 Full Reference prompt. Preserve subject_definitions, "
+                "retention_analysis, detailed_description, identity anchors, and all reference "
+                "retention requirements."
+            ),
+            "H3 Director": (
+                "Treat this as an H3 Director sequence. Preserve every scene heading and beat, "
+                "including SCENE sections, CONTINUE FROM PREVIOUS SCENE, HANDOFF TO NEXT SCENE, "
+                "and FINAL SHOT continuity anchors wherever they occur."
+            ),
+        }.get(resolved_mode, "Treat this as a structured MiniMax H3 video prompt.")
+        length_rule = H3_LENGTH_BEHAVIORS.get(
+            h3_length_behavior,
+            H3_LENGTH_BEHAVIORS["Preserve"],
+        )
+        custom_text = _clean_text(custom)
+        custom_block = (
+            f"\n\nCUSTOM INSTRUCTIONS - apply these after all preservation rules:\n{custom_text}"
+            if custom_text else ""
+        )
+        return (
+            f"MODE: {mode_label}\n"
+            "You are NovoLoko Prompt Enhancer Pro operating in MiniMax H3 VIDEO mode. "
+            "The input is already a video prompt. Improve clarity, chronology, camera language, "
+            "physical coherence, motion, continuity, and production quality without changing "
+            "the user's intended content.\n\n"
+            "PRESERVATION RULES:\n"
+            "- Keep every existing field name, heading, section, and their ordering.\n"
+            "- Keep reference labels such as <Picture N>, <Subject N>, <Video N>, and <Audio N> "
+            "exactly associated with their intended subjects and media.\n"
+            "- Preserve CSV-selected snippets and instructions, timing, duration, chronology, "
+            "continuity, transitions, camera choreography, physical cause and effect, dialogue, "
+            "sound effects, ambience, soundscape, and music instructions.\n"
+            "- Do not convert the input into a still-image task, flatten its structure, "
+            "remove H3 fields, summarise it, or impose an image-prompt word target.\n"
+            "- Rewrite and polish the wording throughout the prompt; do not merely echo the "
+            "input unchanged. Integrate compatible instructions into the correct fields.\n"
+            "- If SHOT RULES or SELECTED H3 DIRECTION sections exist, retain their headings "
+            "and content even when their instructions are also integrated into other fields.\n"
+            "- Return only the complete enhanced H3 prompt, with no analysis, wrapper, preface, "
+            "alternatives, or commentary.\n\n"
+            f"MODE-SPECIFIC RULES:\n{mode_rules}\n\n"
+            f"H3 LENGTH BEHAVIOR - {h3_length_behavior.upper()}:\n{length_rule}"
+            f"{custom_block}\n\nINPUT H3 VIDEO PROMPT:\n{idea.strip()}"
+        )
+
+    @classmethod
+    def _instruction(
+        cls,
+        idea: str,
+        preset: str,
+        detail_level: str,
+        image_connected: bool,
+        custom: str,
+        resolved_mode: str = "Image",
+        h3_length_behavior: str = "Preserve",
+    ) -> str:
+        if resolved_mode in H3_MODE_LABELS:
+            return cls._h3_instruction(
+                idea,
+                resolved_mode,
+                h3_length_behavior,
+                custom,
+            )
+        return cls._image_instruction(
+            idea,
+            preset,
+            detail_level,
+            image_connected,
+            custom,
+        )
+
+    @staticmethod
+    def _h3_preservation_violations(
+        source: str,
+        candidate: str,
+        length_behavior: str = "Preserve",
+    ) -> List[str]:
+        """Reject structurally destructive H3 output without blocking a real rewrite."""
+        source_text = str(source or "").strip()
+        candidate_text = str(candidate or "").strip()
+        if not candidate_text:
+            return ["empty generated prompt"]
+
+        violations: List[str] = []
+        letter_count = sum(character.isalpha() for character in candidate_text)
+        if letter_count < max(20, int(len(candidate_text) * 0.08)):
+            violations.append("unreadable or non-text output")
+
+        minimum_ratio = 0.25 if length_behavior == "Compact" else 0.60
+        if source_text and len(candidate_text) < int(len(source_text) * minimum_ratio):
+            violations.append("rewrite is unexpectedly truncated")
+
+        field_names = (
+            "integrated_multimodal_description",
+            "subject_definitions",
+            "summary",
+            "retention_analysis",
+            "detailed_description",
+            "sound_effects",
+            "overall_soundscape",
+            "non_diegetic_music",
+        )
+        field_pattern = re.compile(
+            rf"^\s*({'|'.join(field_names)})\s*:(.*)$",
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+        source_fields = [match.group(1).lower() for match in field_pattern.finditer(source_text)]
+        candidate_fields = [match.group(1).lower() for match in field_pattern.finditer(candidate_text)]
+        if source_fields != candidate_fields:
+            violations.append("field names or order")
+
+        reference_pattern = re.compile(
+            r"<(?:Picture|Subject|Video|Audio)\s+\d+>",
+            flags=re.IGNORECASE,
+        )
+        missing_references = sorted(
+            {
+                match.group(0)
+                for match in reference_pattern.finditer(source_text)
+                if match.group(0).lower() not in candidate_text.lower()
+            }
+        )
+        if missing_references:
+            violations.append("reference labels " + ", ".join(missing_references))
+
+        # Protect concrete choices written by the H3 builder into CORE ACTION.
+        # Their surrounding prose may be rewritten, but replacing the chosen
+        # pose, garment, or expression is never a valid enhancement.
+        protected_patterns = (
+            ("fixed pose", r"\bUse\s+([^\n.,]{2,100}?)\s+as\s+the\s+one\s+and\s+only\s+fixed"),
+            ("fixed pose", r"\buse\s+([^\n.,]{2,100}?\bPose)\b"),
+            ("garment", r"\bwearing\s+(?:a|an)\s+([^\n,]{2,100}?),\s+with\b"),
+            (
+                "garment",
+                r"\bdress\s+<Subject\s+\d+>\s+in\s+(?:a|an)\s+([^\n,]{2,100}?)(?:,|\band\s+use\b)",
+            ),
+            (
+                "expression",
+                r"\bGive\s+<Subject\s+\d+>\s+(?:a|an)\s+([^\n,.]{1,80}?\bexpression)",
+            ),
+        )
+        candidate_lower = candidate_text.casefold()
+        for label, pattern in protected_patterns:
+            for match in re.finditer(pattern, source_text, flags=re.IGNORECASE):
+                selection = " ".join(match.group(1).split()).strip(" .,:;-")
+                if selection and selection.casefold() not in candidate_lower:
+                    violations.append(f"selected {label}: {selection}")
+
+        director_pattern = re.compile(
+            r"^\s*(SCENE\s+\d+\b|HANDOFF\s+TO\s+NEXT\s+SCENE\b|"
+            r"CONTINUE\s+FROM\s+PREVIOUS\s+SCENE\b|FINAL\s+SHOT\b)",
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+        source_headings = [match.group(1).upper() for match in director_pattern.finditer(source_text)]
+        candidate_headings = [match.group(1).upper() for match in director_pattern.finditer(candidate_text)]
+        if source_headings != candidate_headings:
+            violations.append("Director headings or order")
+
+        return list(dict.fromkeys(violations))
+
+    @staticmethod
+    def _restore_h3_tail_sections(source: str, candidate: str) -> tuple[str, List[str]]:
+        """Restore omitted builder-owned tail sections without discarding a useful rewrite."""
+        source_text = str(source or "").strip()
+        candidate_text = str(candidate or "").strip()
+        headings = ("SHOT RULES", "SELECTED H3 DIRECTION")
+        restored: List[str] = []
+
+        for index, heading in enumerate(headings):
+            heading_pattern = re.compile(
+                rf"^\s*{re.escape(heading)}\s*:",
+                flags=re.IGNORECASE | re.MULTILINE,
+            )
+            if not heading_pattern.search(source_text) or heading_pattern.search(candidate_text):
+                continue
+
+            source_match = heading_pattern.search(source_text)
+            assert source_match is not None
+            end = len(source_text)
+            for later_heading in headings[index + 1 :]:
+                later_match = re.search(
+                    rf"^\s*{re.escape(later_heading)}\s*:",
+                    source_text[source_match.end() :],
+                    flags=re.IGNORECASE | re.MULTILINE,
+                )
+                if later_match:
+                    end = source_match.end() + later_match.start()
+                    break
+            block = source_text[source_match.start() : end].strip()
+            if not block:
+                continue
+
+            insert_at = len(candidate_text)
+            for later_heading in headings[index + 1 :]:
+                later_match = re.search(
+                    rf"^\s*{re.escape(later_heading)}\s*:",
+                    candidate_text,
+                    flags=re.IGNORECASE | re.MULTILINE,
+                )
+                if later_match:
+                    insert_at = later_match.start()
+                    break
+            before = candidate_text[:insert_at].rstrip()
+            after = candidate_text[insert_at:].lstrip()
+            candidate_text = f"{before}\n\n{block}"
+            if after:
+                candidate_text += f"\n\n{after}"
+            restored.append(heading)
+
+        return candidate_text, restored
 
     @staticmethod
     def _image_cache_token(image: Any) -> str:
@@ -724,6 +1079,8 @@ class NovaPromptEnhancer:
         use_default_template=True,
         image=None,
         custom_instructions="",
+        task_mode="Krea2 / Image",
+        h3_length_behavior="Preserve",
     ):
         raw = _clean_text(idea)
         enabled = _safe_bool(enabled, True)
@@ -734,12 +1091,30 @@ class NovaPromptEnhancer:
         seed = _safe_int(seed, 0, 0, SEED_MAX)
         thinking = _safe_bool(thinking, True)
         use_default_template = _safe_bool(use_default_template, True)
+        task_mode = PROMPT_TASK_MODE_ALIASES.get(
+            str(task_mode or "Krea2 / Image"),
+            "Krea2 / Image",
+        )
+        h3_length_behavior = (
+            str(h3_length_behavior)
+            if str(h3_length_behavior) in H3_LENGTH_BEHAVIORS
+            else "Preserve"
+        )
 
         if not enabled or not raw:
             status = "Enhancer bypassed." if not enabled else "No idea supplied."
             return (raw, "", status)
 
-        instruction = self._instruction(raw, preset, detail_level, image is not None, custom_instructions)
+        resolved_mode = self._resolve_task_mode(raw, task_mode)
+        instruction = self._instruction(
+            raw,
+            preset,
+            detail_level,
+            image is not None,
+            custom_instructions,
+            resolved_mode,
+            h3_length_behavior,
+        )
         if not hasattr(clip, "tokenize") or not hasattr(clip, "generate") or not hasattr(clip, "decode"):
             raise RuntimeError(
                 "The connected CLIP does not provide text generation. Connect the same "
@@ -757,6 +1132,9 @@ class NovaPromptEnhancer:
             bool(thinking),
             bool(use_default_template),
             _clean_text(custom_instructions),
+            task_mode,
+            resolved_mode,
+            h3_length_behavior,
             self._image_cache_token(image),
         )
         cached = self._fixed_seed_cache.get(cache_key)
@@ -795,21 +1173,49 @@ class NovaPromptEnhancer:
         enhanced = re.sub(r"^```(?:text)?\s*|\s*```$", "", enhanced, flags=re.IGNORECASE | re.DOTALL).strip()
         if len(enhanced) >= 2 and enhanced[0] == enhanced[-1] and enhanced[0] in {'"', "'"}:
             enhanced = enhanced[1:-1].strip()
+        is_h3 = resolved_mode in H3_MODE_LABELS
+        generated_length = len(enhanced)
+        restored_sections: List[str] = []
+        if is_h3:
+            enhanced, restored_sections = self._restore_h3_tail_sections(raw, enhanced)
+        safety_violations = (
+            self._h3_preservation_violations(raw, enhanced, h3_length_behavior)
+            if is_h3 else []
+        )
+        if safety_violations:
+            enhanced = raw
+        custom_is_active = is_h3 or preset == "Custom"
         custom_state = (
             "custom instructions active"
-            if preset == "Custom" and _clean_text(custom_instructions)
+            if custom_is_active and _clean_text(custom_instructions)
             else (
                 "custom instructions ignored"
-                if preset != "Custom" and _clean_text(custom_instructions)
+                if not custom_is_active and _clean_text(custom_instructions)
                 else "no custom instructions"
             )
         )
-        effective_detail = PRESET_DETAIL_OVERRIDES.get(preset, detail_level)
-        status = (
-            f"NovoLoko enhanced {len(raw)} → {len(enhanced)} characters using "
-            f"{preset} / {effective_detail}; {custom_state}; creativity {creativity:g}; "
-            f"max {max_length}; seed {seed}."
+        behavior = (
+            f"{resolved_mode} / {h3_length_behavior}"
+            if is_h3
+            else f"{preset} / {PRESET_DETAIL_OVERRIDES.get(preset, detail_level)}"
         )
+        auto_state = f"Auto detected {resolved_mode}; " if task_mode == "Auto" else ""
+        restored_state = (
+            f"restored protected H3 sections: {', '.join(restored_sections)}; "
+            if restored_sections else ""
+        )
+        if safety_violations:
+            status = (
+                f"H3 safety fallback preserved the original {len(raw)}-character prompt because "
+                f"the {generated_length}-character rewrite changed protected content: "
+                f"{'; '.join(safety_violations)}. {restored_state}{auto_state}{custom_state}; seed {seed}."
+            )
+        else:
+            status = (
+                f"NovoLoko enhanced {len(raw)} → {len(enhanced)} characters using "
+                f"{behavior}; {restored_state}{auto_state}{custom_state}; creativity {creativity:g}; "
+                f"max {max_length}; seed {seed}."
+            )
         self._fixed_seed_cache[cache_key] = (enhanced or raw, status)
         self._fixed_seed_cache.move_to_end(cache_key)
         while len(self._fixed_seed_cache) > self._fixed_seed_cache_limit:

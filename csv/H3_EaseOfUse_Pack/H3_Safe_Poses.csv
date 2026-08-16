@@ -1,0 +1,9 @@
+﻿index,name,prompt,negative_prompt,category,weight,favorite
+1,Mountain Pose,"Use Mountain Pose as the one fixed pose for <Subject 1>. Keep it stable, upright, balanced, and unchanged throughout the shot.",,Safe Pose,1,
+2,Warrior II Pose,Use Warrior II Pose as the one fixed pose for <Subject 1>. Hold the pose clearly and keep it unchanged throughout the shot.,,Safe Pose,1,
+3,Triangle Pose,Use Triangle Pose as the one fixed pose for <Subject 1>. Preserve clean lines and stable readable limbs throughout the shot.,,Safe Pose,1,
+4,Chair Pose,Use Chair Pose as the one fixed pose for <Subject 1>. Keep the pose stable and consistent throughout the shot.,,Safe Pose,1,
+5,High Lunge Pose,Use High Lunge Pose as the one fixed pose for <Subject 1>. Hold the pose clearly with stable limb placement throughout the shot.,,Safe Pose,1,
+6,Tree Pose,"Use Tree Pose as the one fixed pose for <Subject 1>. Establish the pose once, then keep it stable and unchanged throughout the shot.",,Safe Pose,1,
+7,Simple Fashion Pose,"Use one simple elegant fashion pose for <Subject 1> with weight slightly shifted, shoulders relaxed, and clean readable limbs. Keep the pose unchanged throughout the shot.",,Safe Pose,1,
+8,Hands on Hips Pose,"Use a clean hands-on-hips pose for <Subject 1>. Keep the stance stable, symmetrical, and unchanged throughout the shot.",,Safe Pose,1,

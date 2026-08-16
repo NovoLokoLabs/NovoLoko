@@ -1,0 +1,23 @@
+NOVOLOKO V6 ULTIMATE H3 EXPANSION — VALIDATION SUMMARY
+=====================================================
+
+CSV files validated with artifact_tool: 140
+Total CSV data rows across individual files and masters: 33,203
+Original V6 non-master rows preserved: 5,251
+New dedicated H3 non-master rows: 438
+Revised pack non-master rows: 5,689
+New H3-safe subset rows: 78
+H3 camera master rows: 88
+H3 audio master rows: 76
+H3 stability/continuity master rows: 122
+H3 Director master rows: 74
+Duplicate name+prompt pairs inside new 90_H3_Video CSVs: 0
+Pre-existing/aggregate duplicate pairs elsewhere in the pack: 238
+
+PASS: exact seven-column Nova schema in every CSV
+PASS: sequential indexes restart at 1 in every CSV
+PASS: required name, prompt, and category fields populated
+PASS: weight 1.0 and favorite False throughout
+PASS: all CSVs imported successfully through artifact_tool
+PASS: no duplicate name+prompt pairs inside the new H3 section
+PASS: original organized V6 folders retained

@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-function installLegacyGraphNavigation(root) {
+function installLegacyGraphNavigation(root, options = {}) {
     if (root.__novaLegacyGraphNavigationInstalled) return;
     root.__novaLegacyGraphNavigationInstalled = true;
     const legacy = () => !globalThis.LiteGraph?.vueNodesMode;
@@ -12,6 +12,7 @@ function installLegacyGraphNavigation(root) {
     };
     root.addEventListener("wheel", (event) => {
         if (!legacy()) return;
+        if (options.nativeWheelWhen?.(event)) return;
         consume(event, app.canvas?.processMouseWheel);
     }, { passive: false, capture: true });
     root.addEventListener("pointerdown", (event) => {
@@ -44,6 +45,11 @@ const CONTROL_NODE = "NovaControlPanelSwitch";
 const CONCAT_NODE = "NovaDynamicTextConcatenate";
 const DISPLAY_NODE = "NovaTextDisplay";
 const ENHANCER_NODE = "NovaPromptEnhancer";
+const MUSIC_WRITER_DEFAULTS = {
+    NovaMusicLyricEnhancer: { creativity: 0.85, maxLength: 2048 },
+    NovaMusicLyricsGenerator: { creativity: 0.90, maxLength: 4096 },
+    NovaMusicCaptionEnhancer: { creativity: 0.70, maxLength: 2048 },
+};
 
 const ENHANCER_PRESETS = [
     "Quick Prompt (30–60 words)",
@@ -62,6 +68,37 @@ const ENHANCER_LENGTHS = [
     "Rich",
     "Maximum",
 ];
+const ENHANCER_TASK_MODES = [
+    "Auto",
+    "Krea2 / Image",
+    "MiniMax H3 Standard",
+    "MiniMax H3 Full Reference",
+    "MiniMax H3 Director",
+];
+const ENHANCER_TASK_MODE_ALIASES = {
+    "Auto": "Auto",
+    "Image": "Krea2 / Image",
+    "Krea2 / Image": "Krea2 / Image",
+    "H3 Standard": "MiniMax H3 Standard",
+    "MiniMax H3 Standard": "MiniMax H3 Standard",
+    "H3 Full Reference": "MiniMax H3 Full Reference",
+    "MiniMax H3 Full Reference": "MiniMax H3 Full Reference",
+    "H3 Director": "MiniMax H3 Director",
+    "MiniMax H3 Director": "MiniMax H3 Director",
+};
+const ENHANCER_CUSTOM_PRESETS_KEY = "novoloko.promptEnhancer.customPresets.v1";
+const ENHANCER_CUSTOM_PRESET_EMPTY = "Current / unsaved";
+const ENHANCER_H3_LENGTHS = [
+    "Preserve",
+    "Compact",
+    "Detailed",
+];
+const ENHANCER_COMBO_OPTIONS = {
+    preset: ENHANCER_PRESETS,
+    detail_level: ENHANCER_LENGTHS,
+    task_mode: ENHANCER_TASK_MODES,
+    h3_length_behavior: ENHANCER_H3_LENGTHS,
+};
 const ENHANCER_PRESET_LENGTH = {
     "Quick Prompt (30–60 words)": "Very Short",
     "Compact Prompt (60–110 words)": "Short",
@@ -91,9 +128,6 @@ function isTextEntryElement(element) {
     );
 }
 
-const textDisplayNodes = new Set();
-let textWheelCaptureInstalled = false;
-
 function dirty(node) {
     try {
         node.setDirtyCanvas?.(true, true);
@@ -103,6 +137,63 @@ function dirty(node) {
 
 function widget(node, name) {
     return node.widgets?.find((item) => item.name === name);
+}
+
+function normaliseMusicWriterWidgets(node, configured = null) {
+    const defaults = MUSIC_WRITER_DEFAULTS[node?.comfyClass || node?.type];
+    if (!defaults) return;
+    const creativity = widget(node, "creativity");
+    const maxLength = widget(node, "max_length");
+    if (!creativity || !maxLength) return;
+
+    const values = Array.isArray(configured?.widgets_values)
+        ? configured.widgets_values
+        : [];
+    // The first Music Lab draft omitted placeholders for the two linked text
+    // widgets. Its sequence began [enabled, creativity, max_length, ...], which
+    // shifted every later value when current ComfyUI restored by widget index.
+    const knownShiftedSequence = (
+        typeof values[0] === "boolean"
+        && Number.isFinite(Number(values[1]))
+        && Number(values[1]) >= 0
+        && Number(values[1]) <= 1
+        && Number.isFinite(Number(values[2]))
+        && Number(values[2]) >= 256
+    );
+    const creativityValue = Number(creativity.value);
+    const maxLengthValue = Number(maxLength.value);
+    const legacyZeroOnePair = creativityValue === 0 && maxLengthValue === 1;
+    const invalidCreativity = !Number.isFinite(creativityValue)
+        || creativityValue < 0
+        || creativityValue > 1;
+    const invalidMaxLength = !Number.isInteger(maxLengthValue)
+        || maxLengthValue < 256
+        || maxLengthValue > 8192;
+    if (!(knownShiftedSequence || legacyZeroOnePair || invalidCreativity || invalidMaxLength)) {
+        return;
+    }
+
+    creativity.value = defaults.creativity;
+    maxLength.value = defaults.maxLength;
+    node.properties ||= {};
+    node.properties.novaMusicWriterWidgetMigration = "4.3.0";
+    dirty(node);
+}
+
+function installMusicWriterWidgetMigration(node) {
+    if (node.__novaMusicWriterWidgetMigrationInstalled) return;
+    node.__novaMusicWriterWidgetMigrationInstalled = true;
+    const previousConfigure = node.onConfigure;
+    node.onConfigure = function (configured) {
+        const result = previousConfigure?.apply(this, arguments);
+        normaliseMusicWriterWidgets(this, configured);
+        requestAnimationFrame(() => normaliseMusicWriterWidgets(this, configured));
+        return result;
+    };
+    normaliseMusicWriterWidgets(node);
+    for (const delay of [0, 60, 250, 1000]) {
+        setTimeout(() => normaliseMusicWriterWidgets(node), delay);
+    }
 }
 
 function installControlPanel(node) {
@@ -151,6 +242,50 @@ function nodeSelected(node) {
 
 function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, Number(value) || 0));
+}
+
+let focusedSeedWheelRetry = 0;
+
+function installFocusedSeedWheelSupport() {
+    const canvasElement = app.canvas?.canvas;
+    if (!globalThis.HTMLElement || !(canvasElement instanceof globalThis.HTMLElement)) {
+        clearTimeout(focusedSeedWheelRetry);
+        focusedSeedWheelRetry = setTimeout(installFocusedSeedWheelSupport, 250);
+        return;
+    }
+    if (canvasElement.__novaFocusedSeedWheelInstalled) return;
+    canvasElement.__novaFocusedSeedWheelInstalled = true;
+    canvasElement.addEventListener("wheel", (event) => {
+        if (globalThis.LiteGraph?.vueNodesMode) return;
+        const point = app.canvas?.graph_mouse;
+        if (!Array.isArray(point) && !ArrayBuffer.isView(point)) return;
+        const node = app.graph?.getNodeOnPos?.(Number(point[0]), Number(point[1]));
+        if (!node || !nodeSelected(node) || !isNovaNodeName(node.comfyClass || node.type)) return;
+        const seed = widget(node, "seed");
+        if (!seed || seed.type === "hidden" || !Number.isFinite(Number(seed.last_y))) return;
+        const localY = Number(point[1]) - Number(node.pos?.[1] || 0);
+        const measured = seed.computeSize?.(Number(node.size?.[0]) || 240);
+        const height = Math.max(20, Number(measured?.[1]) || 20);
+        if (localY < Number(seed.last_y) || localY > Number(seed.last_y) + height) return;
+
+        const baseStep = Math.max(1, Number(seed.options?.step) || 1);
+        const multiplier = event.ctrlKey ? 100 : event.shiftKey ? 10 : 1;
+        const direction = Number(event.deltaY || 0) < 0 ? 1 : -1;
+        const minimum = Number.isFinite(Number(seed.options?.min)) ? Number(seed.options.min) : 0;
+        const requestedMax = Number(seed.options?.max);
+        const maximum = Number.isFinite(requestedMax)
+            ? Math.min(requestedMax, Number.MAX_SAFE_INTEGER)
+            : Number.MAX_SAFE_INTEGER;
+        const current = Number.isFinite(Number(seed.value)) ? Number(seed.value) : minimum;
+        const next = Math.round(clamp(current + direction * baseStep * multiplier, minimum, maximum));
+        if (next === current) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        seed.value = next;
+        seed.callback?.call(seed, next, app.canvas, node, event);
+        dirty(node);
+    }, { capture: true, passive: false });
 }
 
 function safeInstall(node, label, installer) {
@@ -342,6 +477,7 @@ function installLegacyConnectedTextWidgetRepair(node) {
 function novaNodeTextElements(node) {
     const elements = new Map();
     const preset = String(widget(node, "preset")?.value || "");
+    const taskMode = String(widget(node, "task_mode")?.value || "Krea2 / Image");
     for (const item of node?.widgets || []) {
         if (NOVA_TEXT_PANEL_EXCLUDED_WIDGETS.has(String(item?.name || ""))) {
             continue;
@@ -349,6 +485,7 @@ function novaNodeTextElements(node) {
         const dimmed = (
             String(item?.name || "") === "custom_instructions"
             && preset !== "Custom"
+            && taskMode === "Krea2 / Image"
         );
         for (const element of widgetTextElements(item)) {
             elements.set(element, dimmed ? .48 : 1);
@@ -439,11 +576,34 @@ function setComboChoices(item, values) {
     item.comboValues = choices;
 }
 
+function resolveComboChoice(value, choices, fallback = "") {
+    const values = Array.isArray(choices) ? choices : [];
+    if (typeof value === "number" && Number.isInteger(value)) {
+        return values[value] ?? fallback;
+    }
+    const text = String(value ?? "");
+    return values.includes(text) ? text : fallback;
+}
+
+function normaliseEnhancerComboWidget(node, name, fallback) {
+    const item = widget(node, name);
+    const choices = ENHANCER_COMBO_OPTIONS[name] || [];
+    if (!item || !choices.length) return fallback;
+    const aliases = name === "task_mode" ? ENHANCER_TASK_MODE_ALIASES : null;
+    const aliased = aliases?.[String(item.value)] ?? item.value;
+    item.value = resolveComboChoice(aliased, choices, fallback);
+    return item.value;
+}
+
 function refreshEnhancerChoices(node) {
     const presetWidget = widget(node, "preset");
     const detailWidget = widget(node, "detail_level");
+    const taskModeWidget = widget(node, "task_mode");
+    const h3LengthWidget = widget(node, "h3_length_behavior");
     setComboChoices(presetWidget, ENHANCER_PRESETS);
     setComboChoices(detailWidget, ENHANCER_LENGTHS);
+    setComboChoices(taskModeWidget, ENHANCER_TASK_MODES);
+    setComboChoices(h3LengthWidget, ENHANCER_H3_LENGTHS);
 }
 
 function installTimerChromeCSS() {
@@ -1145,7 +1305,7 @@ const TIMER_DEFAULTS = {
     statusColor: "#c8d5e5",
     backgroundColor: "#08101a",
     borderColor: "#2b5577",
-    cornerRadius: 14,
+    cornerRadius: 5,
     showBackground: true,
     showBorder: true,
     showStatus: true,
@@ -1154,9 +1314,9 @@ const TIMER_DEFAULTS = {
     showBest: true,
     displayPreset: "Full Stats",
     historyLimit: 20,
-    sound: "Off",
+    sound: "Custom: 05 SFX/01 Pack 100/008 - Cash.mp3",
     volume: 35,
-    glow: true,
+    glow: false,
 };
 
 function timerSetting(node, key) {
@@ -2259,6 +2419,190 @@ function installTimerNode(node) {
 // ---------------------------------------------------------------------------
 // NovoLoko Text Display Pro — selectable when selected, drag-scroll when not
 // ---------------------------------------------------------------------------
+const TEXT_DISPLAY_DEFAULTS = Object.freeze({
+    backgroundColor: "#03060a",
+    textColor: "#d7e2ee",
+    fontFamily: "Monospace",
+    fontSize: 0,
+    fontWeight: "Normal",
+    lineSpacing: 1.38,
+    textAlign: "Left",
+    wrapText: true,
+});
+
+const TEXT_DISPLAY_FONTS = Object.freeze({
+    Monospace: "ui-monospace,SFMono-Regular,Consolas,monospace",
+    System: "Inter,Segoe UI,Arial,sans-serif",
+    Serif: "Georgia,Times New Roman,serif",
+});
+
+const TEXT_DISPLAY_WEIGHTS = Object.freeze({
+    Normal: "400",
+    Medium: "600",
+    Bold: "700",
+});
+
+function textDisplaySetting(node, key) {
+    const value = node?.properties?.[`novaText_${key}`];
+    return value ?? TEXT_DISPLAY_DEFAULTS[key];
+}
+
+function textDisplayFont(node) {
+    const name = String(textDisplaySetting(node, "fontFamily") || "Monospace");
+    return TEXT_DISPLAY_FONTS[name] || TEXT_DISPLAY_FONTS.Monospace;
+}
+
+function textDisplayWeight(node) {
+    const name = String(textDisplaySetting(node, "fontWeight") || "Normal");
+    return TEXT_DISPLAY_WEIGHTS[name] || TEXT_DISPLAY_WEIGHTS.Normal;
+}
+
+function textDisplayFontSize(node, width) {
+    const saved = Number(textDisplaySetting(node, "fontSize"));
+    return saved > 0
+        ? clamp(saved, 8, 36)
+        : Math.max(8, Math.min(18, Number(width || 320) / 42));
+}
+
+function textDisplayLineSpacing(node) {
+    return clamp(textDisplaySetting(node, "lineSpacing"), 1, 2.2);
+}
+
+function normaliseTextDisplayProperties(node) {
+    node.properties ||= {};
+    for (const [key, value] of Object.entries(TEXT_DISPLAY_DEFAULTS)) {
+        node.properties[`novaText_${key}`] ??= value;
+    }
+}
+
+function showTextDisplaySettings(node) {
+    normaliseTextDisplayProperties(node);
+
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.62);font:13px system-ui;color:#eaf4ff";
+    const panel = document.createElement("div");
+    panel.style.cssText = "width:min(620px,94vw);max-height:90vh;overflow:auto;padding:16px;border-radius:14px;background:#101925;border:1px solid #345774;box-shadow:0 20px 70px rgba(0,0,0,.6)";
+    const heading = document.createElement("h3");
+    heading.textContent = "NovoLoko Text Display — settings";
+    heading.style.margin = "0 0 12px";
+
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px";
+    const field = (label, input) => {
+        const wrapper = document.createElement("label");
+        wrapper.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px";
+        const span = document.createElement("span");
+        span.textContent = label;
+        wrapper.append(span, input);
+        return wrapper;
+    };
+    const select = (values, selected) => {
+        const input = document.createElement("select");
+        input.style.cssText = "min-width:150px;padding:5px;background:#08101a;color:#eaf4ff;border:1px solid #456985;border-radius:6px";
+        for (const value of values) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            input.append(option);
+        }
+        input.value = selected;
+        return input;
+    };
+
+    const background = colourInput("Background", String(textDisplaySetting(node, "backgroundColor")));
+    const textColor = colourInput("Text colour", String(textDisplaySetting(node, "textColor")));
+    const font = select(Object.keys(TEXT_DISPLAY_FONTS), String(textDisplaySetting(node, "fontFamily")));
+    const weight = select(Object.keys(TEXT_DISPLAY_WEIGHTS), String(textDisplaySetting(node, "fontWeight")));
+    const alignment = select(["Left", "Center", "Right"], String(textDisplaySetting(node, "textAlign")));
+    const counterMode = select(TEXT_COUNTER_MODES, normaliseTextCounterMode(node.properties.novaTextCounterMode));
+
+    const fontSize = document.createElement("input");
+    fontSize.type = "number";
+    fontSize.min = "0";
+    fontSize.max = "36";
+    fontSize.step = "1";
+    fontSize.value = String(textDisplaySetting(node, "fontSize"));
+    fontSize.title = "Use 0 for automatic sizing";
+    fontSize.style.width = "90px";
+
+    const lineSpacing = document.createElement("input");
+    lineSpacing.type = "number";
+    lineSpacing.min = "1";
+    lineSpacing.max = "2.2";
+    lineSpacing.step = "0.05";
+    lineSpacing.value = String(textDisplaySetting(node, "lineSpacing"));
+    lineSpacing.style.width = "90px";
+
+    const wrapText = document.createElement("input");
+    wrapText.type = "checkbox";
+    wrapText.checked = Boolean(textDisplaySetting(node, "wrapText"));
+
+    grid.append(
+        background.wrapper,
+        textColor.wrapper,
+        field("Font", font),
+        field("Font weight", weight),
+        field("Font size (0 = Auto)", fontSize),
+        field("Line spacing", lineSpacing),
+        field("Text alignment", alignment),
+        field("Word wrap", wrapText),
+        field("Text counter", counterMode),
+    );
+
+    const note = document.createElement("div");
+    note.textContent = "Settings are saved with this node in the workflow and apply in both Legacy and Nodes 2.0.";
+    note.style.cssText = "margin-top:12px;padding:8px 10px;border-radius:7px;background:#08101a;color:#b9cee1";
+
+    const buttons = document.createElement("div");
+    buttons.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:14px";
+    const makeButton = (label) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.style.cssText = "padding:7px 12px;border-radius:7px;border:1px solid #456985;background:#18314a;color:#fff;cursor:pointer";
+        return button;
+    };
+    const reset = makeButton("Reset defaults");
+    const cancel = makeButton("Cancel");
+    const save = makeButton("Save");
+    const close = () => overlay.remove();
+
+    cancel.onclick = close;
+    overlay.addEventListener("pointerdown", (event) => {
+        if (event.target === overlay) close();
+    });
+    reset.onclick = () => {
+        for (const [key, value] of Object.entries(TEXT_DISPLAY_DEFAULTS)) {
+            node.properties[`novaText_${key}`] = value;
+        }
+        node.properties.novaTextCounterMode = "Words + Characters";
+        node.__novaTextDisplayRefresh?.();
+        dirty(node);
+        close();
+    };
+    save.onclick = () => {
+        node.properties.novaText_backgroundColor = background.input.value;
+        node.properties.novaText_textColor = textColor.input.value;
+        node.properties.novaText_fontFamily = font.value;
+        node.properties.novaText_fontWeight = weight.value;
+        node.properties.novaText_fontSize = Number(fontSize.value) > 0
+            ? clamp(fontSize.value, 8, 36)
+            : 0;
+        node.properties.novaText_lineSpacing = clamp(lineSpacing.value, 1, 2.2);
+        node.properties.novaText_textAlign = alignment.value;
+        node.properties.novaText_wrapText = wrapText.checked;
+        node.properties.novaTextCounterMode = normaliseTextCounterMode(counterMode.value);
+        node.__novaTextDisplayRefresh?.();
+        dirty(node);
+        close();
+    };
+
+    buttons.append(reset, cancel, save);
+    panel.append(heading, grid, note, buttons);
+    overlay.append(panel);
+    document.body.append(overlay);
+}
+
 function wrapCanvasText(ctx, text, maxWidth) {
     const output = [];
     const paragraphs = String(text || "").replace(/\r\n?/g, "\n").split("\n");
@@ -2283,86 +2627,6 @@ function wrapCanvasText(ctx, text, maxWidth) {
         output.push(line);
     }
     return output;
-}
-
-function eventToGraphPoint(event) {
-    const canvas = app.canvas;
-    const element = canvas?.canvas;
-    if (!element) return null;
-
-    try {
-        if (typeof canvas.convertEventToCanvasOffset === "function") {
-            const point = canvas.convertEventToCanvasOffset(event);
-            if (point && Number.isFinite(Number(point[0])) && Number.isFinite(Number(point[1]))) {
-                return [Number(point[0]), Number(point[1])];
-            }
-            if (point && Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y))) {
-                return [Number(point.x), Number(point.y)];
-            }
-        }
-    } catch (_) {}
-
-    const rect = element.getBoundingClientRect();
-    if (
-        event.clientX < rect.left || event.clientX > rect.right
-        || event.clientY < rect.top || event.clientY > rect.bottom
-    ) {
-        return null;
-    }
-
-    const scale = Math.max(.0001, Number(canvas.ds?.scale || 1));
-    const offset = canvas.ds?.offset || [0, 0];
-    return [
-        (event.clientX - rect.left) / scale - Number(offset[0] || 0),
-        (event.clientY - rect.top) / scale - Number(offset[1] || 0),
-    ];
-}
-
-function scrollTextDisplayNode(node, deltaY) {
-    const direction = Number(deltaY || 0) > 0 ? 1 : -1;
-    const maximum = Math.max(0, Number(node.__novaDisplayMaxScroll || 0));
-    const next = clamp(
-        Number(node.__novaDisplayScroll || 0) + direction * 3,
-        0,
-        maximum,
-    );
-    if (next === node.__novaDisplayScroll) return false;
-    node.__novaDisplayScroll = next;
-    dirty(node);
-    return true;
-}
-
-function installTextWheelCapture() {
-    if (textWheelCaptureInstalled) return;
-    textWheelCaptureInstalled = true;
-
-    document.addEventListener("wheel", (event) => {
-        // Nodes 2.0 needs the selected-node capture for text scrolling.
-        // Legacy should keep native canvas wheel zoom, including over this DOM widget.
-        if (!globalThis.LiteGraph?.vueNodesMode) return;
-
-        const point = eventToGraphPoint(event);
-        if (!point) return;
-
-        const candidates = [...textDisplayNodes]
-            .filter((node) => node?.graph && nodeSelected(node))
-            .reverse();
-
-        for (const node of candidates) {
-            const x = point[0] - Number(node.pos?.[0] || 0);
-            const y = point[1] - Number(node.pos?.[1] || 0);
-            const width = Number(node.size?.[0] || 0);
-            const height = Number(node.size?.[1] || 0);
-            if (x < 0 || x > width || y < 48 || y > height) continue;
-
-            if (scrollTextDisplayNode(node, event.deltaY)) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                event.stopPropagation();
-            }
-            return;
-        }
-    }, { capture: true, passive: false });
 }
 
 function textDisplayCounterLabel(node, boxWidth) {
@@ -2409,7 +2673,6 @@ function installTextDisplayDOM(node) {
     root.style.setProperty("display", "block", "important");
     root.style.setProperty("visibility", "visible", "important");
     root.style.setProperty("opacity", "1", "important");
-
     const copy = document.createElement("button");
     copy.type = "button";
     copy.textContent = "COPY";
@@ -2430,6 +2693,7 @@ function installTextDisplayDOM(node) {
     ].join(";");
 
     const content = document.createElement("pre");
+    node.__novaTextDisplayContent = content;
     content.tabIndex = 0;
     content.style.cssText = [
         "position:absolute",
@@ -2437,7 +2701,10 @@ function installTextDisplayDOM(node) {
         "min-height:0",
         "margin:0",
         "padding:7px 8px 8px",
-        "overflow:auto",
+        "overflow-x:auto",
+        "overflow-y:scroll",
+        "scrollbar-gutter:stable",
+        "scrollbar-color:rgba(190,220,245,.72) rgba(255,255,255,.12)",
         "box-sizing:border-box",
         "white-space:pre-wrap",
         "overflow-wrap:anywhere",
@@ -2447,6 +2714,35 @@ function installTextDisplayDOM(node) {
         "background:#03060a",
         "font:inherit",
     ].join(";");
+
+    // The selected/focused display owns wheel input only over its text. An
+    // unselected display deliberately lets the event reach normal canvas
+    // navigation. Middle mouse is never captured here.
+    const textOwnsWheel = () => (
+        nodeSelected(node)
+        || document.activeElement === content
+        || content.contains(document.activeElement)
+    );
+    installLegacyGraphNavigation(root, { nativeWheelWhen: textOwnsWheel });
+    content.addEventListener("wheel", (event) => {
+        if (!textOwnsWheel()) return;
+        // Explicit scrolling avoids renderer/browser differences where a DOM
+        // widget consumes the event before <pre> performs its native scroll.
+        // The unselected path returns untouched so ComfyUI keeps normal canvas
+        // zoom/navigation, and middle-button pointer events remain separate.
+        const delta = event.deltaMode === 1
+            ? event.deltaY * 18
+            : event.deltaMode === 2
+                ? event.deltaY * Math.max(1, content.clientHeight)
+                : event.deltaY;
+        content.scrollTop += delta;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+    }, { passive: false, signal: controller.signal });
+    content.addEventListener("pointerdown", (event) => {
+        if (event.button === 0) content.focus({ preventScroll: true });
+    }, { signal: controller.signal });
 
     const counter = document.createElement("footer");
     counter.style.cssText = [
@@ -2475,7 +2771,14 @@ function installTextDisplayDOM(node) {
         const value = String(node.__novaDisplayText || "");
         const width = Math.max(1, root.clientWidth || node.size?.[0] || 320);
         const height = Math.max(1, root.clientHeight || node.size?.[1] || 180);
-        const fontSize = Math.max(8, Math.min(18, width / 42));
+        const fontSize = textDisplayFontSize(node, width);
+        const fontFamily = textDisplayFont(node);
+        const fontWeight = textDisplayWeight(node);
+        const lineSpacing = textDisplayLineSpacing(node);
+        const textAlign = String(textDisplaySetting(node, "textAlign") || "Left").toLowerCase();
+        const wrapText = Boolean(textDisplaySetting(node, "wrapText"));
+        const backgroundColor = String(textDisplaySetting(node, "backgroundColor"));
+        const textColor = String(textDisplaySetting(node, "textColor"));
         const copyVisible = width >= 120 && height >= 34;
         const counterLabel = textDisplayCounterSummary(
             value,
@@ -2484,13 +2787,30 @@ function installTextDisplayDOM(node) {
         );
         const counterVisible = Boolean(counterLabel) && width >= 100 && height >= 48;
 
-        content.textContent = value;
+        const priorScroll = content.scrollTop;
+        if (content.textContent !== value) content.textContent = value;
+        root.style.background = backgroundColor;
+        root.style.color = textColor;
+        root.style.fontFamily = fontFamily;
+        root.style.fontWeight = fontWeight;
+        root.style.lineHeight = String(lineSpacing);
+        content.style.background = backgroundColor;
+        content.style.color = textColor;
+        content.style.fontFamily = fontFamily;
+        content.style.fontWeight = fontWeight;
         content.style.fontSize = `${fontSize}px`;
+        content.style.lineHeight = String(lineSpacing);
+        content.style.textAlign = ["left", "center", "right"].includes(textAlign)
+            ? textAlign
+            : "left";
+        content.style.whiteSpace = wrapText ? "pre-wrap" : "pre";
+        content.style.overflowWrap = wrapText ? "anywhere" : "normal";
         content.style.paddingTop = copyVisible ? "39px" : "7px";
         content.style.paddingBottom = counterVisible ? "38px" : "8px";
         copy.style.display = copyVisible ? "block" : "none";
         counter.textContent = counterLabel;
         counter.style.display = counterVisible ? "block" : "none";
+        if (content.scrollTop !== priorScroll) content.scrollTop = priorScroll;
         root.style.borderColor = nodeSelected(node)
             ? "rgba(124,202,255,.96)"
             : "rgba(92,159,208,.72)";
@@ -2557,23 +2877,6 @@ function installTextDisplayDOM(node) {
             signal: controller.signal,
         });
     }
-    root.addEventListener("wheel", (event) => {
-        if (!globalThis.LiteGraph?.vueNodesMode) {
-            event.preventDefault();
-            event.stopPropagation();
-            app.canvas?.processMouseWheel?.(event);
-            return;
-        }
-        if (!nodeSelected(node)) {
-            event.preventDefault();
-            return;
-        }
-        event.stopPropagation();
-    }, {
-        signal: controller.signal,
-        passive: false,
-    });
-
     const dom = node.addDOMWidget(
         "nova_text_display_nodes2_v396",
         "NOVA_TEXT_DISPLAY_NODES2",
@@ -2624,6 +2927,7 @@ function installTextDisplay(node) {
     if (node.__novaTextDisplayInstalled) return;
     node.__novaTextDisplayInstalled = true;
     node.properties ||= {};
+    normaliseTextDisplayProperties(node);
     node.properties.novaTextCounterMode = normaliseTextCounterMode(
         node.properties.novaTextCounterMode,
     );
@@ -2677,6 +2981,10 @@ function installTextDisplay(node) {
         const menu = Array.isArray(options) ? options : [];
         menu.unshift(
             {
+                content: "Text Display settings…",
+                callback: () => showTextDisplaySettings(this),
+            },
+            {
                 content: "Copy text",
                 callback: () => Promise.resolve(this.__novaTextDisplayCopyText?.())
                     .catch((error) => console.warn("[NovoLoko] Copy text failed:", error)),
@@ -2691,8 +2999,6 @@ function installTextDisplay(node) {
         );
         return result;
     };
-    textDisplayNodes.add(node);
-    installTextWheelCapture();
     installTextDisplayDOM(node);
 
     const draw = node.onDrawForeground;
@@ -2709,8 +3015,12 @@ function installTextDisplay(node) {
         const boxY = top;
         const boxW = Math.max(10, width - margin * 2);
         const boxH = Math.max(10, height - top - margin);
-        const fontSize = Math.max(8, Math.min(18, boxW / 42));
-        const lineHeight = fontSize * 1.38;
+        const fontSize = textDisplayFontSize(this, boxW);
+        const fontFamily = textDisplayFont(this);
+        const fontWeight = textDisplayWeight(this);
+        const lineHeight = fontSize * textDisplayLineSpacing(this);
+        const textAlign = String(textDisplaySetting(this, "textAlign") || "Left").toLowerCase();
+        const wrapText = Boolean(textDisplaySetting(this, "wrapText"));
 
         ctx.save();
 
@@ -2732,7 +3042,7 @@ function installTextDisplay(node) {
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxW, boxH, radius);
         else ctx.rect(boxX, boxY, boxW, boxH);
-        ctx.fillStyle = "#03060a";
+        ctx.fillStyle = String(textDisplaySetting(this, "backgroundColor"));
         ctx.fill();
         ctx.strokeStyle = selected
             ? "rgba(124,202,255,.96)"
@@ -2781,8 +3091,8 @@ function installTextDisplay(node) {
         }
         ctx.clip();
 
-        ctx.font = `${fontSize}px ui-monospace,SFMono-Regular,Consolas,monospace`;
-        ctx.fillStyle = "#d7e2ee";
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.fillStyle = String(textDisplaySetting(this, "textColor"));
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
 
@@ -2818,16 +3128,20 @@ function installTextDisplay(node) {
             this.__novaCopyHit = null;
         }
 
-        ctx.font = `${fontSize}px ui-monospace,SFMono-Regular,Consolas,monospace`;
-        ctx.textAlign = "left";
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.textAlign = ["left", "center", "right"].includes(textAlign)
+            ? textAlign
+            : "left";
         ctx.textBaseline = "top";
-        ctx.fillStyle = "#d7e2ee";
+        ctx.fillStyle = String(textDisplaySetting(this, "textColor"));
         const firstLineReserve = copyVisible ? copyW + 12 : 0;
-        const lines = wrapCanvasText(
-            ctx,
-            this.__novaDisplayText,
-            Math.max(10, boxW - 16 - firstLineReserve),
-        );
+        const lines = wrapText
+            ? wrapCanvasText(
+                ctx,
+                this.__novaDisplayText,
+                Math.max(10, boxW - 16 - firstLineReserve),
+            )
+            : String(this.__novaDisplayText || "").replace(/\r\n?/g, "\n").split("\n");
         this.__novaDisplayLines = lines;
 
         const counterLabel = textDisplayCounterLabel(this, boxW);
@@ -2845,8 +3159,13 @@ function installTextDisplay(node) {
         this.__novaDisplayScroll = Math.max(0, Math.min(maxScroll, Number(this.__novaDisplayScroll || 0)));
 
         let y = boxY + (copyVisible ? copyH + 13 : 7);
+        const textX = ctx.textAlign === "center"
+            ? boxX + boxW / 2
+            : ctx.textAlign === "right"
+                ? boxX + boxW - 8
+                : boxX + 8;
         for (let index = this.__novaDisplayScroll; index < lines.length && index < this.__novaDisplayScroll + visible; index += 1) {
-            ctx.fillText(lines[index], boxX + 8, y);
+            ctx.fillText(lines[index], textX, y);
             y += lineHeight;
         }
 
@@ -2919,28 +3238,6 @@ function installTextDisplay(node) {
         return previousMouseDown?.apply(this, arguments);
     };
 
-    const previousWheel = node.onMouseWheel;
-    node.onMouseWheel = function (event, pos) {
-        const width = Number(this.size?.[0] || 0);
-        const height = Number(this.size?.[1] || 0);
-        const x = Number(pos?.[0] ?? -1);
-        const y = Number(pos?.[1] ?? -1);
-        if (x >= 0 && x <= width && y >= 48 && y <= height) {
-            const changed = scrollTextDisplayNode(this, event?.deltaY);
-            if (changed) {
-                event?.preventDefault?.();
-                return true;
-            }
-        }
-        return previousWheel?.apply(this, arguments);
-    };
-
-    const previousRemoved = node.onRemoved;
-    node.onRemoved = function () {
-        textDisplayNodes.delete(this);
-        previousRemoved?.apply(this, arguments);
-    };
-
     const originalExecuted = node.onExecuted;
     node.onExecuted = function (message) {
         originalExecuted?.apply(this, arguments);
@@ -2950,6 +3247,7 @@ function installTextDisplay(node) {
         this.properties ||= {};
         this.properties.novaDisplayLastText = this.__novaDisplayText;
         this.__novaDisplayScroll = 0;
+        if (this.__novaTextDisplayContent) this.__novaTextDisplayContent.scrollTop = 0;
         this.__novaTextDisplayRefresh?.();
         dirty(this);
     };
@@ -2974,6 +3272,17 @@ function installTextDisplay(node) {
 const ENHANCER_GUIDE = `
 Enabled
 Off returns the raw idea unchanged.
+
+Task Mode
+This selects the model and prompt format being enhanced.
+Auto detects MiniMax H3 Standard fields, Full Reference fields, or Director scene markers.
+Krea2 / Image keeps the original NovoLoko image-enhancement behaviour and is the safe default for older AIO workflows.
+Every H3 mode uses a dedicated MiniMax H3 video core and never includes the image core.
+
+H3 Length Behavior
+Preserve keeps the source prompt's length and detail and is recommended for H3.
+Compact removes repetition without removing fields, references, timing, continuity, or audio.
+Detailed adds useful production detail inside the existing H3 structure.
 
 Preset
 Faithful Rich Image preserves the concept while adding useful visual detail.
@@ -3010,8 +3319,9 @@ Image
 Optional grounding reference. Visible details are preserved unless the raw idea asks to change them.
 
 Custom Instructions
-Used only when Preset is Custom. Your text stays saved while other presets are selected,
-but it is dimmed and completely ignored by the model until Custom is active.
+In Image mode, used only when Preset is Custom. In H3 mode, including H3 detected by Auto,
+custom instructions are appended after the H3 preservation core so they supplement it.
+Use Saved Custom Preset to apply a named instruction set. Save Current Custom stores the current text in this browser.
 `.trim();
 
 function showEnhancerGuide() {
@@ -3046,6 +3356,8 @@ const ENHANCER_SETTING_NAMES = [
     "thinking",
     "use_default_template",
     "custom_instructions",
+    "task_mode",
+    "h3_length_behavior",
 ];
 
 function sanitiseEnhancerWidgets(node) {
@@ -3055,6 +3367,10 @@ function sanitiseEnhancerWidgets(node) {
         if (!validator(item.value)) item.value = fallback;
     };
     refreshEnhancerChoices(node);
+    normaliseEnhancerComboWidget(node, "preset", "Faithful Rich Image");
+    normaliseEnhancerComboWidget(node, "detail_level", "Rich");
+    normaliseEnhancerComboWidget(node, "task_mode", "Krea2 / Image");
+    normaliseEnhancerComboWidget(node, "h3_length_behavior", "Preserve");
     set("enabled", true, (value) => typeof value === "boolean");
     set("preset", "Faithful Rich Image", (value) => ENHANCER_PRESETS.includes(String(value)));
     set("detail_level", "Rich", (value) => ENHANCER_LENGTHS.includes(String(value)));
@@ -3063,10 +3379,16 @@ function sanitiseEnhancerWidgets(node) {
     set("seed", 0, (value) => Number.isFinite(Number(value)) && Number(value) >= 0);
     set("thinking", true, (value) => typeof value === "boolean");
     set("use_default_template", true, (value) => typeof value === "boolean");
+    set("task_mode", "Krea2 / Image", (value) => ENHANCER_TASK_MODES.includes(String(value)));
+    set("h3_length_behavior", "Preserve", (value) => ENHANCER_H3_LENGTHS.includes(String(value)));
 }
 
 function snapshotEnhancerSettings(node) {
     node.properties ||= {};
+    for (const [name, choices] of Object.entries(ENHANCER_COMBO_OPTIONS)) {
+        const fallback = choices[0] || "";
+        normaliseEnhancerComboWidget(node, name, fallback);
+    }
     const settings = {};
     for (const name of ENHANCER_SETTING_NAMES) {
         const item = widget(node, name);
@@ -3074,17 +3396,27 @@ function snapshotEnhancerSettings(node) {
         settings[name] = item.value;
     }
     node.properties.novaEnhancerSettings = settings;
+    if (ENHANCER_TASK_MODES.includes(String(settings.task_mode || ""))) {
+        node.properties.novaEnhancerLastTaskMode = settings.task_mode;
+    }
     dirty(node);
 }
 
 function restoreEnhancerSettings(node) {
     const settings = node.properties?.novaEnhancerSettings;
-    if (!settings || typeof settings !== "object") return false;
+    const rememberedMode = String(node.properties?.novaEnhancerLastTaskMode || "");
+    if ((!settings || typeof settings !== "object") && !ENHANCER_TASK_MODES.includes(rememberedMode)) {
+        return false;
+    }
 
     for (const name of ENHANCER_SETTING_NAMES) {
-        if (!(name in settings)) continue;
+        if (!settings || !(name in settings)) continue;
         const item = widget(node, name);
         if (item) item.value = settings[name];
+    }
+    if (ENHANCER_TASK_MODES.includes(rememberedMode)) {
+        const taskMode = widget(node, "task_mode");
+        if (taskMode) taskMode.value = rememberedMode;
     }
     sanitiseEnhancerWidgets(node);
     dirty(node);
@@ -3095,24 +3427,47 @@ function updateEnhancerCustomState(node) {
     const presetWidget = widget(node, "preset");
     const customWidget = widget(node, "custom_instructions");
     const detailWidget = widget(node, "detail_level");
+    const taskModeWidget = widget(node, "task_mode");
+    const h3LengthWidget = widget(node, "h3_length_behavior");
     if (!presetWidget || !customWidget) return;
 
     refreshEnhancerChoices(node);
     const presetValue = String(presetWidget.value || "");
-    const active = presetValue === "Custom";
+    const taskMode = String(taskModeWidget?.value || "Krea2 / Image");
+    const explicitH3 = taskMode.startsWith("MiniMax H3 ");
+    const autoMode = taskMode === "Auto";
+    const active = presetValue === "Custom" || explicitH3 || autoMode;
     const forcedLength = ENHANCER_PRESET_LENGTH[presetValue];
-    if (forcedLength && detailWidget) {
+    if (explicitH3 && detailWidget) {
+        detailWidget.disabled = true;
+        detailWidget.label = "image length preset - not used in H3 mode";
+    } else if (forcedLength && detailWidget) {
         detailWidget.value = forcedLength;
         detailWidget.disabled = true;
-        detailWidget.label = `length preset — ${forcedLength} (preset controlled)`;
+        detailWidget.label = `length preset - ${forcedLength} (preset controlled)`;
     } else if (detailWidget) {
         detailWidget.disabled = false;
         detailWidget.label = "length preset";
     }
+    if (h3LengthWidget) {
+        h3LengthWidget.disabled = taskMode === "Krea2 / Image";
+        h3LengthWidget.label = taskMode === "Krea2 / Image"
+            ? "H3 length behavior - not used in Image mode"
+            : "H3 length behavior";
+    }
+    if (taskModeWidget) taskModeWidget.label = "target model / prompt format";
+    const creativityWidget = widget(node, "creativity");
+    if (creativityWidget) {
+        creativityWidget.label = explicitH3 || autoMode
+            ? "creativity (H3 recommended around 0.30)"
+            : "creativity (Krea2 / Image)";
+    }
     customWidget.disabled = !active;
-    customWidget.label = active
-        ? "custom instructions — ACTIVE"
-        : "custom instructions — saved, Custom preset only";
+    customWidget.label = autoMode && presetValue !== "Custom"
+        ? "custom instructions - active only if Auto detects H3"
+        : (active
+            ? "custom instructions - ACTIVE"
+            : "custom instructions - saved, Custom preset or H3 mode");
 
     if (customWidget.inputEl) {
         customWidget.inputEl.disabled = !active;
@@ -3121,11 +3476,98 @@ function updateEnhancerCustomState(node) {
             active ? "1" : ".48",
         );
         customWidget.inputEl.style.filter = active ? "" : "grayscale(.35)";
-        customWidget.inputEl.title = active
-            ? "These instructions are being sent to the model."
-            : "Saved but ignored until Preset is changed to Custom.";
+        customWidget.inputEl.title = autoMode && presetValue !== "Custom"
+            ? "Sent only when Auto detects an H3 prompt. Ignored when Auto resolves to Image."
+            : (active
+                ? "These instructions are being sent to the model."
+                : "Saved but ignored unless Preset is Custom or an H3 mode is selected.");
     }
 
+    dirty(node);
+}
+
+function loadEnhancerCustomPresets() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(ENHANCER_CUSTOM_PRESETS_KEY) || "{}");
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+        return Object.fromEntries(
+            Object.entries(parsed)
+                .filter(([name, text]) => String(name).trim() && String(text).trim())
+                .map(([name, text]) => [String(name).trim(), String(text)]),
+        );
+    } catch (error) {
+        console.warn("[NovoLoko] Could not read Prompt Enhancer custom presets", error);
+        return {};
+    }
+}
+
+function saveEnhancerCustomPresets(presets) {
+    try {
+        localStorage.setItem(ENHANCER_CUSTOM_PRESETS_KEY, JSON.stringify(presets));
+        return true;
+    } catch (error) {
+        console.error("[NovoLoko] Could not save Prompt Enhancer custom presets", error);
+        window.alert("NovoLoko could not save this preset in browser storage.");
+        return false;
+    }
+}
+
+function refreshEnhancerSavedPresetWidget(node, selected = null) {
+    const item = node.__novaEnhancerSavedPresetWidget;
+    if (!item) return;
+    const names = Object.keys(loadEnhancerCustomPresets()).sort((a, b) => a.localeCompare(b));
+    setComboChoices(item, [ENHANCER_CUSTOM_PRESET_EMPTY, ...names]);
+    const requested = selected ?? node.properties?.novaEnhancerSavedPresetName;
+    item.value = names.includes(requested) ? requested : ENHANCER_CUSTOM_PRESET_EMPTY;
+}
+
+function applyEnhancerSavedPreset(node, name) {
+    if (!name || name === ENHANCER_CUSTOM_PRESET_EMPTY) return;
+    const text = loadEnhancerCustomPresets()[name];
+    if (!text) {
+        refreshEnhancerSavedPresetWidget(node);
+        return;
+    }
+    const customWidget = widget(node, "custom_instructions");
+    const presetWidget = widget(node, "preset");
+    if (!customWidget || !presetWidget) return;
+    customWidget.value = text;
+    if (customWidget.inputEl) customWidget.inputEl.value = text;
+    presetWidget.value = "Custom";
+    node.properties.novaEnhancerSavedPresetName = name;
+    snapshotEnhancerSettings(node);
+    updateEnhancerCustomState(node);
+}
+
+function saveCurrentEnhancerCustomPreset(node) {
+    const text = String(widget(node, "custom_instructions")?.value || "").trim();
+    if (!text) {
+        window.alert("Enter Custom Instructions before saving a preset.");
+        return;
+    }
+    const current = String(node.__novaEnhancerSavedPresetWidget?.value || "");
+    const suggested = current === ENHANCER_CUSTOM_PRESET_EMPTY ? "" : current;
+    const entered = window.prompt("Name this NovoLoko Prompt Enhancer preset", suggested);
+    const name = String(entered || "").trim();
+    if (!name) return;
+    const presets = loadEnhancerCustomPresets();
+    if (presets[name] && !window.confirm(`Replace the saved preset "${name}"?`)) return;
+    presets[name] = text;
+    if (!saveEnhancerCustomPresets(presets)) return;
+    node.properties.novaEnhancerSavedPresetName = name;
+    refreshEnhancerSavedPresetWidget(node, name);
+    applyEnhancerSavedPreset(node, name);
+}
+
+function deleteEnhancerCustomPreset(node) {
+    const name = String(node.__novaEnhancerSavedPresetWidget?.value || "");
+    if (!name || name === ENHANCER_CUSTOM_PRESET_EMPTY) return;
+    if (!window.confirm(`Delete the saved Prompt Enhancer preset "${name}"?`)) return;
+    const presets = loadEnhancerCustomPresets();
+    delete presets[name];
+    if (!saveEnhancerCustomPresets(presets)) return;
+    node.properties.novaEnhancerSavedPresetName = "";
+    refreshEnhancerSavedPresetWidget(node, ENHANCER_CUSTOM_PRESET_EMPTY);
     dirty(node);
 }
 
@@ -3133,6 +3575,39 @@ function installEnhancerGuide(node) {
     if (node.__novaEnhancerGuideInstalled) return;
     node.__novaEnhancerGuideInstalled = true;
     node.properties ||= {};
+
+    let savedPreset = null;
+    savedPreset = node.addWidget?.(
+        "combo",
+        "saved custom preset",
+        ENHANCER_CUSTOM_PRESET_EMPTY,
+        (value) => {
+            const choices = savedPreset?.options?.values || [ENHANCER_CUSTOM_PRESET_EMPTY];
+            const resolved = resolveComboChoice(value, choices, ENHANCER_CUSTOM_PRESET_EMPTY);
+            if (savedPreset) savedPreset.value = resolved;
+            applyEnhancerSavedPreset(node, resolved);
+        },
+        { values: [ENHANCER_CUSTOM_PRESET_EMPTY] },
+    );
+    if (savedPreset) {
+        savedPreset.serialize = false;
+        node.__novaEnhancerSavedPresetWidget = savedPreset;
+        refreshEnhancerSavedPresetWidget(node);
+    }
+    const savePreset = node.addWidget?.(
+        "button",
+        "Save Current Custom",
+        null,
+        () => saveCurrentEnhancerCustomPreset(node),
+    );
+    if (savePreset) savePreset.serialize = false;
+    const deletePreset = node.addWidget?.(
+        "button",
+        "Delete Saved Custom",
+        null,
+        () => deleteEnhancerCustomPreset(node),
+    );
+    if (deletePreset) deletePreset.serialize = false;
 
     const guide = node.addWidget?.("button", "ⓘ Option guide", null, () => showEnhancerGuide());
     if (guide) guide.serialize = false;
@@ -3145,8 +3620,28 @@ function installEnhancerGuide(node) {
         item.callback = function (...args) {
             const result = previousCallback?.apply(this, args);
             queueMicrotask(() => {
+                if (ENHANCER_COMBO_OPTIONS[name]) {
+                    normaliseEnhancerComboWidget(
+                        node,
+                        name,
+                        ENHANCER_COMBO_OPTIONS[name][0] || "",
+                    );
+                }
                 snapshotEnhancerSettings(node);
-                if (name === "preset") updateEnhancerCustomState(node);
+                if (name === "task_mode") {
+                    const mode = String(widget(node, "task_mode")?.value || "");
+                    const creativity = widget(node, "creativity");
+                    const maxLength = widget(node, "max_length");
+                    if (mode.startsWith("MiniMax H3 ")) {
+                        if (Number(creativity?.value) === 0.65) creativity.value = 0.3;
+                        if (Number(maxLength?.value) === 1200) maxLength.value = 4000;
+                    } else if (mode === "Krea2 / Image") {
+                        if (Number(creativity?.value) === 0.3) creativity.value = 0.65;
+                        if (Number(maxLength?.value) === 4000) maxLength.value = 1200;
+                    }
+                    snapshotEnhancerSettings(node);
+                }
+                if (name === "preset" || name === "task_mode") updateEnhancerCustomState(node);
             });
             return result;
         };
@@ -3172,6 +3667,7 @@ function installEnhancerGuide(node) {
                 snapshotEnhancerSettings(this);
             }
             updateEnhancerCustomState(this);
+            refreshEnhancerSavedPresetWidget(this);
         }, 80);
         return result;
     };
@@ -3182,6 +3678,7 @@ function installEnhancerGuide(node) {
             snapshotEnhancerSettings(node);
         }
         updateEnhancerCustomState(node);
+        refreshEnhancerSavedPresetWidget(node);
     }, 250);
 }
 
@@ -3207,6 +3704,8 @@ app.registerExtension({
         if (name === ENHANCER_NODE) {
             replaceNodeDataCombo(nodeData, "preset", ENHANCER_PRESETS);
             replaceNodeDataCombo(nodeData, "detail_level", ENHANCER_LENGTHS);
+            replaceNodeDataCombo(nodeData, "task_mode", ENHANCER_TASK_MODES);
+            replaceNodeDataCombo(nodeData, "h3_length_behavior", ENHANCER_H3_LENGTHS);
         }
 
         if (name === CONCAT_NODE) {
@@ -3269,6 +3768,14 @@ app.registerExtension({
             };
         }
 
+        if (MUSIC_WRITER_DEFAULTS[name]) {
+            const created = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = function () {
+                created?.apply(this, arguments);
+                safeInstall(this, `${name} widget migration`, installMusicWriterWidgetMigration);
+            };
+        }
+
         if (name === ENHANCER_NODE) {
             const created = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
@@ -3302,6 +3809,23 @@ app.registerExtension({
         }
         if (isNovaNodeName(nodeName)) {
             safeInstall(node, `${nodeName} text panels`, installNativeTextPanelRepair);
+            if (widget(node, "seed")) installFocusedSeedWheelSupport();
+        }
+    },
+
+    loadedGraphNode(node) {
+        const nodeName = node?.comfyClass || node?.type;
+        if (MUSIC_WRITER_DEFAULTS[nodeName]) {
+            safeInstall(node, `${nodeName} loaded widget migration`, installMusicWriterWidgetMigration);
+            for (const delay of [0, 100, 500]) {
+                setTimeout(() => normaliseMusicWriterWidgets(node), delay);
+            }
+        }
+        if (nodeName === DISPLAY_NODE) {
+            safeInstall(node, "Loaded Text Display", installTextDisplay);
+        }
+        if (isNovaNodeName(nodeName) && widget(node, "seed")) {
+            installFocusedSeedWheelSupport();
         }
     },
 
@@ -3317,11 +3841,16 @@ app.registerExtension({
                 content: `${mode === value ? "✓ " : ""}Text counter: ${value}`,
                 callback: () => {
                     node.properties.novaTextCounterMode = value;
+                    node.__novaTextDisplayRefresh?.();
                     dirty(node);
                 },
             });
             return [
                 null,
+                {
+                    content: "Text Display settings…",
+                    callback: () => showTextDisplaySettings(node),
+                },
                 {
                     content: "Copy text",
                     callback: () => Promise.resolve(node.__novaTextDisplayCopyText?.())

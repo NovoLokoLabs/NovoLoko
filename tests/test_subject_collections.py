@@ -7,6 +7,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +36,7 @@ LEGACY_REQUIRED = [
 SUBJECT_REQUIRED = [
     "subject_file_path", "subject_category", "subject_search", "subject_selection",
 ]
+DYNAMIC_REQUIRED = ["slots_json"]
 CURRENT_OUTPUTS = (
     "combined_prompt",
     "combined_negative",
@@ -145,7 +147,10 @@ class SubjectCollectionTests(unittest.TestCase):
     def test_v330_widget_and_output_order_is_unchanged_then_appended(self) -> None:
         required = list(self.aio.NovaPromptStackAIOV3.INPUT_TYPES()["required"])
         self.assertEqual(LEGACY_REQUIRED, required[:len(LEGACY_REQUIRED)])
-        self.assertEqual(SUBJECT_REQUIRED, required[len(LEGACY_REQUIRED):])
+        self.assertEqual(
+            SUBJECT_REQUIRED + DYNAMIC_REQUIRED,
+            required[len(LEGACY_REQUIRED):],
+        )
         self.assertEqual(CURRENT_OUTPUTS, self.aio.NovaPromptStackAIOV3.RETURN_NAMES)
 
         legacy_v330_values = [
@@ -223,6 +228,190 @@ class SubjectCollectionTests(unittest.TestCase):
         self.assertEqual(self.aio.SEED_SLOT_INDEX["pose"], 1)
         self.assertEqual(self.aio.SEED_SLOT_INDEX["character"], 5)
         self.assertEqual(self.aio.SEED_SLOT_INDEX["subject"], 6)
+
+    def test_dynamic_slots_follow_visual_order_and_all_names_is_clean_lines(self) -> None:
+        required = self.aio.NovaPromptStackAIOV3.INPUT_TYPES()["required"]
+        kwargs = {}
+        for name, spec in required.items():
+            settings = spec[1] if len(spec) > 1 and isinstance(spec[1], dict) else {}
+            default = settings.get("default")
+            if default is None:
+                default = spec[0][0] if isinstance(spec[0], list) else ""
+            kwargs[name] = default
+        kwargs.update(
+            random_mode="Random From Seed",
+            seed=123,
+            manual_prompt="manual payload",
+            extra_positive="positive metadata",
+            slots_json=json.dumps({
+                "version": 1,
+                "slots": [
+                    {
+                        "id": "a", "label": "First label", "enabled": True,
+                        "file_path": "first.csv", "category": "All", "search": "needle",
+                        "selection": "First Selected", "seed_offset": 20,
+                    },
+                    {
+                        "id": "b", "label": "Disabled label", "enabled": False,
+                        "file_path": "disabled.csv", "category": "Hidden", "search": "secret",
+                        "selection": "Disabled Selected", "seed_offset": 21,
+                    },
+                    {
+                        "id": "c", "label": "Last label", "enabled": True,
+                        "file_path": "last.csv", "category": "All", "search": "",
+                        "selection": "Last Selected", "seed_offset": 22,
+                    },
+                ],
+            }),
+        )
+
+        def picked(file_path, selection, rng, category="All", search=""):
+            return {
+                "name": selection,
+                "prompt": f"prompt {selection}",
+                "negative": f"negative {selection}",
+            }, file_path
+
+        with mock.patch.object(self.aio, "_pick_record", side_effect=picked):
+            result = self.aio.NovaPromptStackAIOV3().build(**kwargs)
+
+        self.assertEqual(
+            "prompt First Selected, prompt Last Selected, manual payload, positive metadata",
+            result[0],
+        )
+        self.assertEqual("First Selected\nLast Selected", result[3])
+        self.assertNotIn("manual payload", result[3])
+        self.assertNotIn("First label", result[3])
+        self.assertNotIn("Disabled Selected", result[3])
+        self.assertIn("Disabled label [OFF]", result[2])
+
+    def test_dynamic_seed_identity_survives_reordering(self) -> None:
+        base = {
+            "all_slots_enabled": True,
+            "random_mode": "Random From Seed",
+            "seed": 98765,
+            "delimiter": ", ",
+            "manual_prompt": "",
+            "extra_positive": "",
+            "extra_negative": "",
+        }
+        slots = [
+            {"id": "one", "label": "One", "enabled": True, "file_path": "one.csv", "selection": "random", "seed_offset": 40},
+            {"id": "two", "label": "Two", "enabled": True, "file_path": "two.csv", "selection": "random", "seed_offset": 80},
+        ]
+
+        def picked(file_path, selection, rng, category="All", search=""):
+            token = f"{file_path}:{rng.random():.12f}"
+            return {"name": token, "prompt": token, "negative": ""}, file_path
+
+        with mock.patch.object(self.aio, "_pick_record", side_effect=picked):
+            first = self.aio._build_dynamic_stack(slots, **base)
+            second = self.aio._build_dynamic_stack(list(reversed(slots)), **base)
+
+        self.assertEqual(first[3].splitlines(), list(reversed(second[3].splitlines())))
+
+    def test_twenty_plus_slots_keep_clean_all_names_and_ignore_ui_state(self) -> None:
+        required = self.aio.NovaPromptStackAIOV3.INPUT_TYPES()["required"]
+        kwargs = {}
+        for name, spec in required.items():
+            settings = spec[1] if len(spec) > 1 and isinstance(spec[1], dict) else {}
+            default = settings.get("default")
+            if default is None:
+                default = spec[0][0] if isinstance(spec[0], list) else ""
+            kwargs[name] = default
+
+        slots = []
+        expected_names = []
+        for index in range(24):
+            enabled = index not in {5, 17}
+            name = f"Selected {index + 1:02d}"
+            slots.append({
+                "id": f"slot-{index}",
+                "label": f"Private label {index}",
+                "enabled": enabled,
+                "folder": "csv/NovoLoko_Expanded_CSV_Pack_V6_Ultimate/90_H3_Video/02_Audio",
+                "folder_search": "H3 audio",
+                "file_path": f"library-{index}.csv",
+                "category": "Metadata category",
+                "search": "metadata search",
+                "selection": name,
+                "seed_offset": index + 100,
+                "collapsed": index % 2 == 0,
+            })
+            if enabled:
+                expected_names.append(name)
+        kwargs.update(
+            random_mode="Random From Seed",
+            seed=123,
+            manual_prompt="manual text excluded from all_names",
+            extra_positive="extra text excluded from all_names",
+            slots_json=json.dumps({
+                "version": 2,
+                "ui": {"panel_size": "roomy"},
+                "slots": slots,
+            }),
+        )
+
+        def picked(file_path, selection, rng, category="All", search=""):
+            return {"name": selection, "prompt": selection, "negative": ""}, file_path
+
+        with mock.patch.object(self.aio, "_pick_record", side_effect=picked):
+            result = self.aio.NovaPromptStackAIOV3().build(**kwargs)
+
+        self.assertEqual(expected_names, result[3].splitlines())
+        self.assertNotIn("Private label", result[3])
+        self.assertNotIn("H3 audio", result[3])
+        self.assertNotIn("manual text", result[3])
+
+    def test_dynamic_slot_folder_state_is_additive_and_legacy_safe(self) -> None:
+        old_payload = json.dumps({
+            "version": 1,
+            "slots": [{"id": "old", "file_path": "csv/subjects/novoloko_animals_600.csv"}],
+        })
+        old_slot = self.aio._normalise_dynamic_slots(old_payload)[0]
+        self.assertEqual(self.aio.ALL_FOLDERS, old_slot["folder"])
+        self.assertEqual("", old_slot["folder_search"])
+
+        deep_folder = "csv/NovoLoko_Expanded_CSV_Pack_V6_Ultimate/90_H3_Video/02_Audio"
+        new_payload = json.dumps({
+            "version": 1,
+            "slots": [{
+                "id": "new",
+                "folder": deep_folder,
+                "folder_search": "H3 Audio",
+                "file_path": f"{deep_folder}/novoloko_v6_h3_soundscape.csv",
+            }],
+        })
+        new_slot = self.aio._normalise_dynamic_slots(new_payload)[0]
+        self.assertEqual(deep_folder, new_slot["folder"])
+        self.assertEqual("H3 Audio", new_slot["folder_search"])
+
+    def test_recursive_folder_discovery_filters_deep_csv_paths(self) -> None:
+        hair = "csv/NovoLoko_Expanded_CSV_Pack_V6_Ultimate/24_Hairstyles"
+        audio = "csv/NovoLoko_Expanded_CSV_Pack_V6_Ultimate/90_H3_Video/02_Audio"
+        folders = self.aio._slot_folder_candidates()
+        self.assertEqual(self.aio.ALL_FOLDERS, folders[0])
+        self.assertIn(hair, folders)
+        self.assertIn(audio, folders)
+        self.assertIn("styles", folders)
+        self.assertIn("csv/wildcards", folders)
+
+        filtered_folders = self.aio._slot_folder_candidates("h3 audio")
+        self.assertIn(audio, filtered_folders)
+        self.assertNotIn(hair, filtered_folders)
+
+        hair_files = self.aio._slot_file_candidates("medium", hair)
+        audio_files = self.aio._slot_file_candidates("medium", audio)
+        self.assertTrue(hair_files)
+        self.assertTrue(audio_files)
+        self.assertTrue(all(path.rsplit("/", 1)[0] == hair for path in hair_files))
+        self.assertTrue(all(path.rsplit("/", 1)[0] == audio for path in audio_files))
+        self.assertIn(f"{audio}/novoloko_v6_h3_soundscape.csv", audio_files)
+
+        items = self.aio._slot_file_items("medium", audio)
+        self.assertEqual(audio_files, [item["value"] for item in items])
+        self.assertTrue(all(item["relative_path"].startswith(audio + "/") for item in items))
+        self.assertTrue(all("/" not in item["label"] for item in items))
 
     def test_v400_workflow_uses_subject_and_one_unified_voice_node(self) -> None:
         path = ROOT / "workflows/NovoLoko AIO v4.0.0.json"

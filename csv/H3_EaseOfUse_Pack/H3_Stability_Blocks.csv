@@ -1,0 +1,8 @@
+﻿index,name,prompt,negative_prompt,category,weight,favorite
+1,Anatomy Stability,"Preserve correct human anatomy throughout. Keep the same face, head shape, shoulders, arms, hands, fingers, torso, hips, legs, feet, and body proportions. No extra limbs, missing limbs, fused fingers, warped joints, duplicated body parts, or melted features.",,Stability Block,1,
+2,Identity Lock,"Maintain the same identity, facial structure, hairstyle, clothing, proportions, and distinguishing features throughout the shot. No identity drift, no face replacement, and no sudden appearance changes.",,Stability Block,1,
+3,Pose Lock,"Once the pose is established, keep it completely locked and unchanged. Do not switch to another pose and do not alter limb placement.",,Stability Block,1,
+4,Outfit Lock,"Once the outfit is visible, keep the same outfit unchanged throughout the shot. No extra wardrobe changes, no flicker, and no morphing.",,Stability Block,1,
+5,Handoff Stability,"During the final 1–2 seconds, reduce extreme motion, motion blur, occlusion, and camera shake so the final frame is clean, sharp, stable, and suitable as the first frame of the next continuation clip.",,Stability Block,1,
+6,Clean Visuals,"Keep the presentation clean, elegant, and realistic. No extra visual effects, no sparkles, no smoke, no lens flares, no glowing particles, no holographic overlays, and no decorative graphic elements.",,Stability Block,1,
+7,Loop Return,Return the camera smoothly to the opening framing by the end of the shot. The final frame should closely match the opening composition without deforming the subject.,,Stability Block,1,

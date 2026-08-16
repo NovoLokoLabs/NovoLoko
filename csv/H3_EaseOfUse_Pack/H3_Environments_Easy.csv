@@ -1,0 +1,9 @@
+﻿index,name,prompt,negative_prompt,category,weight,favorite
+1,Neutral Studio,Set the scene in a clean neutral studio with seamless background and minimal distractions.,,Environment,1,
+2,Luxury Studio,Set the scene in a dark luxury studio with moody premium lighting.,,Environment,1,
+3,City Street,Set the scene on a realistic city street with grounded urban detail.,,Environment,1,
+4,Basketball Court,Set the scene on a realistic basketball court with coherent sports context.,,Environment,1,
+5,Modern Apartment,Set the scene in a stylish modern apartment with believable interior design.,,Environment,1,
+6,Forest Path,Set the scene on a natural forest path with soft outdoor light.,,Environment,1,
+7,Beach,Set the scene on a realistic beach with natural coastal atmosphere.,,Environment,1,
+8,Runway Stage,Set the scene on a fashion runway stage with clean staging.,,Environment,1,

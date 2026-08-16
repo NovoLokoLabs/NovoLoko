@@ -1,5 +1,276 @@
 # NovoLoko Changelog
 
+## v4.6.4 - Music Lab reference expansion and backend/seed lifecycle - 2026-08-17
+
+- Added 275 useful named artists while preserving the prior 102 and every
+  migration alias: 377 named artists, 754 visible Clone/Like variants and 820
+  visible built-in presets.
+- Expanded Genre from 45 to 107 and Style/Era from 148 to 386. Expanded every
+  other control library for a final 1,429 choices across all 19 controls, with
+  especially large Singer Performance, Lead Voice, instruments, production,
+  mood, hook, theme and arrangement passes.
+- Added an explicit main-workflow writer backend selector. Ollama's dynamic
+  local model picker remains the FAST default with BALANCED, Gemma and every
+  other installed local model; the existing Comfy safetensors writer remains a
+  selectable fallback.
+- Audited a true direct Comfy llama.cpp GGUF causal path. Its installed
+  `llama-cpp-python` failed before model load because `ggml.dll` or a dependency
+  could not load, so it is documented rather than exposed as a broken backend.
+- Added optional external NovoLoko Seed Lab awareness without changing the 48
+  serialized widget values. Linked state disables stale seed/policy controls;
+  disconnect restores the internal policy and no dummy run is introduced.
+- Guarded offscreen zero-size DOM measurements and remeasured on viewport
+  re-entry while preserving manual node size, category/idea allocation, widgets
+  and graph links in Classic and Nodes 2.0.
+- Retained active Uncensored/Very Explicit clean-idea override and real writer
+  output proof, native MiniMax duration wiring, separate lyric/caption paths,
+  saver/player behavior, recipe restoration and final Memory Manager ordering.
+
+## v4.6.3 - MiniMax Music 3 corrective hotfix - 2026-08-17
+
+- Replaced intrinsic/flex inference with real DOM-widget allocated height in
+  legacy/classic and Nodes 2.0; compact, default, 720x1040 and tall layouts now
+  reflow without clipped preset/category rows.
+- Removed the category scrollbar once all 19 rows fit, expanded SONG IDEA only
+  after that point, capped it at 280 px, and capped excessive empty-body growth
+  at the measured content ceiling.
+- Fixed duplicated selector text such as `Pearl Jam — Pearl Jam — Clone`.
+- Added searchable Måneskin and Counting Crows Clone/Like pairs, bringing the
+  library to 102 artists, 204 visible artist variants and 270 visible presets.
+- Clarified next-run seed behavior and added successful-run status without
+  changing any category policy.
+- Carried Very Explicit/Uncensored requirements across the enhancer boundary
+  and added one clean-draft retry; expanded plain-English below-fold labels.
+
+## v4.6.2 - Music Controls quality pass - 2026-08-17
+
+- Added paired `Artist — Clone` and `Artist — Like` choices for all 100 suitable
+  artist-reference labels. Clone applies very strong descriptive DNA across era,
+  vocal character, instruments and tones, drum feel, tempo, arrangement,
+  dynamics, hooks and mix; Like keeps the broad lane with more freedom.
+- Kept all v4.6.1 artist preset names as hidden migration aliases. Artist names
+  remain search/audit labels and are never inserted into the music or lyric
+  generation briefs.
+- Appended a compatibility-safe manual-override record after the complete
+  v4.6.1 widget contract. Editing one control now replaces only that matching
+  reference trait; other Clone/Like DNA remains active and visible in the batch
+  transparency report.
+- Reworded all 19 control labels in plain language and added a concise selected-
+  value explanation without changing serialized category keys or choice names.
+- Added 13 practical instrument rigs, including electric guitar/bass/live drums,
+  grunge, pop-punk, heavy double-kick, funk, trap, cinematic, industrial,
+  shoegaze, reggae and Afrobeat setups. Rewrote the weakest energy, darkness,
+  rhyme, story and ad-lib templates so their choices materially change prompts.
+- Made Explicit, Very Explicit and Uncensored active lyric-writing requirements;
+  the stronger levels now request natural frequent profanity and adult language
+  when stylistically appropriate while retaining fictional-content safeguards.
+- Added the v4.6.2 Music Lab workflow and expanded recipe v2/transparency data
+  additively with display values, reference mode, strength, traits and overrides.
+- Preserved the v4.6.1 `620 x 760` default, `420 x 480` minimum, actual-body
+  measurement, Nodes 2.0 containment, hidden native widgets, writer setup and
+  Ollama aliases unchanged.
+- Completed the classic/legacy responsive pass: the category scrollbar now
+  disappears when all 19 rows fit, SONG IDEA grows into available height up to
+  a useful cap, and compact/tall/very-tall layouts remain overlap-free in both
+  classic and Nodes 2.0.
+- Replaced the user-facing Ollama model text box with an auto-refreshing local
+  model picker. FAST, BALANCED and GEMMA show friendly labels plus their actual
+  aliases; missing recommendations are explicit, every other local model is
+  selectable, and manual entry remains under Advanced.
+- Added **After run: Fixed / Randomize Seed** beside the seed. Seed-only mode
+  mirrors ComfyUI's after-generate policy, never changes the 19 choices, and is
+  recorded in transparency and recipe v2. Legacy workflows with a genre value
+  shifted into `control_after_generate` migrate deterministically.
+- Strengthened ~1:30 through ~5:00 duration steering. The chosen seconds still
+  wire directly to MiniMax `max_duration`; ~5:00 now requests a 300-second max,
+  at least ten substantial sections, 650-900 lyric words and instrumental
+  breathing room while honestly warning that MiniMax may finish early.
+- Added persistent audio favorites using a small folder sidecar index: favorite,
+  unfavorite, filter and sort without mutating audio. Favorites follow paired
+  renames and are removed when a track is moved to recoverable trash.
+- Added a 120-520 px lyrics-height control while retaining karaoke, follow and
+  copy behavior, plus a clear **One-off: clean after run / Batch: keep loaded**
+  saver lifecycle selector with legacy cleanup compatibility.
+
+## v4.6.1 - Responsive Music Controls and local writer A/B path - 2026-08-16
+
+- Replaced the fixed-height Music Controls DOM widget with a growable body based
+  on the actual ComfyUI allocation. Manual sizes remain free between compact
+  minimums and a corrupt-data guard; the 19-category list scrolls internally.
+- Hidden every preserved backend widget through both classic LiteGraph and Nodes
+  2.0 visibility state, preventing duplicate stock rows from pushing the custom
+  SONG IDEA / CSV panel down after a tab switch or reload.
+- Added compact custom mirrors for Randomize All, seed and allow-None without
+  changing serialized widget/socket order or recipe v2 behavior.
+- Added an optional loopback-only Ollama GGUF writer loader, setup guide and real
+  3A/3B/3C A/B benchmark. The Qwen3-VL writer and MiniMax native text encoder
+  paths remain compatible and unchanged.
+
+## v4.6.0 - Unified Music Controls, lossless recipes and fast batches - 2026-08-16
+
+- Merged Short Music Idea into the existing `NovaMusicControls` node without
+  removing the legacy `NovaMusicIdea` class needed by older workflows.
+- Added a versioned v2 track recipe with `original_idea`, all 19 original
+  Random/Custom/None decisions, custom text, exact resolved choices, random
+  scope/filter, allow-None policy and integer seed.
+- Fixed built-in and user preset restoration, including Nodes 2.0 numeric combo
+  values, booleans, custom fields and saved random policy.
+- Hardened the responsive panel against both corrupt node size and corrupt
+  saved panel height, returning the supplied workflow to 620×760.
+- Added live per-stage timing for enhancer/model load, lyric enhancer, lyrics
+  generator, caption enhancer, MiniMax generation, save and cleanup.
+- Defaulted all three music text writers to Thinking Off while retaining their
+  individual toggles.
+- Added Memory Manager **Fast Batch / Reuse** mode and made it the workflow
+  default; Balanced remains available for one end-of-batch cleanup.
+- Added a v4.5.1-to-v4.6.0 workflow migrator and regenerated the latest layout
+  without the standalone idea node.
+
+## v4.5.1 - Stable controls, scoped preset random and audio formats - 2026-08-16
+
+- Removed the self-referential DOM/node height calculation and automatically
+  repairs corrupted Music Controls sizes above the safe maximum.
+- Added seed-stable complete-preset randomization across all presets, one preset
+  folder, or one genre, with the exact chosen preset recorded in transparency.
+- Restored 24-bit WAV, FLAC, 320 kbps MP3 and OGG saver choices while retaining
+  paired TXT/JSON basenames and duplicate-safe indexing.
+- Added a numeric volume percentage to the player.
+- Added karaoke sync offset and opt-in internal lyric following; following is
+  off by default and no longer moves the node or canvas view.
+
+## v4.5.0 - Track recipes, lyrics and resilient visualizer - 2026-08-15
+
+- Added sidecar-backed **Load Track Recipe** for exact restoration of all 19
+  Music Controls choices, custom values, None decisions, random policy and seed.
+- Added matched lyrics, copy, and clearly labelled estimated karaoke to the
+  Audio Library / Player without adding blocking graph work.
+- Fixed the live visualizer stopping after a new run, visualizer-height change,
+  or player/node resize.
+- Fixed the Music Controls DOM panel's width feedback loop and horizontal growth.
+- Strengthened artist-reference steering with prompt-neutral high-priority
+  reference DNA built from era, vocal, instrument and production traits.
+- Preserved node IDs, sockets, widget order, batch transparency, sidecar pairing,
+  and the post-save Balanced Memory Manager pattern.
+
+## v4.4.0 - Preset discovery, spoken voice and live visualizer - 2026-08-15
+
+- Expanded the 19 Music 3 libraries to 752 choices and 166 built-in presets.
+- Added foldered preset browsing plus search by genre, instrument, artist/band/group/DJ reference and descriptive keywords.
+- Reference names remain discovery metadata; generated music captions use descriptive traits rather than asking to copy an artist.
+- Added spoken-voice-only presets for anger, sadness, sensual whispering, yelling, ASMR, documentary, podcast, meditation, sermon, emergency broadcast and more.
+- Added six Web Audio visualizer styles with adjustable in-node height, bass-reactive animation and a lightweight BPM estimate.
+- Expanded the in-workflow Start Here guide with complete generation, preset, speech, player, save and memory instructions.
+
+## v4.3.1 - Responsive panels and persistence repair - 2026-08-15
+
+- Made Music Controls, Audio Library / Player and Prompt Stack internal canvases follow manual node height instead of leaving fixed-height panels and blank space.
+- Reserved an explicit Prompt Stack panel gap so `random_mode` can no longer overlap the slot canvas.
+- Added **Show Selected in Folder** to reveal the active audio file directly in Windows File Explorer.
+- Repaired Nodes 2.0 numeric combo-index handling for Prompt Enhancer saved custom presets and target model / prompt format.
+- Persisted the resolved Prompt Enhancer target mode in node properties so workflow reloads retain the last valid selection.
+- Added selected-node seed wheel adjustment across NovoLoko nodes; the canvas keeps normal zoom when the pointer is not over a selected seed row.
+
+## v4.3.0 - Expanded Music Lab and Audio Library - 2026-08-15
+
+- Fixed the v4.2 saver/Memory Manager link-ID collision and saver input-order mismatch that caused ComfyUI's `Cannot read properties of undefined (reading 'output')` toast.
+- Added strict workflow endpoint/link validation and repaired the stale Controls widget offset while preserving node IDs and the working save-to-memory-cleanup architecture.
+- Expanded the 19 Music 3 libraries to 552 built-in choices and 45 genre-spanning presets.
+- Added None, per-category Custom text, seed-stable Random rules, exact resolution reporting, and update-safe user preset save/load/rename/delete/refresh.
+- Added the NovoLoko Audio Library / Player with transport, seek, timing, volume, repeat, shuffle, search, sort, external-folder browsing, metadata, paired rename, and recoverable paired trash.
+- Made selected/focused Text Display wheel scrolling explicit while preserving unselected canvas wheel behavior, text selection/copy, visible scrollbars, and middle-mouse pan.
+
+## v4.2.0 - Consolidated MiniMax Music 3 archive build - 2026-08-15
+
+- Added `NovoLoko Save Audio + Prompt Metadata`, producing matched duplicate-safe
+  24-bit WAV/TXT/JSON sets under `output/audio/NovoLoko/` from the actual
+  connected batch values, with Windows-safe names and optional compact WAV tags.
+- Added a conservative optional terminal model/CUDA cleanup control. It remains
+  off by default and never unloads between the shared 3A/3B/3C text passes.
+- Added a frontend migration for shifted legacy Music Lab writer widgets,
+  including the known invalid creativity `0` / max length `1` pair.
+- Repaired selected/focused Text Display wheel scrolling while preserving normal
+  unselected canvas wheel navigation, selectable text, visible overflow scrollbars
+  and middle-mouse canvas pan in Legacy and Nodes 2.0.
+- Made the requested Generation Timer settings fresh-node defaults: Full Stats,
+  radius 5, 20-run history, all status/stat fields on, glow off, packaged Cash
+  finish sound and volume 35; the existing color palette is unchanged.
+- Added Gregorian Drill Opera / Holy 808, CUDA Out of Memory and What Did I
+  Generate examples without removing any original genre libraries or presets.
+- Rebuilt the default Music Lab workflow with exact 3A/3B/3C widget serialization,
+  the timer defaults, the metadata saver, and direct batch-transparency wiring.
+
+## v4.1.0 - MiniMax Music 3 validation and navigation hotfix - 2026-08-15
+
+- Aligned the 3A, 3B and 3C creativity schemas with FLOAT values from 0.0 to
+  1.0 in 0.05 steps, using defaults 0.85, 0.90 and 0.70 respectively.
+- Aligned all three writer nodes and the supplied Music Lab workflow to valid
+  max-length values from 256 to 8192: 2048 for 3A, 4096 for 3B and 2048 for 3C.
+- Restored normal ComfyUI wheel navigation over large Text Display nodes while
+  keeping text selectable/copyable, the scrollbar draggable and middle-mouse
+  canvas panning available.
+- Kept the selected-options batch-transparency output and ordering unchanged.
+
+## v4.1.0 - MiniMax Music 3 Lab - 2026-08-15
+
+- Added one current five-node MiniMax Music 3 pipeline: Music Idea, CSV Controls,
+  Lyric Enhancer, Lyrics Generator and Music Caption Enhancer.
+- Added 19 independent CSV control categories with 154 entries plus six presets,
+  including heavy rap/trap/drill and contrasting synthwave, dream-pop, acoustic
+  soul, industrial and orchestral configurations.
+- Added deterministic per-category and whole-preset randomization from a shared
+  seed, with a complete `selected_options` report for transparent batches.
+- Kept lyrics and music captions on separate model-generation paths. Lyrics use
+  MiniMax section tags; captions use Global Metadata, Vocal Details and
+  Arrangement headings and cannot consume the generated lyric text.
+- Added an example workflow wired to current ComfyUI MiniMax Music 3 core nodes
+  and the existing generative Qwen/Krea2 enhancer CLIP pattern.
+- Preserved all existing v4.0.2 node IDs, schemas, widget/output order, Prompt
+  Stack behavior, current workflows and optional-safe execution.
+
+## v4.0.2 - Legacy expanded-slot clipping fix - 2026-08-14
+
+- **legacy expanded-slot clipping fixed**: expanded Prompt Stack cards are no
+  longer allowed to flex-shrink to header height inside the fixed scroll panel.
+- Remeasures each slot and the complete scroll-content height immediately after
+  individual toggles, Expand All / Collapse All, add, copy, remove and reorder.
+- Removes stray horizontal bars from hidden compatibility widgets by using
+  ComfyUI's no-draw hidden-widget representation while preserving serialization.
+- Keeps the outer 450/520/600 px panel fixed; seven or twenty expanded slots
+  scroll internally with every Folder filter, Folder, CSV file, Category,
+  Search and Selection control visible at normal spacing.
+- Confirms every v4.0.1 consolidated feature remains present in this same build:
+  legacy/classic + Nodes 2.0, unlimited dynamic slots, recursive folder-aware
+  filtering, refresh, collapse controls, the visual Medium browser, stable
+  prompt/output contracts and selected-names-only `all_names`.
+
+## v4.0.1 - Prompt Stack AIO Pro consolidated build - 2026-08-14
+
+- Ships **Legacy + Nodes 2.0** compatibility, recursive **folder filtering**,
+  **dynamic slots**, a **fixed-height scroll panel**, **Collapse All / Expand
+  All**, and clean selected-names-only **`all_names`** together in this same
+  build.
+- Uses the 450/520/600 px internal panel in classic and Nodes 2.0 whenever the
+  frontend DOM-widget API is available; retains tested native controls for
+  older classic frontends that do not expose that API.
+- Keeps Add, Copy, Remove, Up, Down, enabled state, labels, per-slot collapse,
+  random mode/seed behavior and panel size across workflow save/reload.
+- Preserves the existing Python input/output order, hidden legacy widgets,
+  legacy seven-slot migration, stable per-slot seed offsets, refresh/clear
+  actions and Browse Medium Styles integration.
+- Adds executable runtime coverage for classic DOM, Nodes 2.0 DOM, the native
+  fallback, 20+ slot mutations, save/reload and 24-slot `all_names` ordering.
+
+## v4.0.0 Prompt Stack compatibility refresh - 2026-08-14
+
+- Restores Prompt Stack AIO Pro dynamic-slot controls in legacy/classic
+  LiteGraph with native widgets while retaining the Nodes 2.0 slot-card panel.
+- Adds recursive per-slot folder discovery, folder search, folder-filtered file
+  choices and concise filenames with full relative-path tooltips.
+- Refresh now reloads folders, files, categories and entries while keeping a
+  selected file when it is still valid in the chosen folder.
+- Preserves legacy widget/output order, dynamic add/remove/copy/up/down,
+  selected summaries, prompt outputs and selected-names-only `all_names`.
+
 ## v4.0.0 — Workflow presentation, LoRA tools and dual-frontend parity
 
 - Adds NovoLoko Power LoRA Stack with random pools, presets, trigger words,

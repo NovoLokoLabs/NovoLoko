@@ -235,9 +235,9 @@ class StylePreviewTests(unittest.TestCase):
             self.assertIn(marker, browser)
         self.assertIn("aspect-ratio:1/1", browser)
         for marker in (
-            "Browse Medium styles visually",
+            "Browse Medium Styles",
             "window.NovoLokoStyleBrowser",
-            'csv: String(file?.value || "styles/novoloko_all_yaml_styles.yaml")',
+            "csv: slot.file_path || DEFAULT_MEDIUM",
             "onSelect(item)",
         ):
             self.assertIn(marker, stack)
@@ -280,6 +280,8 @@ class StylePreviewTests(unittest.TestCase):
     def test_generated_preview_state_is_ignored(self) -> None:
         ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
         self.assertIn("data/style_previews/", ignore)
+        if not (ROOT / ".git").exists():
+            self.skipTest("Git tracking check requires a source checkout, not a packaged archive")
         tracked = subprocess.run(
             ["git", "ls-files", "data/style_previews"],
             cwd=ROOT,

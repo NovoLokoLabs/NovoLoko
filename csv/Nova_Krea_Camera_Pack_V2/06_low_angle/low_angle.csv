@@ -1,0 +1,6 @@
+index,name,prompt,negative_prompt,category,weight,favorite
+26,Subtle Low-Angle Hero,"subtle low-angle hero portrait, natural proportions, confident vertical lines, face unobstructed","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Low Angle,1.00,false
+27,Low-Angle Face Priority,"low-angle composition with eyes and face kept clear, chin natural, body secondary","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark, oversized chin, hidden eyes, nostril distortion",Low Angle,1.15,true
+28,Ground-Up Full Body,"controlled ground-up full body view, feet foreground but not oversized, head and face fully visible","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Low Angle,1.00,false
+29,Low-Angle Walking,"low-angle walking fashion shot, complete stride, face sharp, legs remain proportional","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Low Angle,1.00,false
+30,Low-Angle Seated,"low-angle seated portrait, knees do not block face, hands visible, clean body geometry","distorted anatomy, duplicate limbs, warped hands, cropped face, cut-off feet, soft subject, text, logo, watermark",Low Angle,1.00,false

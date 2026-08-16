@@ -1,0 +1,9 @@
+name,prompt
+Identity and Anatomy Lock,"Keep the identity, face, body proportions, anatomy, skin tone, and defining features of <Subject 1> unchanged in every frame."
+Pose and Limb Lock,"Preserve the intended pose and limb relationships with stable joints, hands, fingers, feet, and contact points throughout the motion."
+Wardrobe and Hair Lock,"Keep all clothing, accessories, hair length, hairstyle, materials, colours, seams, and fastenings consistent throughout the shot."
+Full Continuity Lock,"Maintain strict identity, anatomy, wardrobe, hair, environment, lighting, camera, prop, and motion continuity from the first frame to the last."
+Reference Fidelity Lock,"Prioritise faithful use of the supplied references and do not invent, merge, swap, or omit referenced subjects, garments, props, or scene elements."
+Clean Hands and Face,"Keep the face, eyes, mouth, teeth, hands, and fingers clear and anatomically stable, especially during motion and partial occlusion."
+Background Geometry Lock,"Keep architecture, furniture, horizon lines, floor contact, reflections, and background objects spatially stable as the subject or camera moves."
+Motion Coherence,"Use physically coherent motion with natural timing, stable momentum, clean contact, and no teleporting, morphing, repeated limbs, or frame-to-frame jitter."
