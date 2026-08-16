@@ -1086,13 +1086,19 @@ class Music3NodeTests(unittest.TestCase):
                 self.assertEqual("midnight chrome", sidecar["recipe"]["custom_values"]["mood"])
                 self.assertTrue(sidecar["recipe"]["allow_random_none"])
                 self.assertIn("Old song", sidecar["lyrics"])
-                with patch.object(music3.subprocess, "Popen") as explorer:
-                    revealed = music3.reveal_music_library_track(
-                        "audio/NovoLoko", "Renamed_Track.wav"
-                    )
-                    self.assertEqual("Renamed_Track.wav", revealed["name"])
-                    explorer.assert_called_once()
-                    self.assertIn("/select,", explorer.call_args.args[0][1])
+                if music3.os.name == "nt":
+                    with patch.object(music3.subprocess, "Popen") as explorer:
+                        revealed = music3.reveal_music_library_track(
+                            "audio/NovoLoko", "Renamed_Track.wav"
+                        )
+                        self.assertEqual("Renamed_Track.wav", revealed["name"])
+                        explorer.assert_called_once()
+                        self.assertIn("/select,", explorer.call_args.args[0][1])
+                else:
+                    with self.assertRaisesRegex(OSError, "available on Windows"):
+                        music3.reveal_music_library_track(
+                            "audio/NovoLoko", "Renamed_Track.wav"
+                        )
                 trashed = music3.trash_music_library_track("audio/NovoLoko", "Renamed_Track.wav")
                 self.assertTrue(Path(trashed["trash_folder"]).is_dir())
                 self.assertEqual([], list(folder.glob("Renamed_Track.*")))
