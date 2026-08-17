@@ -22,6 +22,7 @@ ARTIST_DEPTH_PATH = Path(__file__).with_name("csv") / "music3" / "26_artist_dna_
 _ORIGINAL_STYLE_ROWS = v2._style_overlay_rows
 _ORIGINAL_BROAD_GENRE = rules.broad_genre_for
 _ORIGINAL_CURATED_DNA = v2._curated_dna
+_ORIGINAL_STYLE_PARENT_MAP = v2._style_parent_map
 
 
 def _clear_cache(function: Any) -> None:
@@ -95,7 +96,37 @@ def broad_genre_for(value):
         return "Latin / Reggaeton"
     if "new age" in text or "meditation" in text:
         return "Ambient"
+    if text.startswith("britpop") or text.startswith("brit pop"):
+        return "Rock"
     return _ORIGINAL_BROAD_GENRE(value)
+
+
+@lru_cache(maxsize=1)
+def style_parent_map():
+    # Start with the compatibility/heuristic map, then let explicit editorial
+    # rows win unconditionally. In v1 an explicit Experimental parent could be
+    # second-guessed because Experimental was also the heuristic fallback. That
+    # is exactly how "Gregorian Drill Opera" leaked back into Hip-Hop.
+    result = dict(_ORIGINAL_STYLE_PARENT_MAP())
+    for row in style_overlay_rows():
+        name = v2.m3._clean_text(row.get("name"))
+        parent = v2.m3._clean_text(row.get("parent_genre"))
+        if name and parent:
+            result[name] = broad_genre_for(parent)
+
+    # A few legacy labels predate the parent column. Their human meaning is
+    # clearer than substring heuristics and should remain stable.
+    legacy_exact = {
+        "Britpop Swagger": "Rock",
+        "90s Arena Alternative": "Rock",
+        "Opera Rock": "Rock",
+        "Gothic Post-Punk": "Rock",
+        "Pop Punk": "Punk",
+        "Gregorian Drill Opera": "Experimental",
+        "Genre Roulette Mutation": "Experimental",
+    }
+    result.update(legacy_exact)
+    return result
 
 
 # New Age / Meditation is a useful style family but not a peer top-level Genre
@@ -105,7 +136,8 @@ v2.BROAD_GENRES.pop("New Age / Meditation", None)
 v2._style_overlay_rows = style_overlay_rows
 v2._curated_dna = curated_dna
 v2.broad_genre_for = broad_genre_for
+v2._style_parent_map = style_parent_map
 rules.broad_genre_for = broad_genre_for
-_clear_cache(v2._style_parent_map)
+_clear_cache(_ORIGINAL_STYLE_PARENT_MAP)
 _clear_cache(v2._builtins_cache)
 _clear_cache(v2.m3.load_music_presets)
