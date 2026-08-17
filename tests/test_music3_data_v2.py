@@ -39,6 +39,14 @@ def load_modules():
     assert rules_spec and rules_spec.loader
     sys.modules[rules_spec.name] = rules
     rules_spec.loader.exec_module(rules)
+
+    depth_spec = importlib.util.spec_from_file_location(
+        f"{PACKAGE}.music3_data_v2_depth", ROOT / "music3_data_v2_depth.py"
+    )
+    depth = importlib.util.module_from_spec(depth_spec)
+    assert depth_spec and depth_spec.loader
+    sys.modules[depth_spec.name] = depth
+    depth_spec.loader.exec_module(depth)
     return music, patch
 
 
@@ -59,10 +67,12 @@ class MusicDataV2Tests(unittest.TestCase):
             "House": "Electronic",
             "Amapiano": "Afrobeat / Afropop",
             "Alt-Country": "Country",
+            "New Age / Meditation": "Ambient",
         }
         for source, expected in cases.items():
             with self.subTest(source=source):
                 self.assertEqual(expected, data_v2.broad_genre_for(source))
+        self.assertNotIn("New Age / Meditation", data_v2.BROAD_GENRES)
 
     def test_major_genres_have_real_style_depth(self):
         counts = {}
@@ -79,6 +89,10 @@ class MusicDataV2Tests(unittest.TestCase):
             "Reggae / Dancehall": 6,
             "Country": 6,
             "Jazz": 8,
+            "Blues": 7,
+            "Gospel": 6,
+            "Ambient": 8,
+            "Spoken Word / Voice": 7,
         }
         for parent, minimum in minimums.items():
             with self.subTest(parent=parent):
@@ -181,6 +195,7 @@ class MusicDataV2Tests(unittest.TestCase):
         self.assertIn("Rock", values)
         self.assertNotIn("K-Pop", values)
         self.assertNotIn("Grunge", values)
+        self.assertNotIn("New Age / Meditation", values)
         self.assertEqual("2", payload["music_data_version"])
 
         visible = [row for row in payload["presets"] if not row["hidden"]]
