@@ -31,6 +31,14 @@ def load_modules():
     assert patch_spec and patch_spec.loader
     sys.modules[patch_spec.name] = patch
     patch_spec.loader.exec_module(patch)
+
+    rules_spec = importlib.util.spec_from_file_location(
+        f"{PACKAGE}.music3_data_v2_rules", ROOT / "music3_data_v2_rules.py"
+    )
+    rules = importlib.util.module_from_spec(rules_spec)
+    assert rules_spec and rules_spec.loader
+    sys.modules[rules_spec.name] = rules
+    rules_spec.loader.exec_module(rules)
     return music, patch
 
 
@@ -105,6 +113,7 @@ class MusicDataV2Tests(unittest.TestCase):
         scene = missy["__dna_traits"]["scene"].casefold()
         self.assertIn("futuristic hip-hop", scene)
         self.assertNotIn("90s east coast boom bap", scene)
+        self.assertNotIn("drum programming", scene)
         self.assertIn("unconventional drum programming", missy["__dna_traits"]["instruments"].casefold())
 
         resolved, effective, randomized, _seed = music3.NovaMusicControls.resolve_selections(
@@ -162,7 +171,7 @@ class MusicDataV2Tests(unittest.TestCase):
         )
         parent = data_v2._style_parent_map()[resolved["subgenre_era"]["name"]]
         self.assertEqual("Pop", parent)
-        self.assertEqual(music3.RANDOM_OPTION, resolved["subgenre_era"]["_choice"])
+        self.assertTrue(resolved["subgenre_era"].get("_report", "").startswith("Random ->"))
 
     def test_api_exposes_broad_genres_and_artist_pairs_are_adjacent(self):
         payload = music3._music_controls_api_payload()
