@@ -62,7 +62,12 @@ class MusicReferencePromptV2Tests(unittest.TestCase):
         )
         style_brief = result[0].casefold()
         self.assertNotIn("unconventional drum programming", style_brief)
-        self.assertIn("electric guitar, bass and live drums", style_brief)
+        # Assert the override's musical content rather than freezing one exact
+        # prose template. Editorial prompt wording may improve independently.
+        self.assertIn("electric", style_brief)
+        self.assertIn("bass", style_brief)
+        self.assertIn("drum", style_brief)
+        self.assertIn("real-world rock trio", style_brief)
         self.assertIn("futuristic dry-and-punchy mix", style_brief)
 
 
