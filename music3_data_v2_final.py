@@ -18,6 +18,7 @@ from . import music3_data_v2_rules as rules
 
 _NEUTRAL_LOAD_BUILTINS = v2.m3._load_builtin_music_presets
 _V2_PRESET_API_ROWS = v2.m3._preset_api_rows
+_V2_CONTROLS_API = v2.m3._music_controls_api_payload
 
 # Only cases where the legacy/reference-row broad genre is misleading. Most
 # references keep their existing broad family so random-preset Genre filters and
@@ -152,8 +153,7 @@ def load_builtin_music_presets_reference_genres():
     return presets
 
 
-def preset_api_rows_reference_explanation():
-    rows = _V2_PRESET_API_ROWS()
+def _annotate_reference_rows(rows):
     presets = v2.m3.load_music_presets()
     for row in rows:
         reference = v2.m3._clean_text(row.get("reference"))
@@ -165,13 +165,27 @@ def preset_api_rows_reference_explanation():
             "Music Data v2 uses independent artist-neutral Reference DNA; the generic controls below start neutral and become deliberate overrides."
         )
         description = v2.m3._clean_text(row.get("description"))
-        row["description"] = f"{description} {detail}".strip()
+        if detail not in description:
+            row["description"] = f"{description} {detail}".strip()
         row["dna_source"] = source
         row["reference_controls_neutral"] = True
     return rows
 
 
+def preset_api_rows_reference_explanation():
+    return _annotate_reference_rows(_V2_PRESET_API_ROWS())
+
+
+def controls_api_reference_explanation():
+    payload = _V2_CONTROLS_API()
+    payload = copy.deepcopy(payload)
+    payload["presets"] = _annotate_reference_rows(payload.get("presets", []))
+    payload["reference_controls_policy"] = "neutral_generic_controls_with_independent_dna"
+    return payload
+
+
 rules._reference_scaffold = reference_scaffold
 v2.m3._load_builtin_music_presets = load_builtin_music_presets_reference_genres
 v2.m3._preset_api_rows = preset_api_rows_reference_explanation
+v2.m3._music_controls_api_payload = controls_api_reference_explanation
 _clear_cache(v2.m3.load_music_presets)
