@@ -34,6 +34,33 @@ class MusicPresetCoherenceV2Tests(unittest.TestCase):
             hook_style="Call and Response",
         )
 
+    def test_generic_vocal_presets_have_style_appropriate_identity_and_variety(self):
+        self.assertFields(
+            "Shoegaze Bloom",
+            vocal_delivery="Shoegaze Buried Vocal",
+            vocal_gender_type="Androgynous Airy Lead",
+        )
+        self.assertFields(
+            "Classic Heavy Metal",
+            vocal_delivery="Clean Metal Chorus",
+            vocal_gender_type="Warm Male Tenor",
+        )
+        self.assertFields(
+            "Deep House Sunset",
+            vocal_delivery="Silky R&B Lead",
+            vocal_gender_type="Mature Smoky Female Lead",
+        )
+        self.assertFields(
+            "Uplifting Trance Flight",
+            vocal_delivery="Ethereal Layered Vocal",
+            vocal_gender_type="Female Soprano Lead",
+        )
+        self.assertFields(
+            "Liquid DnB Heartbreak",
+            vocal_delivery="Silky R&B Lead",
+            vocal_gender_type="Female Alto Lead",
+        )
+
     def test_instrumental_presets_do_not_ask_for_vocal_hooks(self):
         self.assertFields(
             "Berlin Warehouse Techno",
