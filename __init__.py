@@ -59,6 +59,7 @@ from .music3_nodes import (
 # Music Data v2 patches the existing Music 3 class/functions in place.  It adds
 # no sockets or serialized widgets, so old workflows keep the same contract.
 from . import music3_data_v2 as _music3_data_v2  # noqa: F401
+from . import music3_data_v2_rules as _music3_data_v2_rules  # noqa: F401
 
 # Keep schema/voice dropdown probes passive, but auto-start OmniLoko when an
 # actual TTS execution needs it.
