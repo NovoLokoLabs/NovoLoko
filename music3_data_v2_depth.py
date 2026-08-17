@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from . import music3_data_v2 as v2
 from . import music3_data_v2_rules as rules
@@ -17,6 +18,12 @@ from . import music3_data_v2_rules as rules
 DEPTH_PATH = Path(__file__).with_name("csv") / "music3" / "25_styles_depth_v2.csv"
 _ORIGINAL_STYLE_ROWS = v2._style_overlay_rows
 _ORIGINAL_BROAD_GENRE = rules.broad_genre_for
+
+
+def _clear_cache(function: Any) -> None:
+    clear = getattr(function, "cache_clear", None)
+    if callable(clear):
+        clear()
 
 
 @lru_cache(maxsize=1)
@@ -50,5 +57,5 @@ v2.BROAD_GENRES.pop("New Age / Meditation", None)
 v2._style_overlay_rows = style_overlay_rows
 v2.broad_genre_for = broad_genre_for
 rules.broad_genre_for = broad_genre_for
-v2._style_parent_map.cache_clear()
-v2._builtins_cache.cache_clear()
+_clear_cache(v2._style_parent_map)
+_clear_cache(v2._builtins_cache)
