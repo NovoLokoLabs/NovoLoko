@@ -1,7 +1,8 @@
-"""Additional practical style depth for Music Data v2.
+"""Additional practical style and artist depth for Music Data v2.
 
-Kept separate from the core compatibility engine so the editorial taxonomy can
-be expanded or trimmed without touching node serialization or resolution code.
+Kept separate from the core compatibility engine so the editorial taxonomy and
+high-value artist-neutral DNA can be expanded or trimmed without touching node
+serialization or resolution code.
 """
 
 from __future__ import annotations
@@ -10,14 +11,17 @@ import csv
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+import unicodedata
 
 from . import music3_data_v2 as v2
 from . import music3_data_v2_rules as rules
 
 
-DEPTH_PATH = Path(__file__).with_name("csv") / "music3" / "25_styles_depth_v2.csv"
+STYLE_DEPTH_PATH = Path(__file__).with_name("csv") / "music3" / "25_styles_depth_v2.csv"
+ARTIST_DEPTH_PATH = Path(__file__).with_name("csv") / "music3" / "26_artist_dna_depth_v2.csv"
 _ORIGINAL_STYLE_ROWS = v2._style_overlay_rows
 _ORIGINAL_BROAD_GENRE = rules.broad_genre_for
+_ORIGINAL_CURATED_DNA = v2._curated_dna
 
 
 def _clear_cache(function: Any) -> None:
@@ -26,12 +30,18 @@ def _clear_cache(function: Any) -> None:
         clear()
 
 
+def _reference_alias(value: str) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return text.casefold().strip()
+
+
 @lru_cache(maxsize=1)
 def style_overlay_rows():
     rows = list(_ORIGINAL_STYLE_ROWS())
     known = {row.get("name", "") for row in rows}
-    if DEPTH_PATH.is_file():
-        with DEPTH_PATH.open("r", encoding="utf-8-sig", newline="") as handle:
+    if STYLE_DEPTH_PATH.is_file():
+        with STYLE_DEPTH_PATH.open("r", encoding="utf-8-sig", newline="") as handle:
             for source in csv.DictReader(handle):
                 row = {
                     str(key or "").strip(): v2.m3._clean_text(value)
@@ -43,8 +53,46 @@ def style_overlay_rows():
     return tuple(rows)
 
 
+@lru_cache(maxsize=1)
+def curated_dna():
+    profiles = {
+        key: dict(value)
+        for key, value in _ORIGINAL_CURATED_DNA().items()
+    }
+    # Also expose accent-insensitive lookup aliases. The legacy reference CSV
+    # contains a few plain-ASCII names (for example Beyonce) while editorial DNA
+    # may use the correctly accented display spelling. Search labels stay as-is;
+    # only internal lookup is normalized.
+    for key, value in list(profiles.items()):
+        profiles.setdefault(_reference_alias(key), dict(value))
+
+    if ARTIST_DEPTH_PATH.is_file():
+        with ARTIST_DEPTH_PATH.open("r", encoding="utf-8-sig", newline="") as handle:
+            for source in csv.DictReader(handle):
+                row = {
+                    str(key or "").strip(): v2.m3._clean_text(value)
+                    for key, value in source.items()
+                }
+                reference = row.get("reference", "")
+                if not reference:
+                    continue
+                traits = {
+                    key: row.get(key, "")
+                    for key in v2.DNA_TRAIT_KEYS
+                    if row.get(key, "")
+                }
+                if not traits:
+                    continue
+                profiles[reference.casefold()] = traits
+                profiles[_reference_alias(reference)] = dict(traits)
+    return profiles
+
+
 def broad_genre_for(value):
     text = v2.m3._clean_text(value).casefold()
+    # Explicit legacy compatibility before the looser substring heuristics.
+    if "reggaeton" in text or text.startswith("latin ") or text.startswith("latin/"):
+        return "Latin / Reggaeton"
     if "new age" in text or "meditation" in text:
         return "Ambient"
     return _ORIGINAL_BROAD_GENRE(value)
@@ -55,6 +103,7 @@ def broad_genre_for(value):
 # to do: fewer understandable parents, richer children.
 v2.BROAD_GENRES.pop("New Age / Meditation", None)
 v2._style_overlay_rows = style_overlay_rows
+v2._curated_dna = curated_dna
 v2.broad_genre_for = broad_genre_for
 rules.broad_genre_for = broad_genre_for
 _clear_cache(v2._style_parent_map)
