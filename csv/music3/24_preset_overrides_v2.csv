@@ -1,0 +1,46 @@
+preset,field,value
+Bright Radio Pop,instruments,Club Synths and Percussion
+Bright Radio Pop,production_style,Polished Modern Pop
+Bright Radio Pop,song_structure,Verse-Pre-Chorus-Chorus Pop
+Bright Radio Pop,hook_style,Instant Title Earworm
+Alternative Rock Catharsis,instruments,Electric Guitar + Bass + Live Drums
+Alternative Rock Catharsis,production_style,Punchy 1990s Alternative Mix
+Alternative Rock Catharsis,song_structure,Quiet-Loud Alternative Arc
+Alternative Rock Catharsis,hook_style,Raspy Rock Sing-Along
+Classic Heavy Metal,instruments,Two Electric Guitars + Bass + Arena Drums
+Classic Heavy Metal,production_style,Classic Analog Hard Rock
+Classic Heavy Metal,song_structure,Intro-Riff-Verse-Chorus-Solo
+Classic Heavy Metal,hook_style,Clean Metal Anthem Chorus
+Classic Heavy Metal,bpm_tempo,150 BPM Aggressive
+Contemporary R&B Night,instruments,Rhodes + Electric Bass + Pocket Drums
+Contemporary R&B Night,production_style,Vocal-Forward R&B Mix
+Contemporary R&B Night,song_structure,R&B Verse-Pre-Hook-Slow Bridge
+Contemporary R&B Night,hook_style,Stacked R&B Harmony Hook
+Neo-Soul Velvet,instruments,Rhodes + Electric Bass + Pocket Drums
+Neo-Soul Velvet,production_style,Neo-Soul Tape Warmth
+Neo-Soul Velvet,song_structure,R&B Verse-Pre-Hook-Slow Bridge
+Neo-Soul Velvet,hook_style,Stacked R&B Harmony Hook
+Neo-Soul Velvet,aggression,Moderate
+Shoegaze Bloom,song_structure,Quiet-Loud Alternative Arc
+Shoegaze Bloom,hook_style,No Chorus — Evolving Refrain
+Classic Heavy Metal,themes,Ancient Myth
+P-Funk Mothership,instruments,Horn Section Clavinet and Slap Bass
+P-Funk Mothership,production_style,Classic Funk Live
+P-Funk Mothership,hook_style,Call and Response
+Roots Reggae Reflection,instruments,Reggae Guitar + Dub Bass + One-Drop Drums
+Roots Reggae Reflection,production_style,Roots Dub Space
+Roots Reggae Reflection,song_structure,Three-Verse Story Song
+Modern Country Road,instruments,Pedal Steel + Telecaster + Country Rhythm Section
+Modern Country Road,bpm_tempo,105 BPM Midtempo
+Late-Night Jazz Club,instruments,Upright Bass Piano Sax and Brushes
+Horror Score Pursuit,vocal_delivery,Instrumental Performance
+Horror Score Pursuit,vocal_gender_type,Instrumental / No Lead Vocal
+Horror Score Pursuit,hook_style,No Vocal Hook
+Horror Score Pursuit,storytelling,No Narrative
+Horror Score Pursuit,adlibs,None
+Dark Ambient Void,vocal_delivery,Instrumental Performance
+Dark Ambient Void,vocal_gender_type,Instrumental / No Lead Vocal
+Dark Ambient Void,hook_style,No Vocal Hook
+Dark Ambient Void,storytelling,No Narrative
+Dark Ambient Void,adlibs,None
+West Coast G-Funk Cruise,hook_style,Melodic Rap Hook
