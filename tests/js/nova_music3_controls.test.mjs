@@ -266,9 +266,22 @@ for (const nodes2 of [false, true]) {
 
     const presetSelect = dom.element.children[1].children[2];
     const visiblePresetLabels = [...presetSelect.options].map((item) => item.textContent);
-    assert.ok(visiblePresetLabels.includes("Pearl Jam — Clone"), "artist preset keeps the exact user-visible name");
-    assert.ok(visiblePresetLabels.includes("Måneskin — Like"), "requested expanded artist is visible and searchable");
+    assert.ok(visiblePresetLabels.includes("Pearl Jam — Strong reference"), "legacy Clone value gets a truthful visible label");
+    assert.ok(visiblePresetLabels.includes("Måneskin — Loose reference"), "legacy Like value gets a truthful visible label");
+    const presetValues = [...presetSelect.options].map((item) => item.value);
+    assert.ok(presetValues.includes("Pearl Jam — Clone"), "serialized Clone value remains compatible");
+    assert.ok(presetValues.includes("Måneskin — Like"), "serialized Like value remains compatible");
     assert.ok(!visiblePresetLabels.some((value) => /Pearl Jam.*Pearl Jam/.test(value)), "artist name is never duplicated in selector text");
+
+    const presetWidget = backend.find((item) => item.name === "preset");
+    const retainedCategories = backend.filter((item) => item.name.startsWith("category_"));
+    retainedCategories[0].value = "Choice B";
+    node.__novaMusic3Configuring = true;
+    presetWidget.callback("Pearl Jam — Clone");
+    node.__novaMusic3Configuring = false;
+    assert.equal(retainedCategories[0].value, "Choice B", "workflow reload never reapplies an artist preset over serialized CSV controls");
+    presetWidget.callback("Pearl Jam — Clone");
+    assert.equal(retainedCategories[0].value, "Choice A", "an intentional user preset selection still applies the preset");
 
     const oldValues = backend.map((item) => item.value);
     oldValues.splice(3, 1);

@@ -70,25 +70,26 @@ globalThis.window = {};
 globalThis.requestAnimationFrame = (callback) => { callback(); return 1; };
 
 const response = (data) => ({ ok: true, status: 200, json: async () => data });
+let omitSavedValues = false;
 const api = {
     fetchApi: async (path) => path.startsWith("/nova_prompt_stack/files")
         ? response({
             ok: true,
             folders: ["All folders", "csv/deep", "csv/deeper/audio"],
-            files: ["csv/deep/library.csv", "csv/deeper/audio/sound.csv"],
+            files: omitSavedValues ? ["csv/deep/library.csv"] : ["csv/deep/library.csv", "csv/deeper/audio/sound.csv"],
             file_items: [
                 { value: "csv/deep/library.csv", label: "library.csv", relative_path: "csv/deep/library.csv" },
                 { value: "csv/deeper/audio/sound.csv", label: "sound.csv", relative_path: "csv/deeper/audio/sound.csv" },
             ],
             default: "csv/deep/library.csv",
         })
-        : response({ ok: true, categories: ["All"], styles: ["Entry", "Second Entry"], count: 2, filtered_count: 2 }),
+        : response({ ok: true, categories: ["All"], styles: omitSavedValues ? ["Entry"] : ["Entry", "Second Entry"], count: 2, filtered_count: 2 }),
 };
 const app = { graph: { setDirtyCanvas() {} } };
 globalThis.__novoApp = app;
 globalThis.__novoApi = api;
 
-function backendValues(slotsJson) {
+function backendValues(slotsJson, overrides = {}) {
     const values = new Map();
     values.set("all_slots_enabled", true);
     for (const definition of LEGACY_SLOTS) {
@@ -105,13 +106,13 @@ function backendValues(slotsJson) {
     values.set("extra_positive", "");
     values.set("extra_negative", "");
     values.set("slots_json", slotsJson);
-    return [...values].map(([name, value]) => ({ name, value, options: {} }));
+    return [...values].map(([name, value]) => ({ name, value: Object.prototype.hasOwnProperty.call(overrides, name) ? overrides[name] : value, options: {} }));
 }
 
-function makeNode(mode, slotsJson, size = [680, 820]) {
+function makeNode(mode, slotsJson, size = [680, 820], overrides = {}) {
     globalThis.LiteGraph = { vueNodesMode: mode };
     const node = {
-        widgets: backendValues(slotsJson),
+        widgets: backendValues(slotsJson, overrides),
         size: [...size],
         serialize_widgets: true,
         graph: { change() {} },
@@ -160,6 +161,69 @@ const initialSlots = JSON.stringify({ version: 1, slots: Array.from({ length: 7 
 })) });
 
 for (const mode of [false, true]) {
+    const acceptanceSlots = JSON.stringify({ version: 2, ui: { panel_size: "comfortable" }, slots: Array.from({ length: 7 }, (_, index) => ({
+        id: "acceptance-" + (index + 1),
+        label: ["Medium", "Subject", "Pose", "Action", "Clothing", "Location", "Character"][index],
+        legacy_key: ["medium", "subject", "pose", "action", "clothing", "location", "character"][index],
+        enabled: index !== 4,
+        file_path: "csv/saved/slot-" + index + ".csv",
+        folder: "csv/saved/folder-" + index,
+        folder_search: "folder-filter-" + index,
+        category: "Saved Category " + index,
+        search: "saved search " + index,
+        selection: "Saved Selection " + index,
+        seed_offset: index + 20,
+        collapsed: index === 2 || index === 5,
+    })) });
+    const acceptanceOverrides = {
+        random_mode: "Random From Seed",
+        seed: 8675309,
+        manual_prompt: "manual field stays put",
+        extra_positive: "positive stays put",
+        extra_negative: "negative stays put",
+    };
+    const acceptanceNode = makeNode(mode, acceptanceSlots, [680, 820], acceptanceOverrides);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const before = structuredClone(acceptanceNode.__novoAIOSlots);
+    const transportWidget = acceptanceNode.widgets.find((item) => item.name === "slots_json");
+    transportWidget.callback = () => {
+        acceptanceNode.__novoAIOSlots = normaliseSlots(JSON.parse(acceptanceSlots).slots);
+    };
+    const changedSlot = acceptanceNode.__novoAIOSlots[1];
+    const refs = acceptanceNode.__novoAIORefs.get(changedSlot.id);
+    refs.selection.value = "Second Entry";
+    refs.selection.onchange();
+    assert.equal(acceptanceNode.__novoAIOSlots[1].selection, "Second Entry", "one-slot edit survives the hidden transport callback");
+    assert.deepEqual(
+        acceptanceNode.__novoAIOSlots.filter((_, index) => index !== 1),
+        before.filter((_, index) => index !== 1),
+        "editing one slot never resets unrelated slot state",
+    );
+
+    omitSavedValues = true;
+    await refreshAll(acceptanceNode, true);
+    assert.equal(acceptanceNode.__novoAIOSlots[0].file_path, "csv/saved/slot-0.csv", "refresh preserves a saved CSV missing from a transient response");
+    assert.equal(acceptanceNode.__novoAIOSlots[0].category, "Saved Category 0", "refresh preserves the saved category");
+    assert.equal(acceptanceNode.__novoAIOSlots[0].selection, "Saved Selection 0", "refresh preserves the saved selection");
+    omitSavedValues = false;
+
+    installDynamicNode(acceptanceNode, false);
+    assert.equal(acceptanceNode.__novoAIOSlots[1].selection, "Second Entry", "lifecycle rebuild does not replace live state with stale transport data");
+    const acceptanceSaved = acceptanceNode.serialize();
+    const acceptanceBackend = acceptanceNode.__novoAIOBackendWidgets;
+    const acceptanceMap = Object.fromEntries(acceptanceBackend.map((item, index) => [item.name, acceptanceSaved.widgets_values[index]]));
+    for (const [name, expected] of Object.entries(acceptanceOverrides)) {
+        assert.equal(acceptanceMap[name], expected, name + " persists beside the seven-slot transport");
+    }
+    const acceptanceReloaded = makeNode(mode, acceptanceMap.slots_json, [680, 820], acceptanceMap);
+    assert.deepEqual(
+        acceptanceReloaded.__novoAIOSlots,
+        acceptanceNode.__novoAIOSlots,
+        "save/reload preserves seven-slot order, enabled/collapsed state and every visible field",
+    );
+    clearTimeout(acceptanceNode.__novoAIORefreshTimer);
+    clearTimeout(acceptanceReloaded.__novoAIORefreshTimer);
+
     const node = makeNode(mode, initialSlots);
     assert.equal(node.__novoAIORenderer, "dom", mode ? "Nodes 2.0 uses DOM panel" : "classic uses DOM panel when available");
     assert.equal(node.__novoAIOSlots.length, 7);

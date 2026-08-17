@@ -100,6 +100,7 @@ DNA_TRAIT_KEYS: "OrderedDict[str, Tuple[str, ...]]" = OrderedDict(
         ("songwriting", ("themes", "rhyme_density", "wordplay", "storytelling", "adlibs")),
     )
 )
+LOOSE_REFERENCE_TRAITS = frozenset({"scene", "vocals", "instruments", "production"})
 
 DNA_TRAIT_LABELS = {
     "scene": "era, genre and scene",
@@ -357,9 +358,9 @@ def _builtins_cache() -> "OrderedDict[str, Dict[str, Any]]":
         row["__dna_traits"] = {key: value for key, value in traits.items() if value}
         row["__dna_source"] = "curated Music Data v2" if curated_traits else "explicit reference-row DNA"
         if row.get("reference_mode") == "Clone":
-            row["reference_strength"] = "Music Data v2 — strong / trait locked"
+            row["reference_strength"] = "Strong reference — descriptive traits locked"
         elif row.get("reference_mode") == "Like":
-            row["reference_strength"] = "Music Data v2 — recognisable / flexible"
+            row["reference_strength"] = "Loose reference — broad traits only"
 
     _validate_preset_rows(presets)
     return presets
@@ -420,6 +421,10 @@ def reference_dna_v2(
     locked: List[str] = []
     influenced: List[str] = []
     for trait, keys in DNA_TRAIT_KEYS.items():
+        if mode == "Like" and trait not in LOOSE_REFERENCE_TRAITS:
+            # Loose reference is intentionally a smaller broad-lane prompt, not
+            # the same nine-trait record with a softer adjective.
+            continue
         text = m3._clean_text(traits.get(trait))
         if not text:
             continue
@@ -439,12 +444,12 @@ def reference_dna_v2(
         return "", locked, influenced
     if mode == "Clone":
         heading = (
-            "Reference DNA priority (very high). Reference mode: Clone. Treat the following artist-neutral musical DNA as the dominant sound identity. "
+            "Influence strength: Strong reference. Treat the following artist-neutral musical DNA as dominant descriptive steering, not a fidelity guarantee. "
             "A manual Music Controls change replaces only its matching DNA trait. Never mention or insert an artist name. Locked Reference DNA:\n"
         )
     else:
         heading = (
-            "Reference DNA priority (recognisable but flexible). Reference mode: Like. Preserve the following artist-neutral musical DNA as a clear family resemblance while allowing original melody, section detail and production decisions. "
+            "Influence strength: Loose reference. Use only the following broad artist-neutral lane while allowing original melody, arrangement, dynamics, hooks and production decisions. "
             "Manual Music Controls changes take priority. Never mention or insert an artist name. Influenced Reference DNA:\n"
         )
     return heading + "\n".join(lines), locked, influenced

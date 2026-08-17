@@ -227,6 +227,7 @@ function readTransport(node) {
         const slots = normaliseSlots(Array.isArray(payload) ? payload : payload?.slots);
         if (slots === null) return null;
         return {
+            text,
             slots,
             ui: {
                 panel_size: normalisePanelSize(Array.isArray(payload) ? "" : payload?.ui?.panel_size),
@@ -253,12 +254,18 @@ function storeSlots(node) {
     const item = widget(node, "slots_json");
     if (!item) return;
     syncLegacyWidgets(node, node.__novoAIOSlots || []);
-    item.value = JSON.stringify({
+    const value = JSON.stringify({
         version: 2,
         ui: { panel_size: normalisePanelSize(node.__novoAIOUi?.panel_size) },
         slots: node.__novoAIOSlots || [],
     });
-    item.callback?.(item.value);
+    item.value = value;
+    node.__novoAIOTransportValue = value;
+    node.__novoAIOStateLoaded = true;
+    // `slots_json` is a hidden transport widget. Calling its frontend callback
+    // can re-enter node configuration in some Comfy builds and replace the live
+    // slot array with stale workflow values. Assigning the value is sufficient
+    // for prompt execution and workflow serialization.
     markDirty(node);
 }
 
@@ -405,10 +412,11 @@ async function refreshSlot(node, slot, refreshFiles = true, preserveSelection = 
             cache.folders = unique([...(files.folders || [ALL_FOLDERS]), slot.folder || ALL_FOLDERS]);
             cache.fileItems = files.file_items || (files.files || []).map(fileItem);
             cache.files = unique(files.files || cache.fileItems.map((item) => item.value));
-            if (!cache.files.includes(slot.file_path)) {
-                slot.file_path = files.default || cache.files[0] || oldFile || DEFAULT_MEDIUM;
+            if (slot.file_path && !cache.files.includes(slot.file_path)) {
+                cache.files = unique([...cache.files, slot.file_path]);
+                cache.fileItems = [...cache.fileItems, fileItem(slot.file_path)];
             }
-            if (slot.file_path !== oldFile) {
+            if (!preserveSelection && slot.file_path !== oldFile) {
                 slot.category = "All";
                 slot.search = "";
                 slot.selection = "random";
@@ -422,16 +430,11 @@ async function refreshSlot(node, slot, refreshFiles = true, preserveSelection = 
         });
         let entries = await fetchJson(`/nova_prompt_stack/list?${entryParams()}`);
         if (cache.requestId !== requestId) return;
-        if (!(entries.categories || ["All"]).includes(slot.category || "All")) {
-            slot.category = "All";
-            entries = await fetchJson(`/nova_prompt_stack/list?${entryParams()}`);
-            if (cache.requestId !== requestId) return;
-        }
-        cache.categories = entries.categories || ["All"];
+        cache.categories = unique([...(entries.categories || ["All"]), slot.category || "All"]);
         cache.entries = entries.styles || [];
         cache.countText = `${entries.filtered_count}/${entries.count} entries`;
         cache.error = "";
-        if (!preserveSelection || !["none", "random", ...cache.entries].includes(slot.selection)) {
+        if (!preserveSelection) {
             slot.selection = "random";
         }
         const refreshedState = JSON.stringify({
@@ -1072,12 +1075,23 @@ function installDynamicNode(node, newNode = false) {
     }
     preserveBackendWidgetOrder(node);
 
+    const transportWidget = widget(node, "slots_json");
+    const transportText = String(transportWidget?.value || "").trim();
     const transported = readTransport(node);
-    node.__novoAIOSlots = transported === null ? legacyState(node) : transported.slots;
-    node.__novoAIOUi = transported === null
-        ? { panel_size: DEFAULT_PANEL_SIZE }
-        : transported.ui;
-    if (transported === null) storeSlots(node);
+    const transportChanged = !node.__novoAIOStateLoaded
+        || transportText !== String(node.__novoAIOTransportValue || "");
+    if (transportChanged) {
+        node.__novoAIOSlots = transported === null ? legacyState(node) : transported.slots;
+        node.__novoAIOUi = transported === null
+            ? { panel_size: DEFAULT_PANEL_SIZE }
+            : transported.ui;
+        node.__novoAIOTransportValue = transported?.text || transportText;
+        node.__novoAIOStateLoaded = true;
+        if (transported === null) storeSlots(node);
+    } else {
+        node.__novoAIOSlots ||= legacyState(node);
+        node.__novoAIOUi ||= { panel_size: DEFAULT_PANEL_SIZE };
+    }
 
     node.__novoAIORenderer ||= typeof node.addDOMWidget === "function" ? "dom" : "native";
     for (const name of [...LEGACY_WIDGET_NAMES, "slots_json"]) hideWidget(node, name);

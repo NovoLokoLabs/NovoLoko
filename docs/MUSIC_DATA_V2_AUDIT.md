@@ -36,11 +36,13 @@ Each reference can supply artist-neutral traits for:
 8. mix / production character
 9. songwriting and phrasing character
 
-Clone treats available traits as strong/locked. Like uses the same descriptive family more flexibly. A manual control override removes only the matching DNA trait.
+The compatibility values `Clone` and `Like` remain serialized so old workflows and recipes load unchanged. The UI describes them more honestly as **Strong reference** and **Loose reference**. Strong reference supplies every available descriptive trait; Loose reference supplies only the broad scene, vocal, instrument and production lane. A manual control override removes only the matching DNA trait.
 
 High-value references receive a complete hand-curated nine-trait profile. Remaining references use only their explicit reference-row traits plus a neutral family section scaffold; they no longer inherit hidden generic base-preset values as if those values described the artist.
 
 The lyric path now receives artist-neutral vocal/hook/songwriting DNA as well as the music-caption path. Artist names remain search/audit labels and are excluded from generation prompts.
+
+This is descriptive prompt steering, not audio cloning. MiniMax Music 3 can interpret the same brief differently across seeds and songs, and data-side artist fidelity is not considered solved. The searchable references remain useful navigation/audition starting points, but no fidelity claim should be made without controlled generated-audio evidence.
 
 ## Preset browser
 
@@ -53,11 +55,12 @@ Backend ordering is deterministic:
 
 ## DOM wheel ownership
 
-For Music Controls and Audio Library:
+For Music Controls, Prompt Stack CSV slots and Audio Library:
 
-- selected/focused node + pointer over a genuinely scrollable internal surface => internal scrolling owns the wheel;
-- unselected node => the wheel is forwarded to the Comfy canvas so normal zoom remains available;
-- left-click selects the node; middle-mouse canvas behavior is not replaced.
+- a genuinely scrollable inner list owns the wheel only while it can move in that direction;
+- every other wheel event is explicitly forwarded to the Comfy canvas, regardless of node selection/focus;
+- at the top/bottom scroll boundary, ownership returns to canvas zoom instead of dead-ending;
+- middle-mouse canvas behavior is not replaced.
 
 This must still be checked in a real ComfyUI browser in both Classic and Nodes 2.0 before release. Static/frontend contract tests are not a substitute for that runtime acceptance.
 
@@ -70,10 +73,12 @@ Use the user's latest uploaded `NovoLoko MiniMax Music 3 - Lab v4.6.5.json` layo
 3. Genre `Hip-Hop / Rap`: verify Boom Bap, Trap, Drill, G-Funk and related choices.
 4. Genre `Metal`: verify classic and modern metal families without needing separate top-level Genre entries.
 5. Run `Missy Elliott — Clone` and confirm the resolved generation prompt no longer says 90s East Coast Boom Bap / Dusty Boom-Bap Mix unless manually selected.
-6. Compare Clone / Like for Måneskin, Counting Crows, Nirvana, Pearl Jam, Paramore, BLACKPINK and another reference not in the deep-curated set.
-7. On an artist Clone, manually change Instruments. Confirm the old instrument DNA disappears while vocal/production/songwriting DNA remains.
+6. Compare Strong reference / Loose reference for Måneskin, Counting Crows, Nirvana, Pearl Jam, Paramore, BLACKPINK and another reference not in the deep-curated set. Confirm the prompts differ structurally, then judge the audio without assuming artist fidelity.
+7. On a Strong reference, manually change Instruments. Confirm the old instrument DNA disappears while vocal/production/songwriting DNA remains.
 8. Queue 5–10 `Randomize Everything` seeds. Check that the musical core remains coherent and the transparency report identifies the guided strategy/skeleton.
-9. With Music Controls unselected, wheel over its list and confirm the canvas zooms. Select the node and confirm the internal category list scrolls. Repeat for Audio Library.
-10. Verify the uploaded workflow's Seed Lab, writer backend/subgraph, saver, Audio Library and node layout remain unchanged.
+9. In Classic and Nodes 2.0, wheel over non-scrollable parts of Music Controls, Prompt Stack and Audio Library and confirm canvas zoom. Over a list that can move, confirm internal scroll; at either boundary, confirm canvas zoom resumes. Repeat selected and unselected, then resize and pan offscreen/back.
+10. In Audio Library, confirm Auto-play new affects only newly generated refreshes. With Play next automatically Off and Repeat Off, the track ends and stops; with auto-next On it advances; Repeat one/all remain explicit continuous modes. Toggle settings without restarting the current track, then save/reload and confirm settings persist.
+11. In the seven-slot Prompt Stack (Medium, Subject, Pose, Action, Clothing, Location, Character), change one slot, interact with another, save/reload, and confirm order, enabled/collapsed state, folder/file/category/search/selection, manual fields and random mode are exact.
+12. Verify the uploaded workflow's Seed Lab, writer backend/subgraph, saver, Audio Library and node layout remain unchanged.
 
 Do not tag or repoint the updater until these runtime/sound checks are accepted.

@@ -270,7 +270,11 @@ def build_without_reference_base_baggage(
     # The lyric writer also needs the reference's vocal, hook and songwriting
     # character. Previously only the music-caption path saw Reference DNA, which
     # made an artist preset's lyrics much more generic than its production.
-    lyric_trait_order = ("scene", "vocals", "hooks", "dynamics", "songwriting", "arrangement", "groove")
+    lyric_trait_order = (
+        ("scene", "vocals", "hooks", "dynamics", "songwriting", "arrangement", "groove")
+        if mode == "Clone"
+        else ("scene", "vocals")
+    )
     lyric_dna_lines = [
         f"- {v2.DNA_TRAIT_LABELS[trait]}: {text}"
         for trait, text in active_traits
@@ -278,14 +282,18 @@ def build_without_reference_base_baggage(
     ]
     lyric_dna = ""
     if lyric_dna_lines:
-        strength = "strong / trait locked" if mode == "Clone" else "recognisable / flexible"
+        strength = "Strong reference / trait locked" if mode == "Clone" else "Loose reference / broad traits only"
         lyric_dna = (
             f"Reference lyric DNA ({strength}; artist-neutral):\n"
             + "\n".join(lyric_dna_lines)
             + "\nNever mention or insert an artist name; write an original song."
         )
 
-    structure_name, structure_prompt = _reference_scaffold(reference, raw, resolved, overrides)
+    structure_name, structure_prompt = (
+        _reference_scaffold(reference, raw, resolved, overrides)
+        if mode == "Clone"
+        else ("", "")
+    )
     duration = float(result[4])
     if structure_prompt:
         result[2] = v2.m3._duration_section_plan(structure_prompt, duration)

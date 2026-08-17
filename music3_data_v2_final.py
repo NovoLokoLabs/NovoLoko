@@ -169,6 +169,10 @@ def _annotate_reference_rows(rows):
             row["description"] = f"{description} {detail}".strip()
         row["dna_source"] = source
         row["reference_controls_neutral"] = True
+        mode = v2.m3._clean_text(row.get("reference_mode"))
+        mode_label = "Strong reference" if mode == "Clone" else "Loose reference" if mode == "Like" else mode
+        row["reference_mode_label"] = mode_label
+        row["display_name"] = f"{reference} — {mode_label}" if mode_label else row.get("name", "")
     return rows
 
 

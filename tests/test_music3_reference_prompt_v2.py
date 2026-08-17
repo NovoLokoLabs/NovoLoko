@@ -70,6 +70,25 @@ class MusicReferencePromptV2Tests(unittest.TestCase):
         self.assertIn("real-world rock trio", style_brief)
         self.assertIn("futuristic dry-and-punchy mix", style_brief)
 
+    def test_strong_and_loose_reference_prompts_are_structurally_distinct(self):
+        strong = music3.NovaMusicControls().build(
+            preset="Missy Elliott — Clone", randomize_all=False, seed=424242, idea="an original club track"
+        )
+        loose = music3.NovaMusicControls().build(
+            preset="Missy Elliott — Like", randomize_all=False, seed=424242, idea="an original club track"
+        )
+        strong_prompt = "\n".join(strong[:3]).casefold()
+        loose_prompt = "\n".join(loose[:3]).casefold()
+
+        self.assertIn("influence strength: strong reference", strong_prompt)
+        self.assertIn("influence strength: loose reference", loose_prompt)
+        self.assertIn("hook tendencies", strong_prompt)
+        self.assertNotIn("hook tendencies", loose_prompt)
+        self.assertIn("mix and production", loose_prompt)
+        self.assertNotEqual(strong_prompt, loose_prompt)
+        self.assertNotIn("missy elliott", strong_prompt)
+        self.assertNotIn("missy elliott", loose_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

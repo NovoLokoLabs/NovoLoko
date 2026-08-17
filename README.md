@@ -70,10 +70,13 @@ choice—including None, Custom and Random resolution—so batched songs remain
 transparent and reproducible. See
 `README_MINIMAX_MUSIC3.md` for the short workflow guide.
 
-Every suitable artist reference appears as `Artist — Clone` and
-`Artist — Like`. Clone strongly locks descriptive era, vocal, instrument/tone,
-drum, tempo, arrangement, dynamics, hook and mix DNA; Like preserves the broad
-recognisable lane with more freedom. Artist names are search/audit labels only
+Every suitable artist reference retains serialized `Artist — Clone` and
+`Artist — Like` compatibility values, while the current UI labels them
+**Strong reference** and **Loose reference**. Strong reference uses the available
+descriptive era, vocal, instrument/tone, drum, tempo, arrangement, dynamics,
+hook and mix DNA; Loose reference keeps only the broad scene, vocal, instrument
+and production lane. These are prompt-steering starting points, not a guarantee
+of audio cloning or artist fidelity. Artist names are search/audit labels only
 and are not sent in lyric or music-caption generation prompts. Changing one of
 the 19 controls records a targeted override instead of flattening the rest of
 the reference; the batch report shows mode, strength, traits and overrides.
@@ -108,7 +111,9 @@ models, seeds and generation settings for each batch item. Optional model/CUDA
 cleanup runs only after the complete save-node batch and is off by default.
 
 `NovoLoko Audio Library / Player` refreshes after the saver and defaults to
-`output/audio/NovoLoko/`. It provides auto-play-new, play/pause, previous/next,
+`output/audio/NovoLoko/`. It provides auto-play-new for newly generated tracks,
+a separate persisted **Play next automatically** setting that defaults Off,
+play/pause, previous/next,
 10-second skips, seek/time, volume/mute, repeat off/one/all, shuffle, search,
 sort, folder browsing, format/duration/sample-rate/size details, and MP3/WAV/
 FLAC/OGG playback. Paired rename keeps `.txt` and `.json` sidecars aligned;

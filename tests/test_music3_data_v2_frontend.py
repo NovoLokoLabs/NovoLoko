@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import subprocess
 from pathlib import Path
 
 
@@ -17,17 +18,31 @@ class MusicDataV2FrontendTests(unittest.TestCase):
         self.assertIn('findCategoryRow(root, "Genre")', source)
         self.assertIn('findCategoryRow(root, "Style / era")', source)
 
-    def test_music_dom_wheel_is_owned_only_by_selected_scrollable_node(self):
+    def test_music_dom_wheel_handoff_is_directional_and_selection_independent(self):
         source = (ROOT / "web" / "nova_music3_data_v2.js").read_text(encoding="utf-8")
-        self.assertIn("selectedNode(currentNode, root) && scrollable", source)
+        self.assertIn("scrollableAncestorForDelta", source)
+        self.assertNotIn("selectedNode(currentNode, root)", source)
         self.assertIn("event.stopPropagation();", source)
-        self.assertIn("if (!selectedNode(currentNode, root))", source)
         self.assertIn("event.preventDefault();", source)
         self.assertIn("event.stopImmediatePropagation();", source)
         self.assertIn("forwardWheelToCanvas(event);", source)
         self.assertIn('installRoot(root, CONTROLS_NODE)', source)
         self.assertIn('installRoot(root, LIBRARY_NODE)', source)
-        self.assertIn("event.button === 0", source)
+        self.assertIn('installRoot(root, PROMPT_STACK_NODE)', source)
+
+    def test_wheel_handoff_runtime_matrix(self):
+        result = subprocess.run(
+            [
+                "node",
+                str(ROOT / "tests/js/nova_dom_wheel_handoff.test.mjs"),
+                str(ROOT / "web/nova_music3_data_v2.js"),
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

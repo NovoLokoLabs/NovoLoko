@@ -3,6 +3,7 @@ import { api } from "../../scripts/api.js";
 
 const CONTROLS_NODE = "NovaMusicControls";
 const LIBRARY_NODE = "NovaMusicAudioLibrary";
+const PROMPT_STACK_NODE = "NovaPromptStackAIO";
 const SPECIAL_VALUES = new Set(["None / No preference", "Custom...", "Random"]);
 let metadataPromise = null;
 
@@ -23,51 +24,21 @@ function controlsMetadata() {
     return metadataPromise;
 }
 
-function graphNodes() {
-    return app.graph?._nodes || app.canvas?.graph?._nodes || [];
-}
-
-function nodeForRoot(root, expectedType) {
-    for (const node of graphNodes()) {
-        const type = String(node?.comfyClass || node?.type || "");
-        if (type !== expectedType) continue;
-        if ((node.widgets || []).some((item) => item?.element === root || item?.inputEl === root)) return node;
-        if ((node.widgets || []).some((item) => item?.element?.contains?.(root))) return node;
-    }
-    return null;
-}
-
-function selectedNode(node, root) {
-    if (!node) return false;
-    if (root?.contains?.(document.activeElement)) return true;
-    const selected = app.canvas?.selected_nodes;
-    if (selected instanceof Map) return selected.has(node.id) || selected.has(String(node.id));
-    if (Array.isArray(selected)) return selected.includes(node) || selected.some((item) => item?.id === node.id);
-    if (selected && typeof selected === "object") {
-        return Boolean(selected[node.id] || selected[String(node.id)] || Object.values(selected).includes(node));
-    }
-    return Boolean(node.selected || node.flags?.selected);
-}
-
-function selectNode(node) {
-    if (!node) return;
-    try {
-        if (typeof app.canvas?.selectNode === "function") app.canvas.selectNode(node, false);
-    } catch (_error) {
-        // Selection is convenience only; never break DOM interaction if a
-        // frontend build changes its selection API.
-    }
-}
-
-function scrollableAncestor(target, root) {
+function scrollableAncestorForDelta(target, root, deltaX = 0, deltaY = 0) {
     let element = target instanceof Element ? target : null;
     while (element && element !== root?.parentElement) {
         if (element === root || root?.contains?.(element)) {
             const style = globalThis.getComputedStyle?.(element);
             const overflowY = String(style?.overflowY || element.style?.overflowY || "");
             const overflowX = String(style?.overflowX || element.style?.overflowX || "");
-            const vertical = /(auto|scroll)/.test(overflowY) && Number(element.scrollHeight || 0) > Number(element.clientHeight || 0) + 1;
-            const horizontal = /(auto|scroll)/.test(overflowX) && Number(element.scrollWidth || 0) > Number(element.clientWidth || 0) + 1;
+            const scrollTop = Number(element.scrollTop || 0);
+            const scrollLeft = Number(element.scrollLeft || 0);
+            const maxTop = Math.max(0, Number(element.scrollHeight || 0) - Number(element.clientHeight || 0));
+            const maxLeft = Math.max(0, Number(element.scrollWidth || 0) - Number(element.clientWidth || 0));
+            const vertical = /(auto|scroll)/.test(overflowY)
+                && ((deltaY < 0 && scrollTop > 1) || (deltaY > 0 && scrollTop < maxTop - 1));
+            const horizontal = /(auto|scroll)/.test(overflowX)
+                && ((deltaX < 0 && scrollLeft > 1) || (deltaX > 0 && scrollLeft < maxLeft - 1));
             if (vertical || horizontal) return element;
         }
         element = element.parentElement;
@@ -99,35 +70,26 @@ function forwardWheelToCanvas(event) {
     return true;
 }
 
-function installSelectedWheel(root, expectedType) {
+function installWheelHandoff(root) {
     if (!root || root.dataset.novoMusicV2Wheel === "1") return;
     root.dataset.novoMusicV2Wheel = "1";
-    let node = null;
-    const resolveNode = () => node || (node = nodeForRoot(root, expectedType));
-
-    root.addEventListener("pointerdown", (event) => {
-        if (event.button === 0) selectNode(resolveNode());
-    }, true);
 
     root.addEventListener("wheel", (event) => {
-        const currentNode = resolveNode();
-        const scrollable = scrollableAncestor(event.target, root);
-        if (selectedNode(currentNode, root) && scrollable) {
-            // Selected DOM windows own the wheel only over an actual internal
-            // scrolling surface.  Keep Comfy's canvas from zooming at the same
-            // time, but let the browser perform the native scroll.
+        const scrollable = scrollableAncestorForDelta(event.target, root, event.deltaX, event.deltaY);
+        if (scrollable) {
+            // A real inner surface owns the wheel only while it can move in the
+            // requested direction. Browser-native scrolling remains intact.
             event.stopPropagation();
             return;
         }
 
-        // An unselected Music Controls / Audio Library window behaves like the
-        // other NovoLoko DOM windows: the wheel belongs to canvas zoom, not the
-        // hidden scroll surface under the pointer.
-        if (!selectedNode(currentNode, root)) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            forwardWheelToCanvas(event);
-        }
+        // DOM overlays are not descendants of Comfy's canvas, so propagation
+        // alone cannot reach its zoom listener. Explicitly forward every wheel
+        // event that an inner surface cannot consume, including scroll bounds.
+        // Node selection/focus never changes this rule.
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        forwardWheelToCanvas(event);
     }, { capture: true, passive: false });
 }
 
@@ -224,13 +186,14 @@ async function installGenreHierarchy(root) {
 }
 
 function installRoot(root, type) {
-    installSelectedWheel(root, type);
+    installWheelHandoff(root);
     if (type === CONTROLS_NODE) installGenreHierarchy(root);
 }
 
 function scan() {
     for (const root of document.querySelectorAll(".nova-music3-controls-v461")) installRoot(root, CONTROLS_NODE);
     for (const root of document.querySelectorAll(".nova-music3-player-v440")) installRoot(root, LIBRARY_NODE);
+    for (const root of document.querySelectorAll(".novoloko-slot-panel")) installRoot(root, PROMPT_STACK_NODE);
 }
 
 app.registerExtension({

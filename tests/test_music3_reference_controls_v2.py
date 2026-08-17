@@ -46,6 +46,9 @@ class MusicReferenceControlsV2Tests(unittest.TestCase):
         row = next(item for item in payload["presets"] if item["name"] == "Missy Elliott — Clone")
         self.assertTrue(row.get("reference_controls_neutral"))
         self.assertIn("generic controls below start neutral", row["description"])
+        self.assertEqual("Strong reference", row["reference_mode_label"])
+        self.assertEqual("Missy Elliott — Strong reference", row["display_name"])
+        self.assertEqual("Missy Elliott — Clone", row["name"])
         self.assertEqual("Hip-Hop / Rap", row["selections"]["genre"])
         self.assertEqual(music3.NONE_OPTION, row["selections"]["subgenre_era"])
 
