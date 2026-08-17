@@ -13,6 +13,8 @@ Classic Heavy Metal,song_structure,Intro-Riff-Verse-Chorus-Solo
 Classic Heavy Metal,hook_style,Clean Metal Anthem Chorus
 Classic Heavy Metal,bpm_tempo,150 BPM Aggressive
 Classic Heavy Metal,themes,Ancient Myth
+Classic Heavy Metal,vocal_delivery,Clean Metal Chorus
+Classic Heavy Metal,vocal_gender_type,Warm Male Tenor
 Contemporary R&B Night,instruments,Rhodes + Electric Bass + Pocket Drums
 Contemporary R&B Night,production_style,Vocal-Forward R&B Mix
 Contemporary R&B Night,song_structure,R&B Verse-Pre-Hook-Slow Bridge
@@ -24,10 +26,20 @@ Neo-Soul Velvet,hook_style,Stacked R&B Harmony Hook
 Neo-Soul Velvet,aggression,Moderate
 Shoegaze Bloom,song_structure,Quiet-Loud Alternative Arc
 Shoegaze Bloom,hook_style,No Chorus — Evolving Refrain
+Shoegaze Bloom,vocal_delivery,Shoegaze Buried Vocal
+Shoegaze Bloom,vocal_gender_type,Androgynous Airy Lead
 Cinematic Synthwave,vocal_delivery,Ethereal Layered Vocal
 Industrial Dark Techno,vocal_delivery,Coldly Controlled Vocal
 Industrial Dark Techno,production_style,Cold Machine Precision
 Industrial Dark Techno,song_structure,Techno Progressive
+Melodic Techno Horizon,vocal_delivery,Ethereal Layered Vocal
+Melodic Techno Horizon,vocal_gender_type,Androgynous Airy Lead
+Deep House Sunset,vocal_delivery,Silky R&B Lead
+Deep House Sunset,vocal_gender_type,Mature Smoky Female Lead
+Uplifting Trance Flight,vocal_delivery,Ethereal Layered Vocal
+Uplifting Trance Flight,vocal_gender_type,Female Soprano Lead
+Liquid DnB Heartbreak,vocal_delivery,Silky R&B Lead
+Liquid DnB Heartbreak,vocal_gender_type,Female Alto Lead
 P-Funk Mothership,instruments,Horn Section Clavinet and Slap Bass
 P-Funk Mothership,production_style,Classic Funk Live
 P-Funk Mothership,song_structure,Progressive Long Form
