@@ -47,6 +47,14 @@ def load_modules():
     assert depth_spec and depth_spec.loader
     sys.modules[depth_spec.name] = depth
     depth_spec.loader.exec_module(depth)
+
+    final_spec = importlib.util.spec_from_file_location(
+        f"{PACKAGE}.music3_data_v2_final", ROOT / "music3_data_v2_final.py"
+    )
+    final = importlib.util.module_from_spec(final_spec)
+    assert final_spec and final_spec.loader
+    sys.modules[final_spec.name] = final
+    final_spec.loader.exec_module(final)
     return music, patch
 
 
