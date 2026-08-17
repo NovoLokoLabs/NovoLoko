@@ -108,3 +108,4 @@ v2.broad_genre_for = broad_genre_for
 rules.broad_genre_for = broad_genre_for
 _clear_cache(v2._style_parent_map)
 _clear_cache(v2._builtins_cache)
+_clear_cache(v2.m3.load_music_presets)
