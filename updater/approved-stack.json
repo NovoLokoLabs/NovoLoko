@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-16T20:30:06Z",
+  "updated_at": "2026-08-17T13:13:28Z",
   "products": {
     "NovoLoko": {
       "repository": "NovoLokoLabs/NovoLoko",
-      "version": "4.6.4",
-      "tag": "v4.6.4",
-      "commit": "f13b17c91b33372a17d07a11767ad4b4801e3182",
+      "version": "4.6.6",
+      "tag": "v4.6.6",
+      "commit": "133ecfe34a345fb3c92c05649e2b6c1a1c4092ef",
       "previous_commits": [
+        "f13b17c91b33372a17d07a11767ad4b4801e3182",
         "2035f4883f1663724f16059882ec4053dd6193c5",
         "615866b5aed3e74b9a0c521392fd517bce30ae61",
         "0a9596317b6cb9cad5c9e59d6c8651f07b008d58",
@@ -30,7 +31,7 @@
         "70492c42f2528035f27c8465695cd0368d021920",
         "60cf5c03bad6af80f9e21ea505eb8f138f71c383"
       ],
-      "previous_tags": ["v4.0.0", "v3.9.7", "v3.9.6", "v3.9.5", "v3.9.4", "v3.9.3", "v3.9.2", "v3.9.1", "v3.9.0", "v3.8.0", "v3.7.1", "v3.7.0", "v3.6.3", "v3.6.2", "v3.6.1", "v3.6.0", "v3.5.2", "v3.5.1", "v3.5.0"]
+      "previous_tags": ["v4.6.4", "v4.0.0", "v3.9.7", "v3.9.6", "v3.9.5", "v3.9.4", "v3.9.3", "v3.9.2", "v3.9.1", "v3.9.0", "v3.8.0", "v3.7.1", "v3.7.0", "v3.6.3", "v3.6.2", "v3.6.1", "v3.6.0", "v3.5.2", "v3.5.1", "v3.5.0"]
     },
     "OmniLoko": {
       "repository": "NovoLokoLabs/OmniLoko",
