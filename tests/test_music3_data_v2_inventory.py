@@ -6,7 +6,7 @@ import json
 import unittest
 from pathlib import Path
 
-from test_music3_data_v2 import data_v2
+from test_music3_data_v2 import data_v2, music3
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +42,38 @@ class MusicDataV2InventoryTests(unittest.TestCase):
         self.assertGreater(after["Electronic"], before["Electronic"])
         self.assertGreater(after["R&B / Soul"], before["R&B / Soul"])
         self.assertGreaterEqual(min(after[parent] for parent in ("Pop", "Rock", "Metal", "Hip-Hop / Rap", "Electronic")), 14)
+
+    def test_artist_reference_coverage_is_auditable(self):
+        presets = music3.load_music_presets()
+        references = {
+            row.get("reference")
+            for row in presets.values()
+            if row.get("reference")
+        }
+        curated = {
+            row.get("reference")
+            for row in presets.values()
+            if row.get("reference") and row.get("__dna_source") == "curated Music Data v2"
+        }
+        explicit_fallback = {
+            row.get("reference")
+            for row in presets.values()
+            if row.get("reference") and row.get("__dna_source") == "explicit reference-row DNA"
+        }
+        print(
+            "MUSIC_DATA_V2_ARTIST_DNA="
+            + json.dumps(
+                {
+                    "named_references": len(references),
+                    "deep_curated": len(curated),
+                    "explicit_row_fallback": len(explicit_fallback),
+                },
+                sort_keys=True,
+            )
+        )
+        self.assertGreaterEqual(len(references), 377)
+        self.assertGreaterEqual(len(curated), 60)
+        self.assertEqual(references, curated | explicit_fallback)
 
 
 if __name__ == "__main__":
