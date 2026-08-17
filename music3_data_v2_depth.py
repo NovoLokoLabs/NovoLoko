@@ -7,6 +7,7 @@ serialization or resolution code.
 
 from __future__ import annotations
 
+import copy
 import csv
 from functools import lru_cache
 from pathlib import Path
@@ -23,6 +24,7 @@ _ORIGINAL_STYLE_ROWS = v2._style_overlay_rows
 _ORIGINAL_BROAD_GENRE = rules.broad_genre_for
 _ORIGINAL_CURATED_DNA = v2._curated_dna
 _ORIGINAL_STYLE_PARENT_MAP = v2._style_parent_map
+_V2_LOAD_BUILTINS = v2.m3._load_builtin_music_presets
 
 
 def _clear_cache(function: Any) -> None:
@@ -129,6 +131,44 @@ def style_parent_map():
     return result
 
 
+@lru_cache(maxsize=1)
+def load_builtin_music_presets_neutral_reference_controls():
+    """Keep reference preset search identity but neutralize dead base values.
+
+    The old Clone/Like rows needed 19 concrete values because Reference DNA was
+    synthesized from those dropdowns. Music Data v2 has independent descriptive
+    DNA now. Leaving inherited dropdown values visible is misleading (for
+    example Missy Elliott showing 90s East Coast Boom Bap even though generation
+    no longer uses that base). Reference presets therefore expose only a broad
+    Genre for browsing plus real policy values when the reference row explicitly
+    supplied them; all other generic controls start neutral until the user makes
+    a deliberate override.
+    """
+
+    presets = copy.deepcopy(_V2_LOAD_BUILTINS())
+    raw_rows = v2._reference_rows_by_label()
+    for row in presets.values():
+        reference = v2.m3._clean_text(row.get("reference"))
+        if not reference:
+            continue
+        raw = raw_rows.get(reference.casefold(), {})
+        source_genre = raw.get("genre") or row.get("genre")
+        for key in v2.m3.CATEGORY_SPECS:
+            row[key] = v2.m3.NONE_OPTION
+        row["genre"] = broad_genre_for(source_genre)
+        # Explicitness and duration are user-facing policies, not sonic artist
+        # DNA. Preserve them only when that reference row deliberately supplied
+        # a value; otherwise stay neutral/default-length instead of inheriting a
+        # random generic base preset.
+        explicitness = v2.m3._clean_text(raw.get("explicitness"))
+        if explicitness:
+            row["explicitness"] = explicitness
+        length = v2.m3._clean_text(raw.get("song_length"))
+        row["song_length"] = length or "About 3 Minutes"
+        row["__reference_controls_neutral"] = True
+    return presets
+
+
 # New Age / Meditation is a useful style family but not a peer top-level Genre
 # beside Ambient. Removing it is the exact kind of cleanup Music Data v2 exists
 # to do: fewer understandable parents, richer children.
@@ -138,6 +178,7 @@ v2._curated_dna = curated_dna
 v2.broad_genre_for = broad_genre_for
 v2._style_parent_map = style_parent_map
 rules.broad_genre_for = broad_genre_for
+v2.m3._load_builtin_music_presets = load_builtin_music_presets_neutral_reference_controls
 _clear_cache(_ORIGINAL_STYLE_PARENT_MAP)
 _clear_cache(v2._builtins_cache)
 _clear_cache(v2.m3.load_music_presets)
