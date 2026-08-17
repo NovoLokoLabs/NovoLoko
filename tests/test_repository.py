@@ -14,10 +14,16 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(manifest["brand"], "NovoLoko")
         self.assertEqual(manifest["package"], "ComfyUI-NovoLoko")
         self.assertEqual(manifest["registered_node_count"], len(manifest["registered_nodes"]))
-        self.assertEqual(
+        # A versioned manifest is the inventory snapshot of that published
+        # release. Development branches may add libraries for the next release,
+        # but they must never silently remove files claimed by the snapshot.
+        current_library_count = sum(
+            1 for folder in ("csv", "styles") for path in (ROOT / folder).rglob("*")
+            if path.is_file() and path.suffix.lower() in {".csv", ".yaml", ".yml"}
+        )
+        self.assertGreaterEqual(
+            current_library_count,
             manifest["style_libraries"]["csv_yaml_file_count"],
-            sum(1 for folder in ("csv", "styles") for path in (ROOT / folder).rglob("*")
-                if path.is_file() and path.suffix.lower() in {".csv", ".yaml", ".yml"}),
         )
         self.assertEqual(len(manifest["registered_nodes"]), len(set(manifest["registered_nodes"])))
         self.assertEqual(498, manifest["timer_sounds"]["playable_file_count"])
