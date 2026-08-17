@@ -108,6 +108,19 @@ REFERENCE_STRUCTURE_OVERRIDES = {
 }
 
 
+def _clear_cache(function: Any) -> None:
+    """Clear an lru cache when present; plain functions are valid too.
+
+    NovoLoko's import-safety tests load the package under several synthetic
+    package names. Never make unrelated node registration depend on a cache
+    decorator being present on a helper.
+    """
+
+    clear = getattr(function, "cache_clear", None)
+    if callable(clear):
+        clear()
+
+
 def broad_genre_for(value):
     text = v2.m3._clean_text(value)
     if text.casefold() in ROCK_EXACT:
@@ -334,6 +347,6 @@ def build_without_reference_base_baggage(
 
 v2.broad_genre_for = broad_genre_for
 v2._curated_dna = curated_dna
-v2._style_parent_map.cache_clear()
-v2._builtins_cache.cache_clear()
+_clear_cache(v2._style_parent_map)
+_clear_cache(v2._builtins_cache)
 v2.m3.NovaMusicControls.build = build_without_reference_base_baggage
