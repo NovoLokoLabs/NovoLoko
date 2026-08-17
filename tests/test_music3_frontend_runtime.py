@@ -23,6 +23,20 @@ class Music3FrontendRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
+    def test_audio_player_end_modes_do_not_conflate_autoplay_and_auto_next(self) -> None:
+        result = subprocess.run(
+            [
+                "node",
+                str(ROOT / "tests/js/nova_music3_player_lifecycle.test.mjs"),
+                str(ROOT / "web/nova_music3.js"),
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

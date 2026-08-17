@@ -44,6 +44,15 @@ function comboValue(item, fallback = "") {
 }
 
 
+function musicPlayerEndAction({ repeat = "off", autoNext = false, index = -1, trackCount = 0 } = {}) {
+    const mode = ["off", "one", "all"].includes(String(repeat)) ? String(repeat) : "off";
+    if (mode === "one") return "repeat-one";
+    if (mode === "all" && trackCount > 0) return "play-next";
+    if (autoNext && index >= 0 && index < trackCount - 1) return "play-next";
+    return "stop";
+}
+
+
 function eventNodeId(event) {
     const detail = event?.detail;
     return detail && typeof detail === "object" ? (detail.node ?? detail.node_id ?? detail.id) : detail;
@@ -310,7 +319,13 @@ function installFlexibleControlsPanel(node, dom, root, allocated = null) {
     };
     const previousConfigure = node.onConfigure;
     node.onConfigure = function (...args) {
-        const result = previousConfigure?.apply(this, args);
+        this.__novaMusic3Configuring = true;
+        let result;
+        try {
+            result = previousConfigure?.apply(this, args);
+        } finally {
+            this.__novaMusic3Configuring = false;
+        }
         this.__novaMusic3RepairControlWidgets?.(args[0]);
         requestAnimationFrame(() => {
             clampNodeSize();
@@ -961,8 +976,15 @@ function installMusicControls(node) {
     }
 
     function presetEntrySearchText(entry) {
-        return [entry.name, entry.folder, entry.reference, entry.keywords, entry.description, entry.base_preset]
+        return [entry.name, entry.display_name, entry.folder, entry.reference, entry.keywords, entry.description, entry.base_preset]
             .filter(Boolean).join(" ").toLocaleLowerCase();
+    }
+
+    function presetDisplayName(entry) {
+        if (entry?.display_name) return String(entry.display_name);
+        if (entry?.reference_mode === "Clone") return `${entry.reference || String(entry.name || "").replace(/\s+—\s+Clone$/, "")} — Strong reference`;
+        if (entry?.reference_mode === "Like") return `${entry.reference || String(entry.name || "").replace(/\s+—\s+Like$/, "")} — Loose reference`;
+        return String(entry?.name || "");
     }
 
     function syncPresetBrowser(name) {
@@ -970,7 +992,7 @@ function installMusicControls(node) {
         if (!entry) return;
         if ([...presetSelect.options].some((option) => option.value === name)) presetSelect.value = name;
         const reference = entry.reference ? `Reference: ${entry.reference}. ` : "";
-        const mode = entry.reference_mode ? `${entry.reference_mode} mode — ${entry.reference_strength || "descriptive DNA"}. ` : "";
+        const mode = entry.reference_mode ? `${entry.reference_mode_label || entry.reference_mode} — ${entry.reference_strength || "descriptive steering"}. ` : "";
         presetDescription.textContent = `${reference}${mode}${entry.description || "Choose this preset to load all resolved music controls."}`;
         presetDescription.title = entry.reference
             ? "The reference name is for finding the sound. NovoLoko sends descriptive musical traits to the generator, not an instruction to copy the artist."
@@ -988,7 +1010,7 @@ function installMusicControls(node) {
         for (const entry of filtered) {
             const option = document.createElement("option");
             option.value = entry.name;
-            option.textContent = entry.name;
+            option.textContent = presetDisplayName(entry);
             presetSelect.append(option);
         }
         if (!filtered.length) {
@@ -1239,7 +1261,10 @@ function installMusicControls(node) {
         const previous = native.preset.callback;
         native.preset.callback = function (value) {
             const result = previous?.apply(this, arguments);
-            applyPreset(value);
+            // Workflow configure restores every serialized category separately.
+            // Re-applying the preset callback during that restore overwrites the
+            // user's last per-control state (often with the saved artist preset).
+            if (!node.__novaMusic3Configuring) applyPreset(value);
             return result;
         };
     }
@@ -1457,6 +1482,7 @@ function installAudioLibrary(node) {
     const state = {
         tracks: [], index: -1, shuffle: Boolean(node.properties.novaMusicShuffle),
         repeat: String(node.properties.novaMusicRepeat || "off"),
+        autoNext: Boolean(node.properties.novaMusicAutoNext),
         search: String(node.properties.novaMusicSearch || ""),
         sort: String(node.properties.novaMusicSort || "newest"), loading: false,
         favoritesOnly: Boolean(node.properties.novaMusicFavoritesOnly),
@@ -1484,7 +1510,7 @@ function installAudioLibrary(node) {
     folderLine.append(folderInput, browse, open, refreshButton);
 
     const filterLine = document.createElement("div");
-    filterLine.style.cssText = "display:grid;grid-template-columns:minmax(120px,1fr) 135px auto auto;gap:6px;padding:6px 7px;border-bottom:1px solid #203b4e";
+    filterLine.style.cssText = "display:grid;grid-template-columns:minmax(120px,1fr) 135px auto auto auto;gap:6px;padding:6px 7px;border-bottom:1px solid #203b4e";
     const search = makeTextInput("Search tracks...");
     search.type = "search";
     search.value = state.search;
@@ -1497,11 +1523,17 @@ function installAudioLibrary(node) {
     autoLabel.style.cssText = "display:flex;align-items:center;gap:5px;white-space:nowrap;color:#c5d9e7";
     const autoplay = document.createElement("input"); autoplay.type = "checkbox"; autoplay.checked = Boolean(autoplayWidget?.value ?? true);
     autoLabel.append(autoplay, document.createTextNode("Auto-play new"));
+    autoLabel.title = "Play a newly generated track when the Audio Library refreshes. This does not control what happens when the current track ends.";
+    const autoNextLabel = document.createElement("label");
+    autoNextLabel.style.cssText = "display:flex;align-items:center;gap:5px;white-space:nowrap;color:#c5d9e7";
+    autoNextLabel.title = "When Repeat is Off, start the next track after the current track finishes. Default: Off.";
+    const autoNext = document.createElement("input"); autoNext.type = "checkbox"; autoNext.checked = state.autoNext;
+    autoNextLabel.append(autoNext, document.createTextNode("Play next automatically"));
     const favoritesOnlyLabel = document.createElement("label");
     favoritesOnlyLabel.style.cssText = "display:flex;align-items:center;gap:5px;white-space:nowrap;color:#ffd67a";
     const favoritesOnly = document.createElement("input"); favoritesOnly.type = "checkbox"; favoritesOnly.checked = state.favoritesOnly;
     favoritesOnlyLabel.append(favoritesOnly, document.createTextNode("Favorites only"));
-    filterLine.append(search, sort, favoritesOnlyLabel, autoLabel);
+    filterLine.append(search, sort, favoritesOnlyLabel, autoLabel, autoNextLabel);
 
     const now = document.createElement("div");
     now.style.cssText = "padding:8px 9px 5px;background:#081722;border-bottom:1px solid #203b4e";
@@ -1874,6 +1906,7 @@ function installAudioLibrary(node) {
         node.properties.novaMusicFavoritesOnly = favoritesOnly.checked;
         node.properties.novaMusicShuffle = state.shuffle;
         node.properties.novaMusicRepeat = state.repeat;
+        node.properties.novaMusicAutoNext = state.autoNext;
         node.properties.novaMusicVolume = Number(volume.value);
         node.properties.novaMusicVisualizerEnabled = state.visualizerEnabled;
         node.properties.novaMusicVisualizerStyle = state.visualizerStyle;
@@ -1992,6 +2025,7 @@ function installAudioLibrary(node) {
     sort.onchange = () => refreshLibrary();
     favoritesOnly.onchange = () => { state.favoritesOnly = favoritesOnly.checked; refreshLibrary(); };
     autoplay.onchange = persist;
+    autoNext.onchange = () => { state.autoNext = autoNext.checked; persist(); };
     visualizerToggle.onchange = () => { state.visualizerEnabled = visualizerToggle.checked; persist(); drawVisualizer(!audio.paused); };
     visualizerStyle.onchange = () => { state.visualizerStyle = visualizerStyle.value; persist(); drawVisualizer(!audio.paused); };
     visualizerHeight.oninput = () => { setVisualizerHeight(visualizerHeight.value); persist(); };
@@ -2119,7 +2153,26 @@ function installAudioLibrary(node) {
     audio.onloadedmetadata = () => { totalTime.textContent = formatTime(audio.duration); play.textContent = audio.paused ? "▶ Play" : "⏸ Pause"; updateKaraoke(); };
     audio.onplay = () => { play.textContent = "⏸ Pause"; drawVisualizer(true); };
     audio.onpause = () => { play.textContent = "▶ Play"; drawVisualizer(false); };
-    audio.onended = () => { if (state.repeat === "one") { audio.currentTime = 0; audio.play(); } else if (state.repeat === "all" || state.index < state.tracks.length - 1) playIndex(nextIndex(1), true); };
+    audio.onended = () => {
+        const action = musicPlayerEndAction({
+            repeat: state.repeat,
+            autoNext: state.autoNext,
+            index: state.index,
+            trackCount: state.tracks.length,
+        });
+        if (action === "repeat-one") {
+            audio.currentTime = 0;
+            audio.play();
+        } else if (action === "play-next") {
+            playIndex(nextIndex(1), true);
+        } else {
+            play.textContent = "▶ Play";
+            drawVisualizer(false);
+            setStatus(state.autoNext
+                ? `${currentTrack()?.name || "Track"} finished. There is no later track to play.`
+                : `${currentTrack()?.name || "Track"} finished. Play next automatically is Off.`);
+        }
+    };
     rename.onclick = async () => {
         const track = currentTrack();
         if (!track) return setStatus("Select a track first.", true);
