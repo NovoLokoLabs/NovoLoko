@@ -6,14 +6,21 @@ const SEARCH_HELP_TEXT = 'Search: word or "exact phrase" | Exclude: -word or -"e
 const DEFAULT_MEDIUM = "csv/wildcards/novoloko_uploaded_styles_master_397_FINAL.csv";
 const ALL_FOLDERS = "All folders";
 const DEFAULT_PANEL_SIZE = "comfortable";
+const DEFAULT_NODE_WIDTH = 680;
+const DEFAULT_NODE_HEIGHT = 820;
+const MIN_NODE_WIDTH = 420;
+const MIN_NODE_HEIGHT = 700;
+const MAX_NODE_HEIGHT = 2400;
 const PANEL_HEIGHTS = Object.freeze({
     compact: 450,
     comfortable: 520,
     roomy: 600,
 });
 const PANEL_MIN_HEIGHT = 320;
-const PANEL_NODE_CHROME_HEIGHT = 300;
+const CLASSIC_NODE_CHROME_HEIGHT = 300;
+const NODES2_NODE_CHROME_HEIGHT = 380;
 const PANEL_WIDGET_GAP = 10;
+const STABLE_PANEL_PROPERTY = "novaPromptStackStablePanelHeight";
 const LEGACY_SLOTS = [
     { key: "medium", label: "Medium", seedOffset: 0, selection: "random" },
     { key: "subject", label: "Subject", seedOffset: 6, selection: "none" },
@@ -187,6 +194,27 @@ function legacyState(node) {
 function normalisePanelSize(value) {
     const key = String(value || "").toLowerCase();
     return Object.prototype.hasOwnProperty.call(PANEL_HEIGHTS, key) ? key : DEFAULT_PANEL_SIZE;
+}
+
+function clamp(value, minimum, maximum) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return minimum;
+    return Math.max(minimum, Math.min(maximum, Math.round(number)));
+}
+
+function nodes2Mode() {
+    return Boolean(globalThis.LiteGraph?.vueNodesMode);
+}
+
+function nodeChromeHeight() {
+    return nodes2Mode() ? NODES2_NODE_CHROME_HEIGHT : CLASSIC_NODE_CHROME_HEIGHT;
+}
+
+function saneWidth(node) {
+    const width = Number(node?.size?.[0]);
+    return Number.isFinite(width) && width >= MIN_NODE_WIDTH && width <= 8192
+        ? Math.round(width)
+        : DEFAULT_NODE_WIDTH;
 }
 
 function normaliseSlots(raw) {
@@ -476,25 +504,75 @@ function selectionSummary(slot) {
     return value;
 }
 
-function panelHeight(node) {
-    return Math.max(
-        PANEL_MIN_HEIGHT,
-        Math.floor(Number(node.size?.[1] || 820) - PANEL_NODE_CHROME_HEIGHT),
-    );
+function preferredPanelHeight(node) {
+    const size = normalisePanelSize(node.__novoAIOUi?.panel_size);
+    return PANEL_HEIGHTS[size];
 }
 
-function applyPanelSize(node, resizeNode = false) {
+function stablePanelHeight(node, { allowManualResize = false, usePreset = false } = {}) {
+    const preferred = preferredPanelHeight(node);
+    const chrome = nodeChromeHeight();
+    if (usePreset) return preferred;
+
+    const nodeHeight = Number(node?.size?.[1]);
+    if (allowManualResize && app.canvas?.resizing_node === node && Number.isFinite(nodeHeight)) {
+        return clamp(nodeHeight - chrome, PANEL_MIN_HEIGHT, MAX_NODE_HEIGHT - chrome);
+    }
+
+    const saved = Number(node?.properties?.[STABLE_PANEL_PROPERTY]);
+    if (Number.isFinite(saved) && saved >= PANEL_MIN_HEIGHT && saved <= MAX_NODE_HEIGHT - chrome) {
+        return Math.round(saved);
+    }
+
+    if (Number.isFinite(nodeHeight) && nodeHeight >= MIN_NODE_HEIGHT && nodeHeight <= MAX_NODE_HEIGHT) {
+        // A saved Classic node can arrive in Nodes 2.0 at the old outer height
+        // before renderer-owned rows are allocated. Preserve the selected panel
+        // preset and grow the node instead of shrinking the DOM canvas.
+        const classicPresetHeight = preferred + CLASSIC_NODE_CHROME_HEIGHT;
+        const nodes2PresetHeight = preferred + NODES2_NODE_CHROME_HEIGHT;
+        if (Math.abs(nodeHeight - classicPresetHeight) <= 96 || Math.abs(nodeHeight - nodes2PresetHeight) <= 96) {
+            return preferred;
+        }
+        return clamp(nodeHeight - chrome, PANEL_MIN_HEIGHT, MAX_NODE_HEIGHT - chrome);
+    }
+    return preferred;
+}
+
+function applyPanelSize(node, resizeNode = false, { allowManualResize = false } = {}) {
+    if (!node || node.__novoAIOApplyingPanelSize) return false;
     const size = normalisePanelSize(node.__novoAIOUi?.panel_size);
-    const preferredHeight = PANEL_HEIGHTS[size];
+    const chrome = nodeChromeHeight();
+    const height = stablePanelHeight(node, { allowManualResize, usePreset: resizeNode });
     node.__novoAIOUi ||= {};
     node.__novoAIOUi.panel_size = size;
-    if (resizeNode && Array.isArray(node.size)) {
-        node.setSize?.([
-            Math.max(420, Number(node.size[0]) || 680),
-            preferredHeight + PANEL_NODE_CHROME_HEIGHT,
-        ]);
+    node.properties ||= {};
+    node.properties[STABLE_PANEL_PROPERTY] = height;
+    node.__novoPromptStackStablePanelHeight = height;
+
+    const expectedNodeHeight = height + chrome;
+    const currentNodeHeight = Number(node.size?.[1]);
+    const userResizing = allowManualResize && app.canvas?.resizing_node === node;
+    const corruptNodeHeight = !Number.isFinite(currentNodeHeight)
+        || currentNodeHeight < MIN_NODE_HEIGHT
+        || currentNodeHeight > MAX_NODE_HEIGHT;
+    const layoutDrift = !userResizing && Number.isFinite(currentNodeHeight)
+        && Math.abs(currentNodeHeight - expectedNodeHeight) >= 48;
+    if (resizeNode || corruptNodeHeight || layoutDrift) {
+        node.__novoAIOApplyingPanelSize = true;
+        try {
+            node.setSize?.([saneWidth(node), expectedNodeHeight || DEFAULT_NODE_HEIGHT]);
+        } finally {
+            node.__novoAIOApplyingPanelSize = false;
+        }
     }
-    const height = resizeNode ? preferredHeight : panelHeight(node);
+
+    const wrapper = node.__novoAIORoot?.parentElement;
+    if (wrapper?.style) {
+        wrapper.style.minWidth = "0";
+        wrapper.style.minHeight = "0";
+        wrapper.style.overflow = "hidden";
+        wrapper.style.contain = "size layout";
+    }
     if (node.__novoAIORoot?.style) {
         node.__novoAIORoot.style.height = `${height}px`;
         node.__novoAIORoot.style.minHeight = `${PANEL_MIN_HEIGHT}px`;
@@ -507,10 +585,11 @@ function applyPanelSize(node, resizeNode = false) {
         ];
         node.__novoAIODom.options ||= {};
         node.__novoAIODom.options.getMinHeight = () => PANEL_MIN_HEIGHT + PANEL_WIDGET_GAP;
-        node.__novoAIODom.options.getHeight = () => panelHeight(node) + PANEL_WIDGET_GAP;
+        node.__novoAIODom.options.getHeight = () => height + PANEL_WIDGET_GAP;
     }
     recomputeDOMGeometry(node);
     markDirty(node);
+    return true;
 }
 
 function installPanelResizeTracking(node) {
@@ -519,7 +598,7 @@ function installPanelResizeTracking(node) {
     const previousResize = node.onResize;
     node.onResize = function (...args) {
         const result = previousResize?.apply(this, args);
-        requestAnimationFrame(() => applyPanelSize(this, false));
+        requestAnimationFrame(() => applyPanelSize(this, false, { allowManualResize: true }));
         return result;
     };
 }
@@ -1126,6 +1205,22 @@ function installDynamicNode(node, newNode = false) {
         node.min_size = [420, 700];
         node.getMinSize = () => [420, 700];
         arrangeVisualWidgets(node, dom);
+        dom.options.onDraw = () => {
+            if (node.__novoAIOPanelDrawFrame) return;
+            node.__novoAIOPanelDrawFrame = requestAnimationFrame(() => {
+                node.__novoAIOPanelDrawFrame = 0;
+                applyPanelSize(node, false);
+            });
+        };
+        if (typeof IntersectionObserver === "function") {
+            node.__novoAIOIntersectionObserver?.disconnect?.();
+            node.__novoAIOIntersectionObserver = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    requestAnimationFrame(() => applyPanelSize(node, false));
+                }
+            });
+            node.__novoAIOIntersectionObserver.observe(root);
+        }
         if (newNode && (!Array.isArray(node.size) || node.size[0] < 420)) {
             node.setSize?.([680, 820]);
         }
@@ -1169,6 +1264,9 @@ app.registerExtension({
             clearTimeout(this.__novoAIOCreatedTimer);
             clearTimeout(this.__novoAIORefreshTimer);
             if (this.__novoAIOGeometryFrame) globalThis.cancelAnimationFrame?.(this.__novoAIOGeometryFrame);
+            if (this.__novoAIOPanelDrawFrame) globalThis.cancelAnimationFrame?.(this.__novoAIOPanelDrawFrame);
+            this.__novoAIOIntersectionObserver?.disconnect?.();
+            delete this.__novoAIOIntersectionObserver;
             for (const timer of this.__novoAIOSearchTimers?.values?.() || []) clearTimeout(timer);
             for (const timer of this.__novoAIOFolderSearchTimers?.values?.() || []) clearTimeout(timer);
             return removed?.apply(this, arguments);

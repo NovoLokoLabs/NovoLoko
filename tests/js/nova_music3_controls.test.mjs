@@ -96,6 +96,7 @@ const categories = Array.from({ length: 19 }, (_, index) => ({
 }));
 const controlsPayload = {
     categories,
+    song_ideas: [{ name: "Simple Hooks", ideas: ["Tonight we choose ourselves.", "Your name still sounds like home."] }],
     special_choices: ["None / no preference", "Custom", "Random"],
     special_presets: ["Custom / CSV selections", "None / no preferences", "Randomize all categories"],
     presets: [{
@@ -107,6 +108,8 @@ const controlsPayload = {
         policy: {},
     }, {
         name: "Pearl Jam — Clone", reference: "Pearl Jam", reference_mode: "Clone",
+        reference_mode_label: "Strong reference",
+        effective_dna: [{ key: "scene", label: "era, genre and scene", value: "raw coastal guitar tension", controls: ["category_0"] }],
         source: "built-in", folder: "Artist References / Rock & Alternative",
         selections: Object.fromEntries(categories.map((item) => [item.key, "Choice A"]),),
         custom_values: {}, policy: {},
@@ -224,6 +227,9 @@ for (const nodes2 of [false, true]) {
         widgets_values: backend.map((item) => item.value),
     });
     assert.equal(ideaInput.value, "SONG IDEA B", "the latest edit wins across repeated tab remounts");
+    ideaWidget.value = "SONG IDEA A";
+    node.onGraphConfigured?.({ properties: { novaMusic3Idea: "SONG IDEA A" } });
+    assert.equal(ideaInput.value, "SONG IDEA B", "graph-configured remount also preserves the latest canonical SONG IDEA");
     assert.equal(await ideaWidget.serializeValue(), "SONG IDEA B", "workflow serialization returns the latest SONG IDEA");
     assert.equal(node.properties.novaMusic3Idea, "SONG IDEA B", "workflow properties retain the latest SONG IDEA");
     const savedInfo = { properties: {}, widgets_values: backend.map((item) => item.value) };
@@ -334,10 +340,32 @@ for (const nodes2 of [false, true]) {
     presetWidget.callback("Pearl Jam — Clone");
     node.__novaMusic3Configuring = false;
     assert.equal(retainedCategories[0].value, "Choice B", "workflow reload never reapplies an artist preset over serialized CSV controls");
+    presetWidget.value = "Pearl Jam — Clone";
     presetWidget.callback("Pearl Jam — Clone");
     assert.equal(retainedCategories[0].value, "Choice A", "an intentional user preset selection still applies the preset");
     assert.equal(ideaInput.value, "SONG IDEA B", "preset selection never replaces a custom SONG IDEA");
     assert.equal(ideaWidget.value, "SONG IDEA B", "preset selection preserves the serialized SONG IDEA");
+
+    const ideaTools = ideaPanel.children[2];
+    const ideaChoice = ideaTools.children[2];
+    const randomIdeaButton = ideaTools.children[3];
+    const controlsBeforePicker = retainedCategories.map((item) => item.value);
+    ideaChoice.value = "Tonight we choose ourselves.";
+    ideaChoice.onchange();
+    assert.equal(ideaInput.value, "Tonight we choose ourselves.", "picker copies into the canonical editable SONG IDEA");
+    ideaInput.value = "free text after picker";
+    ideaInput.oninput();
+    assert.equal(ideaWidget.value, "free text after picker", "free text remains editable after using the picker");
+    randomIdeaButton.onclick();
+    assert.deepEqual(retainedCategories.map((item) => item.value), controlsBeforePicker, "Random Idea changes none of the 19 music controls");
+
+    const dnaPanel = dom.element.children[1].children[4];
+    assert.equal(dnaPanel.style.display, "block", "artist reference exposes its effective DNA panel");
+    assert.match(dnaPanel.children[1].textContent, /raw coastal guitar tension/, "effective DNA shows the actual backend trait");
+    const firstCategoryRow = dom.element.children.at(-1).children[0];
+    firstCategoryRow.children[1].value = "Choice B";
+    firstCategoryRow.children[1].onchange();
+    assert.match(dnaPanel.children[1].textContent, /MANUAL OVERRIDE.*Choice B/, "matching manual controls visibly replace only that DNA trait");
 
     const oldValues = backend.map((item) => item.value);
     oldValues.splice(3, 1);
@@ -354,6 +382,8 @@ for (const nodes2 of [false, true]) {
     assert.equal(ideaWidget.value, "recipe-restored idea", "recipe-restored SONG IDEA is canonical and serializable");
     assert.equal(backend.find((item) => item.name === "control_after_generate").value, "randomize");
     assert.equal(backend.find((item) => item.name === "seed_after_run").value, "Randomize Seed");
+    presetWidget.callback("Pearl Jam — Clone");
+    assert.doesNotMatch(dom.element.children[5].textContent, /Loaded idea.*original preset/, "changing preset clears stale recipe-status messaging");
 
     const seedLinkId = 900 + Number(nodes2);
     const seedSourceId = 950 + Number(nodes2);

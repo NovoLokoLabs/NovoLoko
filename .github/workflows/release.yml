@@ -67,6 +67,7 @@ jobs:
           cd dist/stage
           zip -qr "../NovoLoko-v${version}.zip" ComfyUI-NovoLoko
           cd ..
+          python ../tools/verify_release_archive.py "NovoLoko-v${version}.zip"
           sha256sum "NovoLoko-v${version}.zip" > "NovoLoko-v${version}.sha256"
 
       - name: Create GitHub release

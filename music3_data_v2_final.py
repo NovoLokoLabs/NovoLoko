@@ -173,6 +173,18 @@ def _annotate_reference_rows(rows):
         mode_label = "Strong reference" if mode == "Clone" else "Loose reference" if mode == "Like" else mode
         row["reference_mode_label"] = mode_label
         row["display_name"] = f"{reference} — {mode_label}" if mode_label else row.get("name", "")
+        traits = backend.get("__dna_traits", {})
+        allowed = v2.LOOSE_REFERENCE_TRAITS if mode == "Like" else set(v2.DNA_TRAIT_KEYS)
+        row["effective_dna"] = [
+            {
+                "key": key,
+                "label": v2.DNA_TRAIT_LABELS.get(key, key.replace("_", " ")),
+                "value": v2.m3._clean_text(traits.get(key)),
+                "controls": list(v2.DNA_TRAIT_KEYS.get(key, ())),
+            }
+            for key in v2.DNA_TRAIT_KEYS
+            if key in allowed and v2.m3._clean_text(traits.get(key))
+        ]
     return rows
 
 

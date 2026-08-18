@@ -6,6 +6,7 @@ from collections import OrderedDict
 import asyncio
 import csv
 from datetime import datetime, timezone
+from functools import lru_cache
 import gc
 import hashlib
 import json
@@ -27,6 +28,7 @@ import wave
 
 SEED_MAX = 0xFFFFFFFFFFFFFFFF
 MUSIC_CSV_ROOT = Path(__file__).with_name("csv") / "music3"
+SONG_IDEAS_PATH = MUSIC_CSV_ROOT / "27_song_ideas.json"
 CUSTOM_PRESET = "Custom / CSV selections"
 RANDOM_PRESET = "Randomize Everything"
 NONE_PRESET = "None / No preference"
@@ -75,6 +77,40 @@ WINDOWS_RESERVED_NAMES = {
     *(f"COM{index}" for index in range(1, 10)),
     *(f"LPT{index}" for index in range(1, 10)),
 }
+
+
+@lru_cache(maxsize=1)
+def load_song_ideas() -> List[Dict[str, Any]]:
+    """Load the curated, artist-neutral SONG IDEA picker library."""
+
+    try:
+        payload = json.loads(SONG_IDEAS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"NovoLoko SONG IDEA library cannot be read: {error}") from error
+    if not isinstance(payload, Mapping) or not isinstance(payload.get("categories"), list):
+        raise ValueError("NovoLoko SONG IDEA library must contain a categories list.")
+    categories: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for raw_category in payload["categories"]:
+        if not isinstance(raw_category, Mapping):
+            continue
+        name = _clean_text(raw_category.get("name"))
+        raw_ideas = raw_category.get("ideas")
+        if not name or not isinstance(raw_ideas, list):
+            continue
+        ideas: List[str] = []
+        for raw_idea in raw_ideas:
+            idea = _clean_text(raw_idea)
+            folded = idea.casefold()
+            if not idea or folded in seen:
+                continue
+            seen.add(folded)
+            ideas.append(idea)
+        if ideas:
+            categories.append({"name": name, "ideas": ideas})
+    if sum(len(item["ideas"]) for item in categories) < 150:
+        raise ValueError("NovoLoko SONG IDEA library must contain at least 150 unique ideas.")
+    return categories
 
 
 CATEGORY_SPECS: "OrderedDict[str, Dict[str, str]]" = OrderedDict(
@@ -1652,6 +1688,60 @@ def _recipe_from_record(record: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _reference_display_name(value: Any) -> str:
+    text = _clean_text(value)
+    if text.endswith(" — Clone"):
+        return f"{text[:-8]} — Strong reference"
+    if text.endswith(" — Like"):
+        return f"{text[:-7]} — Loose reference"
+    return text
+
+
+def _generation_summary(record: Mapping[str, Any]) -> Dict[str, Any]:
+    stored = record.get("controls_recipe") if isinstance(record.get("controls_recipe"), Mapping) else {}
+    source = _clean_text(stored.get("source_preset") or stored.get("preset"))
+    effective = _clean_text(stored.get("effective_preset") or record.get("preset"))
+    if source == RANDOM_PRESET and effective and effective != source:
+        preset = f"Random → {_reference_display_name(effective)}"
+    elif effective == CUSTOM_PRESET or source == CUSTOM_PRESET:
+        preset = "Custom controls"
+    else:
+        preset = _reference_display_name(effective or source)
+    raw_seed = record.get("generation_seed")
+    if raw_seed in (None, ""):
+        raw_seed = stored.get("seed", record.get("stacker_seed"))
+    seed = _safe_int(raw_seed, 0, 0, SEED_MAX) if raw_seed not in (None, "") else None
+    settings = record.get("generation_settings")
+    if not isinstance(settings, Mapping):
+        settings = {}
+    duration = settings.get("requested_duration_seconds", settings.get("target_duration_seconds"))
+    try:
+        target_seconds = float(duration) if duration not in (None, "") else None
+    except (TypeError, ValueError):
+        target_seconds = None
+    return {
+        "recorded": bool(preset or seed is not None or target_seconds is not None),
+        "preset": preset,
+        "seed": seed,
+        "target_seconds": target_seconds,
+    }
+
+
+def _summary_from_txt(text: str) -> Dict[str, Any]:
+    def field(label: str) -> str:
+        match = re.search(rf"(?mi)^{re.escape(label)}:\s*(.*?)\s*$", text)
+        return match.group(1).strip() if match else ""
+
+    duration_match = re.search(r'"(?:requested|target)_duration_seconds"\s*:\s*([0-9.]+)', text)
+    record: Dict[str, Any] = {
+        "preset": field("Preset"),
+        "generation_seed": field("Generation seed") or field("Stacker seed"),
+    }
+    if duration_match:
+        record["generation_settings"] = {"requested_duration_seconds": duration_match.group(1)}
+    return _generation_summary(record)
+
+
 def load_music_library_sidecar(folder_value: Any, filename: Any) -> Dict[str, Any]:
     """Load a validated matched JSON sidecar and build an exact Controls recipe."""
 
@@ -1659,7 +1749,33 @@ def load_music_library_sidecar(folder_value: Any, filename: Any) -> Dict[str, An
     audio_path = _safe_library_audio(folder, filename)
     json_path = audio_path.with_suffix(".json")
     if not json_path.is_file():
-        raise FileNotFoundError("This track has no matched NovoLoko JSON sidecar.")
+        txt_path = audio_path.with_suffix(".txt")
+        if not txt_path.is_file():
+            return {
+                "folder": label,
+                "name": audio_path.name,
+                "sidecar": "",
+                "schema": "",
+                "recipe": None,
+                "lyrics": "",
+                "lyric_brief": "",
+                "original_idea": "",
+                "music_caption": "",
+                "generation_summary": {"recorded": False, "preset": "", "seed": None, "target_seconds": None},
+            }
+        text = txt_path.read_text(encoding="utf-8", errors="replace")
+        return {
+            "folder": label,
+            "name": audio_path.name,
+            "sidecar": txt_path.name,
+            "schema": "legacy-text",
+            "recipe": None,
+            "lyrics": "",
+            "lyric_brief": "",
+            "original_idea": "",
+            "music_caption": "",
+            "generation_summary": _summary_from_txt(text),
+        }
     try:
         record = json.loads(json_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
@@ -1678,6 +1794,7 @@ def load_music_library_sidecar(folder_value: Any, filename: Any) -> Dict[str, An
         "lyric_brief": _clean_text(record.get("lyric_enhancer_brief")),
         "original_idea": recipe["original_idea"],
         "music_caption": _clean_text(record.get("final_music_caption")),
+        "generation_summary": _generation_summary(record),
     }
 
 
@@ -3006,6 +3123,7 @@ def _music_controls_api_payload() -> Dict[str, Any]:
             for key, spec in CATEGORY_SPECS.items()
         ],
         "presets": _preset_api_rows(),
+        "song_ideas": load_song_ideas(),
         "user_preset_file": str(_user_presets_path()),
     }
 

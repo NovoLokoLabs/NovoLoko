@@ -68,6 +68,12 @@ const document = {
 globalThis.document = document;
 globalThis.window = {};
 globalThis.requestAnimationFrame = (callback) => { callback(); return 1; };
+const intersectionObservers = [];
+globalThis.IntersectionObserver = class {
+    constructor(callback) { this.callback = callback; this.disconnected = false; intersectionObservers.push(this); }
+    observe(target) { this.target = target; }
+    disconnect() { this.disconnected = true; }
+};
 
 const response = (data) => ({ ok: true, status: 200, json: async () => data });
 let omitSavedValues = false;
@@ -85,7 +91,7 @@ const api = {
         })
         : response({ ok: true, categories: ["All"], styles: omitSavedValues ? ["Entry"] : ["Entry", "Second Entry"], count: 2, filtered_count: 2 }),
 };
-const app = { graph: { setDirtyCanvas() {} } };
+const app = { graph: { setDirtyCanvas() {} }, canvas: { resizing_node: null } };
 globalThis.__novoApp = app;
 globalThis.__novoApi = api;
 
@@ -228,12 +234,27 @@ for (const mode of [false, true]) {
     assert.equal(node.__novoAIORenderer, "dom", mode ? "Nodes 2.0 uses DOM panel" : "classic uses DOM panel when available");
     assert.equal(node.__novoAIOSlots.length, 7);
     assert.equal(node.__novoAIORoot.style.height, "520px");
-    node.size = [680, 1000];
+    assert.deepEqual(node.size, [680, mode ? 900 : 820], "each renderer reserves its own native widget chrome inside the node");
+    app.canvas.resizing_node = node;
+    node.size = [680, mode ? 1080 : 1000];
     node.onResize?.(node.size);
     assert.equal(node.__novoAIORoot.style.height, "700px", "slot canvas follows manual node height");
-    node.size = [680, 820];
-    node.onResize?.(node.size);
+    app.canvas.resizing_node = null;
+    node.__novoAIOPanelSize.value = "comfortable";
+    node.__novoAIOPanelSize.onchange();
     assert.equal(node.__novoAIORoot.style.height, "520px");
+    assert.deepEqual(node.size, [680, mode ? 900 : 820]);
+
+    node.__novoAIORoot.style.height = "700px";
+    node.__novoAIODom.options.getHeight = () => 710;
+    node.size = [680, 1040];
+    installDynamicNode(node, false);
+    assert.equal(node.__novoAIORoot.style.height, "520px", "configure/tab remount reasserts the unified panel contract");
+    assert.equal(node.__novoAIODom.options.getHeight(), 530);
+    assert.deepEqual(node.size, [680, mode ? 900 : 820], "remount repairs outer-height drift without skyscraper growth");
+
+    intersectionObservers.at(-1).callback([{ target: node.__novoAIORoot, isIntersecting: true }]);
+    assert.equal(node.__novoAIORoot.style.height, "520px", "offscreen pan-return re-applies the stable panel allocation");
     const originalSize = [...node.size];
     assert.equal(node.__novoAIOSlotHeights.length, 7);
     assert.ok(node.__novoAIOSlotHeights.every((height) => height >= 300), "all seven expanded cards keep full natural height");
@@ -300,6 +321,7 @@ for (const mode of [false, true]) {
     node.__novoAIOPanelSize.value = "roomy";
     node.__novoAIOPanelSize.onchange();
     assert.equal(node.__novoAIORoot.style.height, "600px");
+    assert.deepEqual(node.size, [680, mode ? 980 : 900], "600px preset reserves renderer-specific native widget chrome");
     const saved = node.serialize();
     const backend = node.__novoAIOBackendWidgets;
     assert.equal(saved.widgets_values.length, backend.length);
@@ -319,6 +341,8 @@ for (const mode of [false, true]) {
     assert.equal(reloaded.__novoAIORoot.style.height, "600px");
     clearTimeout(node.__novoAIORefreshTimer);
     clearTimeout(reloaded.__novoAIORefreshTimer);
+    node.__novoAIOIntersectionObserver?.disconnect?.();
+    reloaded.__novoAIOIntersectionObserver?.disconnect?.();
 }
 `;
 

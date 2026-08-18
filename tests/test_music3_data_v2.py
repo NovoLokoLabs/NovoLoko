@@ -62,6 +62,41 @@ music3, data_v2 = load_modules()
 
 
 class MusicDataV2Tests(unittest.TestCase):
+    def test_v467_song_idea_library_is_curated_unique_and_exposed(self):
+        categories = music3.load_song_ideas()
+        ideas = [idea for category in categories for idea in category["ideas"]]
+        self.assertGreaterEqual(len(ideas), 150)
+        self.assertLessEqual(len(ideas), 250)
+        self.assertEqual(len(ideas), len({idea.casefold() for idea in ideas}))
+        self.assertGreaterEqual(len(categories), 16)
+        self.assertEqual(categories, music3._music_controls_api_payload()["song_ideas"])
+
+    def test_v467_reference_api_exposes_effective_dna_without_fake_controls(self):
+        payload = music3._music_controls_api_payload()
+        reference = next(row for row in payload["presets"] if row.get("reference_mode") == "Clone")
+        self.assertTrue(reference["reference_controls_neutral"])
+        self.assertTrue(reference["effective_dna"])
+        self.assertTrue(all(item["value"] and item["controls"] for item in reference["effective_dna"]))
+        self.assertEqual("Strong reference", reference["reference_mode_label"])
+
+    def test_v467_generation_summary_uses_saved_track_not_current_controls(self):
+        summary = music3._generation_summary({
+            "preset": "Pearl Jam — Clone",
+            "generation_seed": 381098533,
+            "generation_settings": {"requested_duration_seconds": 210},
+        })
+        self.assertEqual("Pearl Jam — Strong reference", summary["preset"])
+        self.assertEqual(381098533, summary["seed"])
+        self.assertEqual(210.0, summary["target_seconds"])
+        random_summary = music3._generation_summary({
+            "preset": "Måneskin — Like",
+            "controls_recipe": {
+                "source_preset": music3.RANDOM_PRESET,
+                "effective_preset": "Måneskin — Like",
+            },
+        })
+        self.assertEqual("Random → Måneskin — Loose reference", random_summary["preset"])
+
     def test_legacy_genres_collapse_to_broad_parents(self):
         cases = {
             "K-Pop": "Pop",
