@@ -8,7 +8,8 @@ const MIN_NODE_HEIGHT = 700;
 const MAX_NODE_HEIGHT = 2400;
 const PANEL_MIN_HEIGHT = 320;
 const PANEL_WIDGET_GAP = 10;
-const PANEL_NODE_CHROME_HEIGHT = 300;
+const CLASSIC_NODE_CHROME_HEIGHT = 300;
+const NODES2_NODE_CHROME_HEIGHT = 380;
 const PANEL_HEIGHTS = Object.freeze({ compact: 450, comfortable: 520, roomy: 600 });
 const STABLE_PANEL_PROPERTY = "novaPromptStackStablePanelHeight";
 
@@ -16,6 +17,14 @@ function clamp(value, minimum, maximum) {
     const number = Number(value);
     if (!Number.isFinite(number)) return minimum;
     return Math.max(minimum, Math.min(maximum, Math.round(number)));
+}
+
+function nodes2Mode() {
+    return Boolean(globalThis.LiteGraph?.vueNodesMode);
+}
+
+function nodeChromeHeight() {
+    return nodes2Mode() ? NODES2_NODE_CHROME_HEIGHT : CLASSIC_NODE_CHROME_HEIGHT;
 }
 
 function preferredPanelHeight(node) {
@@ -39,13 +48,24 @@ function saneWidth(node) {
 
 function initialStablePanelHeight(node) {
     const preferred = preferredPanelHeight(node);
+    const chrome = nodeChromeHeight();
     const saved = Number(node?.properties?.[STABLE_PANEL_PROPERTY]);
-    if (Number.isFinite(saved) && saved >= PANEL_MIN_HEIGHT && saved <= MAX_NODE_HEIGHT - PANEL_NODE_CHROME_HEIGHT) {
+    if (Number.isFinite(saved) && saved >= PANEL_MIN_HEIGHT && saved <= MAX_NODE_HEIGHT - chrome) {
         return Math.round(saved);
     }
+
     const nodeHeight = Number(node?.size?.[1]);
     if (Number.isFinite(nodeHeight) && nodeHeight >= MIN_NODE_HEIGHT && nodeHeight <= MAX_NODE_HEIGHT) {
-        return clamp(nodeHeight - PANEL_NODE_CHROME_HEIGHT, PANEL_MIN_HEIGHT, MAX_NODE_HEIGHT - PANEL_NODE_CHROME_HEIGHT);
+        // Fresh/default nodes can arrive in Nodes 2.0 with the classic 820px
+        // outer height before the DOM wrapper has been laid out. Treat heights
+        // close to either renderer's preset geometry as the stored panel preset
+        // instead of misreading the renderer difference as a manual resize.
+        const classicPresetHeight = preferred + CLASSIC_NODE_CHROME_HEIGHT;
+        const nodes2PresetHeight = preferred + NODES2_NODE_CHROME_HEIGHT;
+        if (Math.abs(nodeHeight - classicPresetHeight) <= 96 || Math.abs(nodeHeight - nodes2PresetHeight) <= 96) {
+            return preferred;
+        }
+        return clamp(nodeHeight - chrome, PANEL_MIN_HEIGHT, MAX_NODE_HEIGHT - chrome);
     }
     return preferred;
 }
@@ -66,10 +86,11 @@ function applyStablePanelContract(node, stablePanelHeight) {
     const dom = node?.__novoAIODom;
     if (!root || !dom) return false;
 
+    const chrome = nodeChromeHeight();
     const stable = clamp(
         stablePanelHeight,
         PANEL_MIN_HEIGHT,
-        MAX_NODE_HEIGHT - PANEL_NODE_CHROME_HEIGHT,
+        MAX_NODE_HEIGHT - chrome,
     );
     node.properties ||= {};
     node.properties[STABLE_PANEL_PROPERTY] = stable;
@@ -96,6 +117,7 @@ function repairNodeHeight(node, { allowManualResize = false } = {}) {
     const dom = node.__novoAIODom;
     if (!root || !dom) return false;
 
+    const chrome = nodeChromeHeight();
     let stable = Number(node.__novoPromptStackStablePanelHeight);
     if (!(Number.isFinite(stable) && stable >= PANEL_MIN_HEIGHT)) {
         stable = initialStablePanelHeight(node);
@@ -103,7 +125,7 @@ function repairNodeHeight(node, { allowManualResize = false } = {}) {
 
     const nodeHeight = Number(node.size?.[1]);
     const preferred = preferredPanelHeight(node);
-    const preferredNodeHeight = preferred + PANEL_NODE_CHROME_HEIGHT;
+    const preferredNodeHeight = preferred + chrome;
     const userResizing = allowManualResize && app.canvas?.resizing_node === node;
     const programmaticPresetResize = Number.isFinite(nodeHeight)
         && Math.abs(nodeHeight - preferredNodeHeight) <= 2
@@ -111,15 +133,15 @@ function repairNodeHeight(node, { allowManualResize = false } = {}) {
 
     if (userResizing && Number.isFinite(nodeHeight)) {
         stable = clamp(
-            nodeHeight - PANEL_NODE_CHROME_HEIGHT,
+            nodeHeight - chrome,
             PANEL_MIN_HEIGHT,
-            MAX_NODE_HEIGHT - PANEL_NODE_CHROME_HEIGHT,
+            MAX_NODE_HEIGHT - chrome,
         );
     } else if (programmaticPresetResize) {
         stable = preferred;
     }
 
-    const expectedNodeHeight = stable + PANEL_NODE_CHROME_HEIGHT;
+    const expectedNodeHeight = stable + chrome;
     const corruptNodeHeight = !Number.isFinite(nodeHeight)
         || nodeHeight < MIN_NODE_HEIGHT
         || nodeHeight > MAX_NODE_HEIGHT;
@@ -142,8 +164,23 @@ function repairNodeHeight(node, { allowManualResize = false } = {}) {
     return true;
 }
 
+function reapplyInstalledRepair(node) {
+    if (!node?.__novoAIODom || !node?.__novoAIORoot) return false;
+    repairNodeHeight(node);
+    requestAnimationFrame(() => repairNodeHeight(node));
+    setTimeout(() => repairNodeHeight(node), 80);
+    return true;
+}
+
 function installHeightRepair(node) {
-    if (!node || node.__novoPromptStackHeightHotfixInstalled) return Boolean(node?.__novoAIODom);
+    if (!node) return false;
+    if (node.__novoPromptStackHeightHotfixInstalled) {
+        // The dynamic Prompt Stack rebuilds its DOM sizing contract on tab
+        // remount/onConfigure. The original hotfix returned early here, so the
+        // bad node-size -> DOM-height contract won again after switching tabs.
+        // Reassert the stable contract every time the node is configured.
+        return reapplyInstalledRepair(node);
+    }
     if (!node.__novoAIODom || !node.__novoAIORoot) return false;
 
     node.__novoPromptStackHeightHotfixInstalled = true;
@@ -180,7 +217,7 @@ function scheduleInstall(node) {
 }
 
 app.registerExtension({
-    name: "NovoLoko.PromptStackHeightHotfix.v465",
+    name: "NovoLoko.PromptStackHeightHotfix.v467",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (String(nodeData?.name || "") !== NODE_NAME) return;
 
