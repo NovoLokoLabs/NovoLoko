@@ -24,4 +24,8 @@ assert.match(source, /Play next automatically/);
 assert.match(source, /autoplay\.onchange = persist/);
 assert.match(source, /autoNext\.onchange = \(\) => \{ state\.autoNext = autoNext\.checked; persist\(\); \}/);
 assert.doesNotMatch(source, /autoplay\.onchange[^\n]*(play|pause|currentTime)/);
+assert.match(source, /generation_summary/);
+assert.match(source, /Saved generation metadata for this audio file/);
+assert.match(source, /Preset: Legacy \/ not recorded/);
+assert.match(source, /await loadSelectedSidecar\(true\)/, "track selection reads saved metadata independently of lyrics and current controls");
 

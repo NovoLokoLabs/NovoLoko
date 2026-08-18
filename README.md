@@ -1,4 +1,4 @@
-# ComfyUI-NovoLoko v4.6.4
+# ComfyUI-NovoLoko v4.6.7
 
 NovoLoko is a unified ComfyUI custom-node suite for prompt building, CSV/YAML libraries, prompt enhancement, seed history, previews, metadata saving, comparison, media history, voice tools and memory cleanup.
 
@@ -27,7 +27,7 @@ For an older workflow that still uses versioned aliases, drag its JSON file onto
 - `NovoLoko MiniMax Music 3 - Lab v4.6.4.json` — the current Music Lab with 377 paired artist references, 1,429 control choices, FAST/BALANCED/Gemma/other-local writer selection, Comfy fallback, optional external Seed Lab and offscreen-safe Classic/Nodes 2.0 controls.
 - `NovoLoko MiniMax Music 3 - Writer A-B v4.6.1.json` — a separate Music Lab copy using the optional local Ollama/GGUF writer loader; change only its FAST/BALANCED/GEMMA alias for controlled comparisons.
 
-The v4.6.4 lifecycle pass keeps the 620x760 default and 420x480 minimum while
+The v4.6.7 compatibility pass keeps the 620x760 default and 420x480 minimum while
 using the DOM widget's actual allocated body height in legacy/classic and Nodes
 2.0. The category list gains room as the node grows, drops its scrollbar when
 all rows fit, then grows SONG IDEA to its useful cap. A content-height ceiling
@@ -265,6 +265,7 @@ Large Media Studio libraries are refreshed through the existing HTTP history rou
 ## Troubleshooting
 
 - Missing nodes: confirm the folder is exactly `ComfyUI/custom_nodes/ComfyUI-NovoLoko/` and contains `__init__.py` directly.
+- A folder named `NovoLoko-main` comes from GitHub's generic branch/source ZIP, not the official release asset. Official NovoLoko release ZIPs are guarded to contain only the top-level `ComfyUI-NovoLoko` folder.
 - Duplicate nodes or odd frontend behaviour: remove old Nova packages and restart fully.
 - Stale menus: press `Ctrl+F5` after restarting.
 - Voice import problems: run the installer, then `DIAGNOSE_NOVOLOKO_INSTALL.bat`.

@@ -1,5 +1,27 @@
 # NovoLoko Changelog
 
+## v4.6.7 - Prompt Stack and Music 3 persistence/transparency patch - 2026-08-18
+
+- Unified Prompt Stack AIO Pro sizing in its main frontend so Classic and Nodes
+  2.0 keep the DOM slot browser and native controls inside the node after tab
+  remount, graph reload, renderer changes and offscreen return. Manual resizing
+  and 450 / 520 / 600 panel presets remain supported.
+- Made SONG IDEA immediately canonical across input/change, configure,
+  graph-configured, tab remount, serialization and reload. Presets preserve user
+  text; explicit Load Track Recipe remains the only intentional idea restore.
+- Added 192 curated short ideas in 16 categories with category, search, picker
+  and Random Idea controls. Random Idea changes no music-control selections.
+- Exposed actual Strong/Loose effective Reference DNA beside the preset picker
+  while retaining neutral manual controls and serialized Clone/Like values.
+  Matching manual values are visibly marked as overrides.
+- Added saved generating preset/reference, seed and target duration to the Audio
+  Library details using matched JSON/TXT metadata rather than current Controls.
+- Reverified independent auto-play/auto-next lifecycle behavior and wheel/canvas
+  handoff. Added a release-archive guard that rejects any top-level folder other
+  than `ComfyUI-NovoLoko`, including GitHub's `NovoLoko-main` source layout.
+- Preserved the current Music Lab workflow JSON, graph links, node IDs, 48-widget
+  Music Controls contract, recipe v2, external Seed Lab and native MiniMax path.
+
 ## v4.6.4 - Music Lab reference expansion and backend/seed lifecycle - 2026-08-17
 
 - Added 275 useful named artists while preserving the prior 102 and every

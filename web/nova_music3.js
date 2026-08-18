@@ -10,6 +10,7 @@ const NONE = "None / No preference";
 const CUSTOM = "Custom...";
 const RANDOM = "Random";
 const DEFAULT_FOLDER = "audio/NovoLoko";
+const MUSIC_IDEA_PROPERTY = "novaMusic3Idea";
 const playerNodes = new Set();
 const musicControlsNodes = new Set();
 const RESPONSIVE_PANEL_GAP = 8;
@@ -327,6 +328,19 @@ function installFlexibleControlsPanel(node, dom, root, allocated = null) {
             this.__novaMusic3Configuring = false;
         }
         this.__novaMusic3RepairControlWidgets?.(args[0]);
+        this.__novaMusic3RestoreIdea?.(args[0]);
+        requestAnimationFrame(() => {
+            clampNodeSize();
+            scheduleSync();
+            refreshNodes2Widgets(this);
+            dirty(this);
+        });
+        return result;
+    };
+    const previousGraphConfigured = node.onGraphConfigured;
+    node.onGraphConfigured = function (...args) {
+        const result = previousGraphConfigured?.apply(this, args);
+        this.__novaMusic3RestoreIdea?.(args[0]);
         requestAnimationFrame(() => {
             clampNodeSize();
             scheduleSync();
@@ -687,11 +701,65 @@ function installMusicControls(node) {
     ideaLabel.textContent = "SONG IDEA";
     ideaLabel.style.cssText = "padding-top:5px;color:#71d8ff;letter-spacing:.04em";
     const ideaInput = document.createElement("textarea");
-    ideaInput.value = String(native.idea?.value || "");
+    const hasMirroredIdea = Object.prototype.hasOwnProperty.call(node.properties, MUSIC_IDEA_PROPERTY);
+    let liveIdea = String(hasMirroredIdea ? node.properties[MUSIC_IDEA_PROPERTY] : (native.idea?.value ?? ""));
+    let liveIdeaEdited = false;
+    ideaInput.value = liveIdea;
     ideaInput.placeholder = "Type the song concept, story, feeling, hook, or lyrical premise...";
     ideaInput.style.cssText = "width:100%;height:76px;min-height:54px;max-height:280px;resize:none;box-sizing:border-box;border:1px solid #37617d;border-radius:6px;background:#050d14;color:#f1f8ff;padding:7px;font:11px/1.35 ui-monospace,Consolas,monospace";
-    ideaInput.oninput = () => setWidgetValue(node, native.idea, ideaInput.value);
-    ideaPanel.append(ideaLabel, ideaInput);
+    const commitIdea = (value = ideaInput.value, edited = true) => {
+        const next = String(value ?? "");
+        liveIdea = next;
+        if (edited) liveIdeaEdited = true;
+        node.properties ||= {};
+        node.properties[MUSIC_IDEA_PROPERTY] = next;
+        if (ideaInput.value !== next) ideaInput.value = next;
+        setWidgetValue(node, native.idea, next);
+        return next;
+    };
+    const configuredIdea = (info) => {
+        if (Object.prototype.hasOwnProperty.call(info?.properties || {}, MUSIC_IDEA_PROPERTY)) {
+            return String(info.properties[MUSIC_IDEA_PROPERTY] ?? "");
+        }
+        if (Object.prototype.hasOwnProperty.call(node.properties || {}, MUSIC_IDEA_PROPERTY)) {
+            return String(node.properties[MUSIC_IDEA_PROPERTY] ?? "");
+        }
+        return String(native.idea?.value ?? "");
+    };
+    node.__novaMusic3RestoreIdea = (info) => commitIdea(
+        liveIdeaEdited ? liveIdea : configuredIdea(info),
+        false,
+    );
+    const previousSerialize = node.onSerialize;
+    node.onSerialize = function (info) {
+        const value = commitIdea(ideaInput.value);
+        if (info && typeof info === "object") {
+            info.properties ||= {};
+            info.properties[MUSIC_IDEA_PROPERTY] = value;
+            if (Array.isArray(info.widgets_values)) {
+                const serialized = (this.widgets || []).filter((item) =>
+                    item?.serialize !== false && !String(item?.name || "").startsWith("nova_music3_"));
+                const ideaIndex = serialized.indexOf(native.idea);
+                if (ideaIndex >= 0) info.widgets_values[ideaIndex] = value;
+            }
+        }
+        return previousSerialize?.apply(this, arguments);
+    };
+    ideaInput.oninput = () => commitIdea();
+    ideaInput.onchange = () => commitIdea();
+    ideaInput.onblur = () => commitIdea();
+    const ideaTools = document.createElement("div");
+    ideaTools.className = "nova-music3-idea-tools";
+    ideaTools.style.cssText = "grid-column:2;display:grid;grid-template-columns:minmax(110px,.7fr) minmax(120px,.8fr) minmax(170px,1.5fr) auto;gap:5px;min-width:0";
+    const ideaCategory = makeSelect();
+    ideaCategory.title = "Song idea category";
+    const ideaSearch = makeTextInput("Search ideas...");
+    ideaSearch.type = "search";
+    const ideaSelect = makeSelect();
+    ideaSelect.title = "Choose an idea and copy it into the editable SONG IDEA box";
+    const randomIdea = makeButton("Random Idea", "Randomize only the SONG IDEA; the 19 music controls do not change");
+    ideaTools.append(ideaCategory, ideaSearch, ideaSelect, randomIdea);
+    ideaPanel.append(ideaLabel, ideaInput, ideaTools);
 
     const presetBrowser = document.createElement("div");
     presetBrowser.className = "nova-music3-preset-browser";
@@ -703,7 +771,10 @@ function installMusicControls(node) {
     const presetDescription = document.createElement("div");
     presetDescription.className = "nova-music3-preset-description";
     presetDescription.style.cssText = "grid-column:1/-1;min-height:16px;color:#91b7ce;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
-    presetBrowser.append(presetFolder, presetSearch, presetSelect, presetDescription);
+    const effectiveDna = document.createElement("div");
+    effectiveDna.className = "nova-music3-effective-dna";
+    effectiveDna.style.cssText = "display:none;grid-column:1/-1;max-height:94px;overflow:auto;padding:5px 7px;border:1px solid #31536a;border-radius:5px;background:#071620;color:#bfd7e7;font:10px/1.35 system-ui;white-space:normal";
+    presetBrowser.append(presetFolder, presetSearch, presetSelect, presetDescription, effectiveDna);
 
     const toolbar = document.createElement("div");
     toolbar.className = "nova-music3-toolbar";
@@ -793,6 +864,48 @@ function installMusicControls(node) {
     const customWidgets = new Map();
     for (const item of node.widgets || []) {
         if (String(item.name || "").startsWith("custom_")) customWidgets.set(item.name.slice(7), item);
+    }
+
+    function ideaRows() {
+        const categories = Array.isArray(state.config?.song_ideas) ? state.config.song_ideas : [];
+        const selected = categories.find((item) => item.name === ideaCategory.value) || categories[0];
+        const query = ideaSearch.value.trim().toLocaleLowerCase();
+        return (selected?.ideas || []).filter((idea) => !query || String(idea).toLocaleLowerCase().includes(query));
+    }
+
+    function renderIdeaPicker() {
+        const categories = Array.isArray(state.config?.song_ideas) ? state.config.song_ideas : [];
+        const savedCategory = String(node.properties?.novaMusic3IdeaCategory || "");
+        const previous = ideaCategory.value || savedCategory;
+        ideaCategory.replaceChildren();
+        for (const category of categories) {
+            const option = document.createElement("option");
+            option.value = category.name;
+            option.textContent = `${category.name} (${category.ideas?.length || 0})`;
+            ideaCategory.append(option);
+        }
+        ideaCategory.value = categories.some((item) => item.name === previous) ? previous : (categories[0]?.name || "");
+        node.properties.novaMusic3IdeaCategory = ideaCategory.value;
+        ideaSelect.replaceChildren();
+        for (const idea of ideaRows()) {
+            const option = document.createElement("option");
+            option.value = idea;
+            option.textContent = idea;
+            ideaSelect.append(option);
+        }
+        if (!ideaSelect.options.length) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "No ideas match this search";
+            ideaSelect.append(option);
+        }
+    }
+
+    function chooseIdea(value, source) {
+        if (!value) return;
+        commitIdea(value);
+        setStatus(`${source}: copied into SONG IDEA. Free text remains editable.`);
+        dirty(node);
     }
 
     function setStatus(message, error = false) {
@@ -905,6 +1018,7 @@ function installMusicControls(node) {
         const row = state.rows.get(key);
         if (row?.help) row.help.dataset.override = "true";
         setStatus(`Manual override: ${row?.label || key}. Other preset DNA remains active.`);
+        renderEffectiveDna();
     }
 
     function renderTimings(running = false) {
@@ -928,6 +1042,7 @@ function installMusicControls(node) {
     function applyPreset(name) {
         if (!state.config) return;
         syncPresetBrowser(name);
+        setStatus(`Selected ${presetDisplayName(state.presetEntries.find((item) => item.name === name) || { name })}.`);
         state.applyingPreset = true;
         state.overrides.clear();
         writeOverrides();
@@ -953,6 +1068,7 @@ function installMusicControls(node) {
                 state.rows.get(category.key)?.sync();
             }
             state.applyingPreset = false;
+            renderEffectiveDna();
             return;
         }
         if (name === state.config.special_presets?.[2]) {
@@ -962,6 +1078,7 @@ function installMusicControls(node) {
                 state.rows.get(category.key)?.sync();
             }
             state.applyingPreset = false;
+            renderEffectiveDna();
             return;
         }
         const preset = state.config.presets.find((item) => item.name === name);
@@ -973,6 +1090,7 @@ function installMusicControls(node) {
             state.rows.get(category.key)?.sync();
         }
         state.applyingPreset = false;
+        renderEffectiveDna(preset);
     }
 
     function presetEntrySearchText(entry) {
@@ -997,6 +1115,36 @@ function installMusicControls(node) {
         presetDescription.title = entry.reference
             ? "The reference name is for finding the sound. NovoLoko sends descriptive musical traits to the generator, not an instruction to copy the artist."
             : presetDescription.textContent;
+        renderEffectiveDna(entry);
+    }
+
+    function renderEffectiveDna(entry = state.presetEntries.find((item) => item.name === String(native.preset?.value || ""))) {
+        const traits = Array.isArray(entry?.effective_dna) ? entry.effective_dna : [];
+        effectiveDna.replaceChildren();
+        if (!traits.length) {
+            effectiveDna.style.display = "none";
+            return;
+        }
+        effectiveDna.style.display = "block";
+        const heading = document.createElement("strong");
+        heading.textContent = `Effective Reference DNA · ${entry.reference_mode_label || entry.reference_mode || "reference"}`;
+        heading.style.cssText = "display:block;margin-bottom:3px;color:#72d9ff";
+        effectiveDna.append(heading);
+        for (const trait of traits) {
+            const overriddenKey = (trait.controls || []).find((key) => state.overrides.has(key));
+            const line = document.createElement("div");
+            if (overriddenKey) {
+                const row = state.rows.get(overriddenKey);
+                const selected = row?.select?.value || categoryWidgets.get(overriddenKey)?.value || "Custom";
+                const custom = customWidgets.get(overriddenKey)?.value;
+                const value = selected === CUSTOM && custom ? custom : selected;
+                line.textContent = `MANUAL OVERRIDE — ${trait.label}: ${value}`;
+                line.style.color = "#ffd47b";
+            } else {
+                line.textContent = `${trait.label}: ${trait.value}`;
+            }
+            effectiveDna.append(line);
+        }
     }
 
     function renderPresetBrowser(preferredName = String(native.preset?.value || "")) {
@@ -1157,6 +1305,8 @@ function installMusicControls(node) {
             readOverrides();
             updatePresetOptions();
             buildRows();
+            renderIdeaPicker();
+            renderEffectiveDna();
             setStatus(`${message} ${state.config.categories.reduce((total, item) => total + item.options.length, 0)} built-in choices; ${state.config.presets.length} presets.`);
         } catch (error) {
             setStatus(error.message, true);
@@ -1180,6 +1330,21 @@ function installMusicControls(node) {
     }
 
     randomNone.onchange = () => setWidgetValue(node, native.allow_random_none, randomNone.checked);
+    ideaCategory.onchange = () => {
+        node.properties.novaMusic3IdeaCategory = ideaCategory.value;
+        ideaSearch.value = "";
+        renderIdeaPicker();
+        dirty(node);
+    };
+    ideaSearch.oninput = () => renderIdeaPicker();
+    ideaSelect.onchange = () => chooseIdea(ideaSelect.value, "Idea picker");
+    randomIdea.onclick = () => {
+        const ideas = ideaRows();
+        if (!ideas.length) return;
+        const chosen = ideas[Math.floor(Math.random() * ideas.length)];
+        ideaSelect.value = chosen;
+        chooseIdea(chosen, "Random Idea");
+    };
     randomAll.onchange = () => setWidgetValue(node, native.randomize_all, randomAll.checked);
     afterRun.onchange = () => setAfterRunPolicy(afterRun.value, true);
     seedInput.onchange = () => {
@@ -1298,8 +1463,7 @@ function installMusicControls(node) {
             state.rows.get(category.key)?.sync();
         }
         const restoredIdea = String(recipe.original_idea || "");
-        setWidgetValue(node, native.idea, restoredIdea);
-        ideaInput.value = restoredIdea;
+        commitIdea(restoredIdea);
         randomNone.checked = booleanValue(recipe.allow_random_none, false);
         syncPresetBrowser(customPreset);
         const source = recipe.source_preset ? ` (original preset: ${recipe.source_preset})` : "";
@@ -1310,7 +1474,9 @@ function installMusicControls(node) {
 
     const previousRemoved = node.onRemoved;
     node.onRemoved = function () {
+        commitIdea(ideaInput.value);
         musicControlsNodes.delete(this);
+        delete this.__novaMusic3RestoreIdea;
         delete this.__novaMusic3RenderTimings;
         delete this.__novaMusic3RunFinished;
         this.__novaMusic3ControlsResizeObserver?.disconnect?.();
@@ -1542,7 +1708,10 @@ function installAudioLibrary(node) {
     title.style.cssText = "font:700 13px/1.3 system-ui;color:#f2f8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
     const meta = document.createElement("div");
     meta.style.cssText = "margin-top:3px;color:#86aec7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
-    now.append(title, meta);
+    const generatingMeta = document.createElement("div");
+    generatingMeta.className = "nova-music3-generating-preset";
+    generatingMeta.style.cssText = "margin-top:3px;color:#72d9ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+    now.append(title, meta, generatingMeta);
 
     const visualizerTools = document.createElement("div");
     visualizerTools.style.cssText = "display:grid;grid-template-columns:auto minmax(130px,180px) auto minmax(90px,1fr) auto;gap:7px;align-items:center;padding:5px 8px;background:#071520;border-bottom:1px solid #203b4e;color:#a9c4d6";
@@ -1662,10 +1831,12 @@ function installAudioLibrary(node) {
         try {
             const params = new URLSearchParams({ folder: folderInput.value, name: track.name });
             state.sidecar = await responseJson(await api.fetchApi(`/nova_music3/library/sidecar?${params}`));
+            renderGeneratingSummary();
             return state.sidecar;
         } catch (error) {
             state.sidecar = null;
             state.lyricLines = [];
+            renderGeneratingSummary();
             if (!quiet) setStatus(error.message, true);
             return null;
         }
@@ -1928,10 +2099,35 @@ function installAudioLibrary(node) {
         meta.textContent = track
             ? [track.format, formatTime(track.duration), track.sample_rate ? `${track.sample_rate} Hz` : "", track.channels ? `${track.channels} ch` : "", formatSize(track.size_bytes), track.has_txt ? "TXT" : "", track.has_json ? "JSON" : ""].filter(Boolean).join(" • ")
             : "Choose a track from the library.";
+        renderGeneratingSummary();
         for (const [index, element] of [...library.children].entries()) {
             element.style.background = index === state.index ? "#173a51" : "transparent";
             element.style.borderColor = index === state.index ? "#4a95be" : "rgba(69,106,130,.3)";
         }
+    }
+
+    function renderGeneratingSummary() {
+        const track = currentTrack();
+        if (!track) {
+            generatingMeta.textContent = "";
+            return;
+        }
+        if (!state.sidecar) {
+            generatingMeta.textContent = (track.has_json || track.has_txt)
+                ? "Preset: reading saved track metadata..."
+                : "Preset: Legacy / not recorded";
+            return;
+        }
+        const summary = state.sidecar.generation_summary || {};
+        if (!summary.recorded) {
+            generatingMeta.textContent = "Preset: Legacy / not recorded";
+            return;
+        }
+        const parts = [`Preset: ${summary.preset || "Legacy / not recorded"}`];
+        if (summary.seed !== null && summary.seed !== undefined) parts.push(`Seed: ${summary.seed}`);
+        if (Number.isFinite(Number(summary.target_seconds))) parts.push(`Target: ${formatTime(Number(summary.target_seconds))}`);
+        generatingMeta.textContent = parts.join(" · ");
+        generatingMeta.title = "Saved generation metadata for this audio file; it is independent of the current Music Controls selection.";
     }
 
     function renderLibrary() {
@@ -1970,9 +2166,8 @@ function installAudioLibrary(node) {
         audio.src = fileUrl(track);
         audio.load();
         updateNow();
+        await loadSelectedSidecar(true);
         if (state.showLyrics) {
-            renderLyrics();
-            await loadSelectedSidecar(true);
             renderLyrics();
         }
         if (start) {
