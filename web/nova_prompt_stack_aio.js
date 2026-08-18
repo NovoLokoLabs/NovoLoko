@@ -7,9 +7,9 @@ const DEFAULT_MEDIUM = "csv/wildcards/novoloko_uploaded_styles_master_397_FINAL.
 const ALL_FOLDERS = "All folders";
 const DEFAULT_PANEL_SIZE = "comfortable";
 const DEFAULT_NODE_WIDTH = 680;
-const DEFAULT_NODE_HEIGHT = 820;
+const DEFAULT_NODE_HEIGHT = 1000;
 const MIN_NODE_WIDTH = 420;
-const MIN_NODE_HEIGHT = 700;
+const MIN_NODE_HEIGHT = 800;
 const MAX_NODE_HEIGHT = 2400;
 const PANEL_HEIGHTS = Object.freeze({
     compact: 450,
@@ -17,8 +17,12 @@ const PANEL_HEIGHTS = Object.freeze({
     roomy: 600,
 });
 const PANEL_MIN_HEIGHT = 320;
-const CLASSIC_NODE_CHROME_HEIGHT = 300;
-const NODES2_NODE_CHROME_HEIGHT = 380;
+// Real Comfy 0.33.1 allocations include the title/menu band, master toggle,
+// DOM wrapper gap, seven native controls, and the Dictate button. Measured
+// chrome is ~394px in Classic and ~474px in Nodes 2.0; rounded reservations
+// keep the final row inside the outer node without an excessive height.
+const CLASSIC_NODE_CHROME_HEIGHT = 400;
+const NODES2_NODE_CHROME_HEIGHT = 480;
 const PANEL_WIDGET_GAP = 10;
 const STABLE_PANEL_PROPERTY = "novaPromptStackStablePanelHeight";
 const LEGACY_SLOTS = [
@@ -202,12 +206,11 @@ function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, Math.round(number)));
 }
 
-function nodes2Mode() {
-    return Boolean(globalThis.LiteGraph?.vueNodesMode);
-}
-
 function nodeChromeHeight() {
-    return nodes2Mode() ? NODES2_NODE_CHROME_HEIGHT : CLASSIC_NODE_CHROME_HEIGHT;
+    // Comfy can update vueNodesMode after nodeCreated has already run. Reserve
+    // the safe measured maximum in both renderers so startup timing can never
+    // put the last native rows outside the node.
+    return Math.max(CLASSIC_NODE_CHROME_HEIGHT, NODES2_NODE_CHROME_HEIGHT);
 }
 
 function saneWidth(node) {
@@ -528,9 +531,13 @@ function stablePanelHeight(node, { allowManualResize = false, usePreset = false 
         // A saved Classic node can arrive in Nodes 2.0 at the old outer height
         // before renderer-owned rows are allocated. Preserve the selected panel
         // preset and grow the node instead of shrinking the DOM canvas.
-        const classicPresetHeight = preferred + CLASSIC_NODE_CHROME_HEIGHT;
-        const nodes2PresetHeight = preferred + NODES2_NODE_CHROME_HEIGHT;
-        if (Math.abs(nodeHeight - classicPresetHeight) <= 96 || Math.abs(nodeHeight - nodes2PresetHeight) <= 96) {
+        const knownPresetHeights = [
+            preferred + 300, // v4.6.6 Classic reservation
+            preferred + 380, // v4.6.6 Nodes 2.0 reservation
+            preferred + CLASSIC_NODE_CHROME_HEIGHT,
+            preferred + NODES2_NODE_CHROME_HEIGHT,
+        ];
+        if (knownPresetHeights.some((candidate) => Math.abs(nodeHeight - candidate) <= 48)) {
             return preferred;
         }
         return clamp(nodeHeight - chrome, PANEL_MIN_HEIGHT, MAX_NODE_HEIGHT - chrome);
@@ -556,7 +563,7 @@ function applyPanelSize(node, resizeNode = false, { allowManualResize = false } 
         || currentNodeHeight < MIN_NODE_HEIGHT
         || currentNodeHeight > MAX_NODE_HEIGHT;
     const layoutDrift = !userResizing && Number.isFinite(currentNodeHeight)
-        && Math.abs(currentNodeHeight - expectedNodeHeight) >= 48;
+        && Math.abs(currentNodeHeight - expectedNodeHeight) >= 16;
     if (resizeNode || corruptNodeHeight || layoutDrift) {
         node.__novoAIOApplyingPanelSize = true;
         try {
@@ -598,7 +605,10 @@ function installPanelResizeTracking(node) {
     const previousResize = node.onResize;
     node.onResize = function (...args) {
         const result = previousResize?.apply(this, args);
-        requestAnimationFrame(() => applyPanelSize(this, false, { allowManualResize: true }));
+        // Capture the user's live outer height while LiteGraph still identifies
+        // this node as the resize target. A deferred capture can run after
+        // resizing_node is cleared and incorrectly restore the old panel size.
+        applyPanelSize(this, false, { allowManualResize: true });
         return result;
     };
 }
@@ -1184,7 +1194,7 @@ function installDynamicNode(node, newNode = false) {
         node.getMinSize = () => [420, 620];
         renderNativeSlots(node);
         if (newNode && (!Array.isArray(node.size) || node.size[0] < 500)) {
-            node.setSize?.([680, 820]);
+            node.setSize?.([680, DEFAULT_NODE_HEIGHT]);
         }
     } else if (!node.__novoAIODom) {
         for (const name of [...LEGACY_WIDGET_NAMES, "slots_json"]) hideWidget(node, name);
@@ -1201,9 +1211,13 @@ function installDynamicNode(node, newNode = false) {
         dom.options.serialize = false;
         node.__novoAIODom = dom;
         installPanelResizeTracking(node);
-        applyPanelSize(node, false);
-        node.min_size = [420, 700];
-        node.getMinSize = () => [420, 700];
+        // Comfy computes a tall provisional size from every backend widget
+        // before the DOM panel is installed. A genuinely new node must start
+        // from the selected panel preset, not preserve that provisional height
+        // as though the user manually resized it.
+        applyPanelSize(node, newNode);
+        node.min_size = [420, MIN_NODE_HEIGHT];
+        node.getMinSize = () => [420, MIN_NODE_HEIGHT];
         arrangeVisualWidgets(node, dom);
         dom.options.onDraw = () => {
             if (node.__novoAIOPanelDrawFrame) return;

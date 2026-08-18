@@ -115,7 +115,7 @@ function backendValues(slotsJson, overrides = {}) {
     return [...values].map(([name, value]) => ({ name, value: Object.prototype.hasOwnProperty.call(overrides, name) ? overrides[name] : value, options: {} }));
 }
 
-function makeNode(mode, slotsJson, size = [680, 820], overrides = {}) {
+function makeNode(mode, slotsJson, size = [680, 820], overrides = {}, newNode = false) {
     globalThis.LiteGraph = { vueNodesMode: mode };
     const node = {
         widgets: backendValues(slotsJson, overrides),
@@ -138,7 +138,7 @@ function makeNode(mode, slotsJson, size = [680, 820], overrides = {}) {
             return { widgets_values: this.widgets.filter((item) => item.serialize !== false).map((item) => item.value) };
         },
     };
-    installDynamicNode(node, false);
+    installDynamicNode(node, newNode);
     return node;
 }
 
@@ -234,16 +234,25 @@ for (const mode of [false, true]) {
     assert.equal(node.__novoAIORenderer, "dom", mode ? "Nodes 2.0 uses DOM panel" : "classic uses DOM panel when available");
     assert.equal(node.__novoAIOSlots.length, 7);
     assert.equal(node.__novoAIORoot.style.height, "520px");
-    assert.deepEqual(node.size, [680, mode ? 900 : 820], "each renderer reserves its own native widget chrome inside the node");
+    assert.deepEqual(node.size, [680, 1000], "both renderers reserve the safe measured native-widget chrome inside the node");
+    const freshNode = makeNode(mode, initialSlots, [680, 1096], {}, true);
+    assert.deepEqual(freshNode.size, [680, 1000], "new nodes ignore Comfy's provisional widget-stack height and use the selected panel preset");
+    clearTimeout(freshNode.__novoAIORefreshTimer);
     app.canvas.resizing_node = node;
-    node.size = [680, mode ? 1080 : 1000];
+    node.size = [680, 1080];
+    const animationFrame = globalThis.requestAnimationFrame;
+    const resizeFrames = [];
+    globalThis.requestAnimationFrame = (callback) => { resizeFrames.push(callback); return resizeFrames.length; };
     node.onResize?.(node.size);
-    assert.equal(node.__novoAIORoot.style.height, "700px", "slot canvas follows manual node height");
+    assert.equal(node.__novoAIORoot.style.height, "600px", "manual resize is captured before LiteGraph clears its resize target");
+    globalThis.requestAnimationFrame = animationFrame;
+    resizeFrames.forEach((callback) => callback());
+    assert.equal(node.__novoAIORoot.style.height, "600px", "slot canvas follows manual node height after reserving measured renderer chrome");
     app.canvas.resizing_node = null;
     node.__novoAIOPanelSize.value = "comfortable";
     node.__novoAIOPanelSize.onchange();
     assert.equal(node.__novoAIORoot.style.height, "520px");
-    assert.deepEqual(node.size, [680, mode ? 900 : 820]);
+    assert.deepEqual(node.size, [680, 1000]);
 
     node.__novoAIORoot.style.height = "700px";
     node.__novoAIODom.options.getHeight = () => 710;
@@ -251,7 +260,7 @@ for (const mode of [false, true]) {
     installDynamicNode(node, false);
     assert.equal(node.__novoAIORoot.style.height, "520px", "configure/tab remount reasserts the unified panel contract");
     assert.equal(node.__novoAIODom.options.getHeight(), 530);
-    assert.deepEqual(node.size, [680, mode ? 900 : 820], "remount repairs outer-height drift without skyscraper growth");
+    assert.deepEqual(node.size, [680, 1000], "remount repairs outer-height drift without skyscraper growth");
 
     intersectionObservers.at(-1).callback([{ target: node.__novoAIORoot, isIntersecting: true }]);
     assert.equal(node.__novoAIORoot.style.height, "520px", "offscreen pan-return re-applies the stable panel allocation");
@@ -321,7 +330,7 @@ for (const mode of [false, true]) {
     node.__novoAIOPanelSize.value = "roomy";
     node.__novoAIOPanelSize.onchange();
     assert.equal(node.__novoAIORoot.style.height, "600px");
-    assert.deepEqual(node.size, [680, mode ? 980 : 900], "600px preset reserves renderer-specific native widget chrome");
+    assert.deepEqual(node.size, [680, 1080], "600px preset reserves the safe native-widget chrome");
     const saved = node.serialize();
     const backend = node.__novoAIOBackendWidgets;
     assert.equal(saved.widgets_values.length, backend.length);
