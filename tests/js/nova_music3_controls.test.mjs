@@ -204,6 +204,60 @@ for (const nodes2 of [false, true]) {
     assert.equal(list.style.minHeight, "0");
     const ideaPanel = dom.element.children[0];
     const ideaInput = ideaPanel.children[1];
+    const ideaWidget = backend.find((item) => item.name === "idea");
+    ideaInput.value = "SONG IDEA A";
+    ideaInput.oninput();
+    assert.equal(ideaWidget.value, "SONG IDEA A", "typing immediately commits SONG IDEA A to the serialized widget");
+    assert.equal(node.properties.novaMusic3Idea, "SONG IDEA A", "typing immediately mirrors SONG IDEA A to the node property");
+    ideaWidget.value = "older workflow idea";
+    node.onConfigure?.({
+        properties: { novaMusic3Idea: "older workflow idea" },
+        widgets_values: backend.map((item) => item.value),
+    });
+    assert.equal(ideaInput.value, "SONG IDEA A", "tab remount never overwrites the live SONG IDEA with stale configured state");
+    assert.equal(ideaWidget.value, "SONG IDEA A", "tab remount recommits the live SONG IDEA to the serialized widget");
+    ideaInput.value = "SONG IDEA B";
+    ideaInput.onchange();
+    ideaWidget.value = "SONG IDEA A";
+    node.onConfigure?.({
+        properties: { novaMusic3Idea: "SONG IDEA A" },
+        widgets_values: backend.map((item) => item.value),
+    });
+    assert.equal(ideaInput.value, "SONG IDEA B", "the latest edit wins across repeated tab remounts");
+    assert.equal(await ideaWidget.serializeValue(), "SONG IDEA B", "workflow serialization returns the latest SONG IDEA");
+    assert.equal(node.properties.novaMusic3Idea, "SONG IDEA B", "workflow properties retain the latest SONG IDEA");
+    const savedInfo = { properties: {}, widgets_values: backend.map((item) => item.value) };
+    node.onSerialize?.(savedInfo);
+    assert.equal(savedInfo.properties.novaMusic3Idea, "SONG IDEA B", "workflow save writes the latest SONG IDEA property");
+    assert.equal(savedInfo.widgets_values[backend.indexOf(ideaWidget)], "SONG IDEA B", "workflow save writes the latest SONG IDEA widget slot");
+
+    const reloaded = makeNode(nodes2);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const reloadedBackend = reloaded.widgets.filter((item) => item.name !== "nova_music3_controls_v461");
+    const reloadedIdeaWidget = reloadedBackend.find((item) => item.name === "idea");
+    reloadedIdeaWidget.value = "SONG IDEA B";
+    reloaded.properties.novaMusic3Idea = "SONG IDEA B";
+    reloaded.onConfigure?.({
+        properties: { novaMusic3Idea: "SONG IDEA B" },
+        widgets_values: reloadedBackend.map((item) => item.value),
+    });
+    const reloadedIdeaInput = reloaded.widgets.find((item) => item.name === "nova_music3_controls_v461").element.children[0].children[1];
+    assert.equal(reloadedIdeaInput.value, "SONG IDEA B", "save and workflow reload restore the latest canonical SONG IDEA");
+    reloaded.onRemoved?.();
+
+    const legacyReloaded = makeNode(nodes2);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const legacyBackend = legacyReloaded.widgets.filter((item) => item.name !== "nova_music3_controls_v461");
+    const legacyIdeaWidget = legacyBackend.find((item) => item.name === "idea");
+    legacyIdeaWidget.value = "latest idea from a v4.6.6 workflow";
+    delete legacyReloaded.properties.novaMusic3Idea;
+    legacyReloaded.onConfigure?.({
+        properties: { novaMusicControlsPanelHeight: 720 },
+        widgets_values: legacyBackend.map((item) => item.value),
+    });
+    const legacyIdeaInput = legacyReloaded.widgets.find((item) => item.name === "nova_music3_controls_v461").element.children[0].children[1];
+    assert.equal(legacyIdeaInput.value, "latest idea from a v4.6.6 workflow", "pre-patch workflows restore SONG IDEA from the canonical widget");
+    legacyReloaded.onRemoved?.();
     dom.element._height = 720;
     ideaPanel._height = 104;
     const fixedHeights = [58, 40, 34, 34, 25, 42];
@@ -282,6 +336,8 @@ for (const nodes2 of [false, true]) {
     assert.equal(retainedCategories[0].value, "Choice B", "workflow reload never reapplies an artist preset over serialized CSV controls");
     presetWidget.callback("Pearl Jam — Clone");
     assert.equal(retainedCategories[0].value, "Choice A", "an intentional user preset selection still applies the preset");
+    assert.equal(ideaInput.value, "SONG IDEA B", "preset selection never replaces a custom SONG IDEA");
+    assert.equal(ideaWidget.value, "SONG IDEA B", "preset selection preserves the serialized SONG IDEA");
 
     const oldValues = backend.map((item) => item.value);
     oldValues.splice(3, 1);
@@ -290,7 +346,12 @@ for (const nodes2 of [false, true]) {
     node.onConfigure?.(legacyInfo);
     assert.equal(legacyInfo.widgets_values[3], "fixed", "legacy workflow migration inserts the missing after-generate slot");
     assert.equal(legacyInfo.widgets_values.at(-1), "Fixed", "legacy workflow migration appends seed-only policy deterministically");
-    await node.__novaMusic3ApplyRecipe({ seed: 99, seed_after_run: "Randomize Seed", selections: {}, custom_values: {} });
+    await node.__novaMusic3ApplyRecipe({
+        original_idea: "recipe-restored idea", seed: 99, seed_after_run: "Randomize Seed",
+        selections: {}, custom_values: {},
+    });
+    assert.equal(ideaInput.value, "recipe-restored idea", "explicit track recipe loading restores its documented SONG IDEA");
+    assert.equal(ideaWidget.value, "recipe-restored idea", "recipe-restored SONG IDEA is canonical and serializable");
     assert.equal(backend.find((item) => item.name === "control_after_generate").value, "randomize");
     assert.equal(backend.find((item) => item.name === "seed_after_run").value, "Randomize Seed");
 

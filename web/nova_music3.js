@@ -10,6 +10,7 @@ const NONE = "None / No preference";
 const CUSTOM = "Custom...";
 const RANDOM = "Random";
 const DEFAULT_FOLDER = "audio/NovoLoko";
+const MUSIC_IDEA_PROPERTY = "novaMusic3Idea";
 const playerNodes = new Set();
 const musicControlsNodes = new Set();
 const RESPONSIVE_PANEL_GAP = 8;
@@ -327,6 +328,7 @@ function installFlexibleControlsPanel(node, dom, root, allocated = null) {
             this.__novaMusic3Configuring = false;
         }
         this.__novaMusic3RepairControlWidgets?.(args[0]);
+        this.__novaMusic3RestoreIdea?.(args[0]);
         requestAnimationFrame(() => {
             clampNodeSize();
             scheduleSync();
@@ -687,10 +689,53 @@ function installMusicControls(node) {
     ideaLabel.textContent = "SONG IDEA";
     ideaLabel.style.cssText = "padding-top:5px;color:#71d8ff;letter-spacing:.04em";
     const ideaInput = document.createElement("textarea");
-    ideaInput.value = String(native.idea?.value || "");
+    const hasMirroredIdea = Object.prototype.hasOwnProperty.call(node.properties, MUSIC_IDEA_PROPERTY);
+    let liveIdea = String(hasMirroredIdea ? node.properties[MUSIC_IDEA_PROPERTY] : (native.idea?.value ?? ""));
+    let liveIdeaEdited = false;
+    ideaInput.value = liveIdea;
     ideaInput.placeholder = "Type the song concept, story, feeling, hook, or lyrical premise...";
     ideaInput.style.cssText = "width:100%;height:76px;min-height:54px;max-height:280px;resize:none;box-sizing:border-box;border:1px solid #37617d;border-radius:6px;background:#050d14;color:#f1f8ff;padding:7px;font:11px/1.35 ui-monospace,Consolas,monospace";
-    ideaInput.oninput = () => setWidgetValue(node, native.idea, ideaInput.value);
+    const commitIdea = (value = ideaInput.value, edited = true) => {
+        const next = String(value ?? "");
+        liveIdea = next;
+        if (edited) liveIdeaEdited = true;
+        node.properties ||= {};
+        node.properties[MUSIC_IDEA_PROPERTY] = next;
+        if (ideaInput.value !== next) ideaInput.value = next;
+        setWidgetValue(node, native.idea, next);
+        return next;
+    };
+    const configuredIdea = (info) => {
+        if (Object.prototype.hasOwnProperty.call(info?.properties || {}, MUSIC_IDEA_PROPERTY)) {
+            return String(info.properties[MUSIC_IDEA_PROPERTY] ?? "");
+        }
+        if (Object.prototype.hasOwnProperty.call(node.properties || {}, MUSIC_IDEA_PROPERTY)) {
+            return String(node.properties[MUSIC_IDEA_PROPERTY] ?? "");
+        }
+        return String(native.idea?.value ?? "");
+    };
+    node.__novaMusic3RestoreIdea = (info) => commitIdea(
+        liveIdeaEdited ? liveIdea : configuredIdea(info),
+        false,
+    );
+    const previousSerialize = node.onSerialize;
+    node.onSerialize = function (info) {
+        const value = commitIdea(ideaInput.value);
+        if (info && typeof info === "object") {
+            info.properties ||= {};
+            info.properties[MUSIC_IDEA_PROPERTY] = value;
+            if (Array.isArray(info.widgets_values)) {
+                const serialized = (this.widgets || []).filter((item) =>
+                    item?.serialize !== false && !String(item?.name || "").startsWith("nova_music3_"));
+                const ideaIndex = serialized.indexOf(native.idea);
+                if (ideaIndex >= 0) info.widgets_values[ideaIndex] = value;
+            }
+        }
+        return previousSerialize?.apply(this, arguments);
+    };
+    ideaInput.oninput = () => commitIdea();
+    ideaInput.onchange = () => commitIdea();
+    ideaInput.onblur = () => commitIdea();
     ideaPanel.append(ideaLabel, ideaInput);
 
     const presetBrowser = document.createElement("div");
@@ -1298,8 +1343,7 @@ function installMusicControls(node) {
             state.rows.get(category.key)?.sync();
         }
         const restoredIdea = String(recipe.original_idea || "");
-        setWidgetValue(node, native.idea, restoredIdea);
-        ideaInput.value = restoredIdea;
+        commitIdea(restoredIdea);
         randomNone.checked = booleanValue(recipe.allow_random_none, false);
         syncPresetBrowser(customPreset);
         const source = recipe.source_preset ? ` (original preset: ${recipe.source_preset})` : "";
@@ -1310,7 +1354,9 @@ function installMusicControls(node) {
 
     const previousRemoved = node.onRemoved;
     node.onRemoved = function () {
+        commitIdea(ideaInput.value);
         musicControlsNodes.delete(this);
+        delete this.__novaMusic3RestoreIdea;
         delete this.__novaMusic3RenderTimings;
         delete this.__novaMusic3RunFinished;
         this.__novaMusic3ControlsResizeObserver?.disconnect?.();
