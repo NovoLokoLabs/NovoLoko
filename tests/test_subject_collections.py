@@ -211,7 +211,7 @@ class SubjectCollectionTests(unittest.TestCase):
                 matches = self.aio._filtered_records(records, category, search)
                 self.assertGreater(len(matches), 0)
 
-    def test_entry_search_filters_visible_names_not_hidden_prompt_boilerplate(self) -> None:
+    def test_entry_search_filters_visible_names_and_categories_not_hidden_prompts(self) -> None:
         records = [
             {
                 "name": "Long Blue Hair",
@@ -221,14 +221,35 @@ class SubjectCollectionTests(unittest.TestCase):
             },
             {
                 "name": "Soft Bridal",
+                "prompt": "bridal styling",
+                "category": "Hair Accessories / Bridal",
+                "negative_prompt": "changing hair",
+            },
+            {
+                "name": "Glossy Lips",
                 "prompt": "hair styling instructions",
                 "category": "Makeup",
                 "negative_prompt": "changing hair",
             },
         ]
         matches = self.aio._filtered_records(records, "All", "hair")
-        self.assertEqual(["Long Blue Hair"], [record["name"] for record in matches])
-
+        self.assertEqual(
+            ["Long Blue Hair", "Soft Bridal"],
+            [record["name"] for record in matches],
+        )
+        with (
+            mock.patch.object(self.aio, "_read_styles", return_value=records),
+            mock.patch.object(self.aio, "_resolve_csv_path", return_value="mock.csv"),
+        ):
+            randomized = {
+                self.aio._pick_record(
+                    "mock.csv", "random", self.aio.random.Random(seed), "All", "hair"
+                )[0]["name"]
+                for seed in range(20)
+            }
+        self.assertTrue(randomized)
+        self.assertLessEqual(randomized, {"Long Blue Hair", "Soft Bridal"})
+        self.assertNotIn("Glossy Lips", randomized)
 
     def test_empty_subject_is_safe_and_legacy_seed_offsets_are_preserved(self) -> None:
         required = self.aio.NovaPromptStackAIOV3.INPUT_TYPES()["required"]

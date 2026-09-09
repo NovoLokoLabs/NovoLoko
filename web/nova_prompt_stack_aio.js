@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const NODE_NAME = "NovaPromptStackAIO";
-const SEARCH_HELP_TEXT = 'Filter Selection names: word or "exact phrase" | Exclude: -word or -"exact phrase"';
+const SEARCH_HELP_TEXT = 'Filter Selection names and categories: word or "exact phrase" | Exclude: -word or -"exact phrase"';
 const DEFAULT_MEDIUM = "csv/wildcards/novoloko_uploaded_styles_master_397_FINAL.csv";
 const ALL_FOLDERS = "All folders";
 const DEFAULT_PANEL_SIZE = "comfortable";
@@ -765,7 +765,7 @@ function renderDOMSlots(node) {
         const search = document.createElement("input");
         search.type = "search";
         search.value = slot.search;
-        search.placeholder = "Filter selection names...";
+        search.placeholder = "Filter selection names or categories...";
         search.title = SEARCH_HELP_TEXT;
         const selection = document.createElement("select");
         const count = document.createElement("div");
@@ -774,7 +774,7 @@ function renderDOMSlots(node) {
         addField("Folder", folder);
         addField("CSV file", file);
         addField("Category", category);
-        addField("Entry search", search);
+        addField("Entry / category search", search);
         addField("Selection", selection);
         body.append(document.createElement("span"), count);
 

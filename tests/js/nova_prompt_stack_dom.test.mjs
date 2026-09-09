@@ -271,7 +271,7 @@ for (const mode of [false, true]) {
     const firstBody = node.__novoAIOList.children[0].children[1];
     assert.deepEqual(
         firstBody.children.filter((item) => item.tagName === "LABEL").map((item) => item.textContent),
-        ["Folder filter", "Folder", "CSV file", "Category", "Entry search", "Selection"],
+        ["Folder filter", "Folder", "CSV file", "Category", "Entry / category search", "Selection"],
         "an expanded legacy card exposes every required control in order",
     );
 
