@@ -181,11 +181,13 @@ def _matches_search(record: Dict, search: str) -> bool:
     if not includes and not excludes:
         return True
 
-    # The frontend presents search as a filter for the Selection dropdown, so
-    # match the visible entry name only. Prompt and negative-prompt fields often
-    # contain collection-wide boilerplate (for example "changing hair"), which
-    # made a useful query appear to return nearly every entry in the file.
-    haystack = str(record.get("name", "") or "").casefold()
+    # Search the two visible ways users identify a result: its Selection name
+    # and its Category. Hidden prompt and negative-prompt fields often contain
+    # collection-wide boilerplate (for example "changing hair"), which made a
+    # useful category query appear to return nearly every entry in the file.
+    haystack = "\n".join(
+        str(record.get(field, "") or "") for field in ("name", "category")
+    ).casefold()
     # Multiple positive terms narrow the result together; quoted phrases remain
     # one term. This keeps searches such as "Ferrari F40" precise after large
     # libraries add many other Ferrari entries.
